@@ -66,6 +66,90 @@ final class OTelEnvironmentTest extends TestCase {
 
     /*
      * =========================================================================
+     * Per-signal exporters
+     * =========================================================================
+     */
+
+    public function testTracesExporterNoneDisablesOnlyTraceExport(): void {
+        $this->runOTel(
+            static function (): void {
+                Globals::tracerProvider()
+                    ->getTracer('test')
+                    ->spanBuilder('traces-none')
+                    ->startSpan()
+                    ->end();
+
+                Globals::meterProvider()
+                    ->getMeter('test')
+                    ->createCounter('traces-none.counter')
+                    ->add(1);
+
+                Globals::loggerProvider()
+                    ->getLogger('test')
+                    ->emit(new LogRecord('traces-none'));
+            },
+            'OTEL_TRACES_EXPORTER=none',
+        );
+
+        self::assertSame([], $this->traces);
+        self::assertNotEmpty($this->metrics);
+        self::assertNotEmpty($this->logs);
+    }
+
+    public function testMetricsExporterNoneDisablesOnlyMetricExport(): void {
+        $this->runOTel(
+            static function (): void {
+                Globals::tracerProvider()
+                    ->getTracer('test')
+                    ->spanBuilder('metrics-none')
+                    ->startSpan()
+                    ->end();
+
+                Globals::meterProvider()
+                    ->getMeter('test')
+                    ->createCounter('metrics-none.counter')
+                    ->add(1);
+
+                Globals::loggerProvider()
+                    ->getLogger('test')
+                    ->emit(new LogRecord('metrics-none'));
+            },
+            'OTEL_METRICS_EXPORTER=none',
+        );
+
+        self::assertNotEmpty($this->traces);
+        self::assertSame([], $this->metrics);
+        self::assertNotEmpty($this->logs);
+    }
+
+    public function testLogsExporterNoneDisablesOnlyLogExport(): void {
+        $this->runOTel(
+            static function (): void {
+                Globals::tracerProvider()
+                    ->getTracer('test')
+                    ->spanBuilder('logs-none')
+                    ->startSpan()
+                    ->end();
+
+                Globals::meterProvider()
+                    ->getMeter('test')
+                    ->createCounter('logs-none.counter')
+                    ->add(1);
+
+                Globals::loggerProvider()
+                    ->getLogger('test')
+                    ->emit(new LogRecord('logs-none'));
+            },
+            'OTEL_LOGS_EXPORTER=none',
+        );
+
+        self::assertNotEmpty($this->traces);
+        self::assertNotEmpty($this->metrics);
+        self::assertSame([], $this->logs);
+    }
+
+    /*
+     * =========================================================================
      * Resource
      * =========================================================================
      */
