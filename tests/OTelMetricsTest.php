@@ -806,6 +806,74 @@ final class OTelMetricsTest extends TestCase
         self::assertSame(15, $health['max']);
     }
 
+    public function testMetricsGaugeExportsLastValuePerCollection(): void
+    {
+        $output = $this->runOTelConfig(
+            <<<'YAML'
+            file_format: "1.2"
+
+            meter_provider:
+              readers:
+                - periodic:
+                    interval: 200
+                    exporter:
+                      otlp_http:
+                        endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
+            YAML,
+            static function (): void {
+                $gauge = Globals::meterProvider()
+                    ->getMeter('gauge-test')
+                    ->createGauge('probe.gauge');
+
+                $gauge->record(1);
+
+                delay(0.35);
+
+                $gauge->record(9);
+
+                delay(0.35);
+
+                echo 'done';
+            },
+        );
+
+        self::assertSame('done', $output);
+
+        $exports = [];
+
+        foreach ($this->metrics as $payload) {
+            $dataPoints = $this->dataPoints(
+                $payload,
+                'probe.gauge',
+                'gauge',
+            );
+
+            if ($dataPoints !== []) {
+                $exports[] = $dataPoints[0];
+            }
+        }
+
+        self::assertGreaterThanOrEqual(
+            2,
+            count($exports),
+            'Expected the gauge to be exported in multiple collection cycles.',
+        );
+
+        /*
+         * The first collection happens before the second record, so it
+         * must report the first recorded value...
+         */
+        self::assertSame('1', $exports[0]['asInt']);
+
+        /*
+         * ...and every subsequent collection reports the latest value,
+         * even when no new record was made.
+         */
+        foreach (array_slice($exports, 1) as $export) {
+            self::assertSame('9', $export['asInt']);
+        }
+    }
+
     private function lastMetricExport(): string
     {
         self::assertNotEmpty(
@@ -896,6 +964,25 @@ final class OTelMetricsTest extends TestCase
             '8',
             $exports[array_key_last($exports)]['asInt'],
         );
+
+        /*
+         * Cumulative counter values must never decrease between exports.
+         */
+        $previous = null;
+
+        foreach ($exports as $export) {
+            $value = (int) $export['asInt'];
+
+            if ($previous !== null) {
+                self::assertGreaterThanOrEqual(
+                    $previous,
+                    $value,
+                    'Cumulative counter value decreased between exports.',
+                );
+            }
+
+            $previous = $value;
+        }
     }
 
     public function testMetricsExporterUsesDeltaTemporality(): void
@@ -971,6 +1058,20 @@ final class OTelMetricsTest extends TestCase
         self::assertSame(
             '3',
             $exports[1]['asInt'],
+        );
+
+        /*
+         * The sum of all delta exports must equal the total recorded,
+         * i.e. no data was lost between collection cycles.
+         */
+        self::assertSame(
+            8,
+            array_sum(
+                array_map(
+                    static fn (array $dataPoint): int => (int) $dataPoint['asInt'],
+                    $exports,
+                ),
+            ),
         );
     }
 
