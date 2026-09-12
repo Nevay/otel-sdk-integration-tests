@@ -15,6 +15,3 @@ dependencies-install:
 	$(PHP) composer install
 dependencies-update:
 	$(PHP) composer update
-
-push:
-	./split.sh
