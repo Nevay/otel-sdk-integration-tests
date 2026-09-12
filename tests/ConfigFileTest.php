@@ -11,29 +11,30 @@ final class ConfigFileTest extends TestCase {
     use OTelEndpointTrait;
 
     public function testConfigFileGeneratesTelemetryData(): void {
-        $this->runOTelConfig(/* @lang yaml */<<<'YAML'
-# $schema: https://raw.githubusercontent.com/open-telemetry/opentelemetry-configuration/refs/tags/v1.1.0/opentelemetry_configuration.json
-file_format: '1.1'
-log_level: error
-tracer_provider: 
-  processors:
-    - batch: 
-        exporter:
-          otlp_http:
-            endpoint: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT}
-meter_provider:
-  readers:
-    - periodic: 
-        exporter: 
-          otlp_http:
-            endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
-logger_provider: 
-  processors:
-    - batch:
-        exporter: 
-          otlp_http:
-            endpoint: ${OTEL_EXPORTER_OTLP_LOGS_ENDPOINT}
-YAML,
+        $this->runOTelConfig(
+            /* @lang yaml */ <<<'YAML'
+            # $schema: https://raw.githubusercontent.com/open-telemetry/opentelemetry-configuration/refs/tags/v1.1.0/opentelemetry_configuration.json
+            file_format: '1.1'
+            log_level: error
+            tracer_provider: 
+              processors:
+                - batch: 
+                    exporter:
+                      otlp_http:
+                        endpoint: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT}
+            meter_provider:
+              readers:
+                - periodic: 
+                    exporter: 
+                      otlp_http:
+                        endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
+            logger_provider: 
+              processors:
+                - batch:
+                    exporter: 
+                      otlp_http:
+                        endpoint: ${OTEL_EXPORTER_OTLP_LOGS_ENDPOINT}
+            YAML,
             static function(): void {
                 $tracer = Globals::tracerProvider()->getTracer('test');
                 $meter = Globals::meterProvider()->getMeter('test');
@@ -58,30 +59,31 @@ YAML,
     }
 
     public function testSdkCanBeDisabled(): void {
-        $this->runOTelConfig(/* @lang yaml */<<<'YAML'
-# $schema: https://raw.githubusercontent.com/open-telemetry/opentelemetry-configuration/refs/tags/v1.1.0/opentelemetry_configuration.json
-file_format: '1.1'
-log_level: error
-disabled: true
-tracer_provider: 
-  processors:
-    - batch: 
-        exporter:
-          otlp_http:
-            endpoint: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT}
-meter_provider:
-  readers:
-    - periodic: 
-        exporter: 
-          otlp_http:
-            endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
-logger_provider: 
-  processors:
-    - batch:
-        exporter: 
-          otlp_http:
-            endpoint: ${OTEL_EXPORTER_OTLP_LOGS_ENDPOINT}
-YAML,
+        $this->runOTelConfig(
+            /* @lang yaml */ <<<'YAML'
+            # $schema: https://raw.githubusercontent.com/open-telemetry/opentelemetry-configuration/refs/tags/v1.1.0/opentelemetry_configuration.json
+            file_format: '1.1'
+            log_level: error
+            disabled: true
+            tracer_provider: 
+              processors:
+                - batch: 
+                    exporter:
+                      otlp_http:
+                        endpoint: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT}
+            meter_provider:
+              readers:
+                - periodic: 
+                    exporter: 
+                      otlp_http:
+                        endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
+            logger_provider: 
+              processors:
+                - batch:
+                    exporter: 
+                      otlp_http:
+                        endpoint: ${OTEL_EXPORTER_OTLP_LOGS_ENDPOINT}
+            YAML,
             static function(): void {
                 $tracer = Globals::tracerProvider()->getTracer('test');
                 $meter = Globals::meterProvider()->getMeter('test');
@@ -107,44 +109,45 @@ YAML,
 
     #[Group('configurator')]
     public function testConfiguratorsCanDisableInstrumentationScopes(): void {
-        $this->runOTelConfig(/* @lang yaml */<<<'YAML'
-# $schema: https://raw.githubusercontent.com/open-telemetry/opentelemetry-configuration/refs/tags/v1.1.0/opentelemetry_configuration.json
-file_format: '1.1'
-log_level: error
-tracer_provider: 
-  tracer_configurator/development: 
-    tracers:
-      - name: disabled
-        config: 
-          enabled: false
-  processors:
-    - batch: 
-        exporter:
-          otlp_http:
-            endpoint: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT}
-meter_provider:
-  meter_configurator/development: 
-    meters:
-      - name: disabled
-        config:
-          enabled: false
-  readers:
-    - periodic: 
-        exporter:
-          otlp_http:
-            endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
-logger_provider: 
-  logger_configurator/development: 
-    loggers:
-      - name: disabled
-        config: 
-          enabled: false
-  processors:
-    - batch:
-        exporter:
-          otlp_http:
-            endpoint: ${OTEL_EXPORTER_OTLP_LOGS_ENDPOINT}
-YAML,
+        $this->runOTelConfig(
+            /* @lang yaml */ <<<'YAML'
+            # $schema: https://raw.githubusercontent.com/open-telemetry/opentelemetry-configuration/refs/tags/v1.1.0/opentelemetry_configuration.json
+            file_format: '1.1'
+            log_level: error
+            tracer_provider: 
+              tracer_configurator/development: 
+                tracers:
+                  - name: disabled
+                    config: 
+                      enabled: false
+              processors:
+                - batch: 
+                    exporter:
+                      otlp_http:
+                        endpoint: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT}
+            meter_provider:
+              meter_configurator/development: 
+                meters:
+                  - name: disabled
+                    config:
+                      enabled: false
+              readers:
+                - periodic: 
+                    exporter:
+                      otlp_http:
+                        endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
+            logger_provider: 
+              logger_configurator/development: 
+                loggers:
+                  - name: disabled
+                    config: 
+                      enabled: false
+              processors:
+                - batch:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${OTEL_EXPORTER_OTLP_LOGS_ENDPOINT}
+            YAML,
             static function(): void {
                 $tracer = Globals::tracerProvider()->getTracer('disabled');
                 $meter = Globals::meterProvider()->getMeter('disabled');
@@ -196,24 +199,25 @@ YAML,
 
     #[Group('resource')]
     public function testResourceDetectorAttributesCanFilterAttributesExcluded(): void {
-        $this->runOTelConfig(/* @lang yaml */<<<'YAML'
-# $schema: https://raw.githubusercontent.com/open-telemetry/opentelemetry-configuration/refs/tags/v1.1.0/opentelemetry_configuration.json
-file_format: '1.1'
-log_level: error
-resource: 
-  detection/development: 
-    attributes: 
-      excluded:
-        - process.pid
-    detectors:
-    - process:
-tracer_provider: 
-  processors:
-    - batch: 
-        exporter: 
-          otlp_http:
-            endpoint: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT}
-YAML,
+        $this->runOTelConfig(
+            /* @lang yaml */ <<<'YAML'
+            # $schema: https://raw.githubusercontent.com/open-telemetry/opentelemetry-configuration/refs/tags/v1.1.0/opentelemetry_configuration.json
+            file_format: '1.1'
+            log_level: error
+            resource: 
+              detection/development: 
+                attributes: 
+                  excluded:
+                    - process.pid
+                detectors:
+                - process:
+            tracer_provider: 
+              processors:
+                - batch: 
+                    exporter: 
+                      otlp_http:
+                        endpoint: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT}
+            YAML,
             static function(): void {
                 $tracer = Globals::tracerProvider()->getTracer('test');
 
@@ -239,24 +243,25 @@ YAML,
 
     #[Group('resource')]
     public function testResourceDetectorAttributesCanFilterAttributesIncluded(): void {
-        $this->runOTelConfig(/* @lang yaml */<<<'YAML'
-# $schema: https://raw.githubusercontent.com/open-telemetry/opentelemetry-configuration/refs/tags/v1.1.0/opentelemetry_configuration.json
-file_format: '1.1'
-log_level: error
-resource: 
-  detection/development: 
-    attributes: 
-      included:
-        - process.runtime.*
-    detectors:
-    - process:
-tracer_provider: 
-  processors:
-    - batch: 
-        exporter: 
-          otlp_http:
-            endpoint: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT}
-YAML,
+        $this->runOTelConfig(
+            /* @lang yaml */ <<<'YAML'
+            # $schema: https://raw.githubusercontent.com/open-telemetry/opentelemetry-configuration/refs/tags/v1.1.0/opentelemetry_configuration.json
+            file_format: '1.1'
+            log_level: error
+            resource: 
+              detection/development: 
+                attributes: 
+                  included:
+                    - process.runtime.*
+                detectors:
+                - process:
+            tracer_provider: 
+              processors:
+                - batch: 
+                    exporter: 
+                      otlp_http:
+                        endpoint: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT}
+            YAML,
             static function(): void {
                 $tracer = Globals::tracerProvider()->getTracer('test');
 
@@ -282,29 +287,30 @@ YAML,
 
     #[Group('view')]
     public function testViewsCanFilterAttributes(): void {
-        $this->runOTelConfig(/* @lang yaml */<<<'YAML'
-# $schema: https://raw.githubusercontent.com/open-telemetry/opentelemetry-configuration/refs/tags/v1.1.0/opentelemetry_configuration.json
-file_format: '1.1'
-meter_provider:
-  readers:
-    - periodic:
-        exporter:
-          otlp_http:
-            endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
-  views:
-    - selector:
-        instrument_name: filtered
-      stream:
-        attribute_keys:
-          included:
-            - bar.*
-            - baz
-          excluded:
-            - bar.foo
-    - selector:
-        instrument_name: unfiltered
-      stream: {}
-YAML,
+        $this->runOTelConfig(
+            /* @lang yaml */ <<<'YAML'
+            # $schema: https://raw.githubusercontent.com/open-telemetry/opentelemetry-configuration/refs/tags/v1.1.0/opentelemetry_configuration.json
+            file_format: '1.1'
+            meter_provider:
+              readers:
+                - periodic:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
+              views:
+                - selector:
+                    instrument_name: filtered
+                  stream:
+                    attribute_keys:
+                      included:
+                        - bar.*
+                        - baz
+                      excluded:
+                        - bar.foo
+                - selector:
+                    instrument_name: unfiltered
+                  stream: {}
+            YAML,
             static function(): void {
                 $meter = Globals::meterProvider()->getMeter('test');
 
@@ -332,23 +338,24 @@ YAML,
 
     #[Group('view'), Group('aggregation')]
     public function testViewsCanSpecifyBucketBoundaries(): void {
-        $this->runOTelConfig(/* @lang yaml */<<<'YAML'
-# $schema: https://raw.githubusercontent.com/open-telemetry/opentelemetry-configuration/refs/tags/v1.1.0/opentelemetry_configuration.json
-file_format: '1.1'
-meter_provider:
-  readers:
-    - periodic:
-        exporter:
-          otlp_http:
-            endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
-  views:
-    - selector:
-        instrument_name: h
-      stream:
-        aggregation:
-          explicit_bucket_histogram:
-            boundaries: [0, 5, 10]
-YAML,
+        $this->runOTelConfig(
+            /* @lang yaml */ <<<'YAML'
+            # $schema: https://raw.githubusercontent.com/open-telemetry/opentelemetry-configuration/refs/tags/v1.1.0/opentelemetry_configuration.json
+            file_format: '1.1'
+            meter_provider:
+              readers:
+                - periodic:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
+              views:
+                - selector:
+                    instrument_name: h
+                  stream:
+                    aggregation:
+                      explicit_bucket_histogram:
+                        boundaries: [0, 5, 10]
+            YAML,
             static function(): void {
                 $meter = Globals::meterProvider()->getMeter('test');
                 $histogram = $meter->createHistogram('h');
@@ -377,22 +384,23 @@ YAML,
 
     #[Group('view'), Group('aggregation')]
     public function testViewCanDropMetric(): void {
-        $this->runOTelConfig(/* @lang yaml */<<<'YAML'
-# $schema: https://raw.githubusercontent.com/open-telemetry/opentelemetry-configuration/refs/tags/v1.1.0/opentelemetry_configuration.json
-file_format: '1.1'
-meter_provider:
-  readers:
-    - periodic:
-        exporter:
-          otlp_http:
-            endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
-  views:
-    - selector:
-        instrument_name: h
-      stream:
-        aggregation:
-          drop:
-YAML,
+        $this->runOTelConfig(
+            /* @lang yaml */ <<<'YAML'
+            # $schema: https://raw.githubusercontent.com/open-telemetry/opentelemetry-configuration/refs/tags/v1.1.0/opentelemetry_configuration.json
+            file_format: '1.1'
+            meter_provider:
+              readers:
+                - periodic:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
+              views:
+                - selector:
+                    instrument_name: h
+                  stream:
+                    aggregation:
+                      drop:
+            YAML,
             static function(): void {
                 $meter = Globals::meterProvider()->getMeter('test');
                 $histogram = $meter->createHistogram('h');
@@ -408,22 +416,23 @@ YAML,
 
     #[Group('view'), Group('aggregation')]
     public function testViewDoesNotApplyIncompatibleAggregation(): void {
-        $this->runOTelConfig(/* @lang yaml */<<<'YAML'
-# $schema: https://raw.githubusercontent.com/open-telemetry/opentelemetry-configuration/refs/tags/v1.1.0/opentelemetry_configuration.json
-file_format: '1.1'
-meter_provider:
-  readers:
-    - periodic:
-        exporter:
-          otlp_http:
-            endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
-  views:
-    - selector:
-        instrument_name: gauge
-      stream:
-        aggregation:
-          sum:
-YAML,
+        $this->runOTelConfig(
+            /* @lang yaml */ <<<'YAML'
+            # $schema: https://raw.githubusercontent.com/open-telemetry/opentelemetry-configuration/refs/tags/v1.1.0/opentelemetry_configuration.json
+            file_format: '1.1'
+            meter_provider:
+              readers:
+                - periodic:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
+              views:
+                - selector:
+                    instrument_name: gauge
+                  stream:
+                    aggregation:
+                      sum:
+            YAML,
             static function(): void {
                 $meter = Globals::meterProvider()->getMeter('test');
                 $gauge = $meter->createGauge('gauge');
@@ -444,18 +453,19 @@ YAML,
 
     #[Group('async'), Group('temporality')]
     public function testCumulativeTemporality(): void {
-        $this->runOTelConfig(/* @lang yaml */<<<'YAML'
-# $schema: https://raw.githubusercontent.com/open-telemetry/opentelemetry-configuration/refs/tags/v1.1.0/opentelemetry_configuration.json
-file_format: '1.1'
-meter_provider:
-  readers:
-    - periodic:
-        exporter:
-          otlp_http:
-            endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
-            temporality_preference: cumulative
-        interval: 100
-YAML,
+        $this->runOTelConfig(
+            /* @lang yaml */ <<<'YAML'
+            # $schema: https://raw.githubusercontent.com/open-telemetry/opentelemetry-configuration/refs/tags/v1.1.0/opentelemetry_configuration.json
+            file_format: '1.1'
+            meter_provider:
+              readers:
+                - periodic:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
+                        temporality_preference: cumulative
+                    interval: 100
+            YAML,
             static function(): void {
                 $meterProvider = Globals::meterProvider();
 
@@ -484,18 +494,19 @@ YAML,
 
     #[Group('async')]
     public function testDeltaTemporality(): void {
-        $this->runOTelConfig(/* @lang yaml */<<<'YAML'
-# $schema: https://raw.githubusercontent.com/open-telemetry/opentelemetry-configuration/refs/tags/v1.1.0/opentelemetry_configuration.json
-file_format: '1.1'
-meter_provider:
-  readers:
-    - periodic:
-        exporter:
-          otlp_http:
-            endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
-            temporality_preference: delta
-        interval: 100
-YAML,
+        $this->runOTelConfig(
+            /* @lang yaml */ <<<'YAML'
+            # $schema: https://raw.githubusercontent.com/open-telemetry/opentelemetry-configuration/refs/tags/v1.1.0/opentelemetry_configuration.json
+            file_format: '1.1'
+            meter_provider:
+              readers:
+                - periodic:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
+                        temporality_preference: delta
+                    interval: 100
+            YAML,
             static function(): void {
                 $meterProvider = Globals::meterProvider();
 

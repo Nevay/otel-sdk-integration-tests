@@ -385,13 +385,13 @@ final class OTelConfigFileTest extends TestCase {
     {
         $output = $this->runOTelConfig(
             <<<'YAML'
-file_format: "1.2"
+            file_format: "1.2"
 
-propagator:
-  composite:
-    - tracecontext:
-    - baggage:
-YAML,
+            propagator:
+              composite:
+                - tracecontext:
+                - baggage:
+            YAML,
             static function (): void {
                 $traceId = '0123456789abcdef0123456789abcdef';
                 $spanId = '0123456789abcdef';
@@ -441,12 +441,12 @@ YAML,
     {
         $output = $this->runOTelConfig(
             <<<'YAML'
-file_format: "1.2"
+            file_format: "1.2"
 
-propagator:
-  composite:
-    - tracecontext:
-YAML,
+            propagator:
+              composite:
+                - tracecontext:
+            YAML,
             static function (): void {
                 $carrier = [
                     'traceparent' => '00-0123456789abcdef0123456789abcdef-0123456789abcdef-01',
@@ -480,13 +480,13 @@ YAML,
     {
         $output = $this->runOTelConfig(
             <<<'YAML'
-file_format: "1.2"
+            file_format: "1.2"
 
-propagator:
-  composite:
-    - tracecontext:
-    - baggage:
-YAML,
+            propagator:
+              composite:
+                - tracecontext:
+                - baggage:
+            YAML,
             static function (): void {
                 $spanContext = SpanContext::create(
                     '0123456789abcdef0123456789abcdef',
@@ -539,47 +539,47 @@ YAML,
     {
         $this->runOTelConfig(
             <<<'YAML'
-        file_format: "1.2"
+            file_format: "1.2"
 
-        tracer_provider:
-          tracer_configurator/development:
-            tracers:
-              - name: disabled.tracer
-                config:
-                  enabled: false
+            tracer_provider:
+              tracer_configurator/development:
+                tracers:
+                  - name: disabled.tracer
+                    config:
+                      enabled: false
 
-          processors:
-            - batch:
-                exporter:
-                  otlp_http:
-                    endpoint: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT}
+              processors:
+                - batch:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT}
 
-        meter_provider:
-          meter_configurator/development:
-            meters:
-              - name: disabled.meter
-                config:
-                  enabled: false
+            meter_provider:
+              meter_configurator/development:
+                meters:
+                  - name: disabled.meter
+                    config:
+                      enabled: false
 
-          readers:
-            - periodic:
-                exporter:
-                  otlp_http:
-                    endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
+              readers:
+                - periodic:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
 
-        logger_provider:
-          logger_configurator/development:
-            loggers:
-              - name: disabled.logger
-                config:
-                  enabled: false
+            logger_provider:
+              logger_configurator/development:
+                loggers:
+                  - name: disabled.logger
+                    config:
+                      enabled: false
 
-          processors:
-            - batch:
-                exporter:
-                  otlp_http:
-                    endpoint: ${OTEL_EXPORTER_OTLP_LOGS_ENDPOINT}
-        YAML,
+              processors:
+                - batch:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${OTEL_EXPORTER_OTLP_LOGS_ENDPOINT}
+            YAML,
             static function (): void {
                 $tracerProvider = Globals::tracerProvider();
 
@@ -641,53 +641,53 @@ YAML,
     {
         $this->runOTelConfig(
             <<<'YAML'
-        file_format: "1.2"
+            file_format: "1.2"
 
-        tracer_provider:
-          tracer_configurator/development:
-            default_config:
-              enabled: false
-            tracers:
-              - name: app*
-                config:
-                  enabled: true
+            tracer_provider:
+              tracer_configurator/development:
+                default_config:
+                  enabled: false
+                tracers:
+                  - name: app*
+                    config:
+                      enabled: true
 
-          processors:
-            - batch:
-                exporter:
-                  otlp_http:
-                    endpoint: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT}
+              processors:
+                - batch:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT}
 
-        meter_provider:
-          meter_configurator/development:
-            default_config:
-              enabled: false
-            meters:
-              - name: app*
-                config:
-                  enabled: true
+            meter_provider:
+              meter_configurator/development:
+                default_config:
+                  enabled: false
+                meters:
+                  - name: app*
+                    config:
+                      enabled: true
 
-          readers:
-            - periodic:
-                exporter:
-                  otlp_http:
-                    endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
+              readers:
+                - periodic:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
 
-        logger_provider:
-          logger_configurator/development:
-            default_config:
-              enabled: false
-            loggers:
-              - name: app*
-                config:
-                  enabled: true
+            logger_provider:
+              logger_configurator/development:
+                default_config:
+                  enabled: false
+                loggers:
+                  - name: app*
+                    config:
+                      enabled: true
 
-          processors:
-            - batch:
-                exporter:
-                  otlp_http:
-                    endpoint: ${OTEL_EXPORTER_OTLP_LOGS_ENDPOINT}
-        YAML,
+              processors:
+                - batch:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${OTEL_EXPORTER_OTLP_LOGS_ENDPOINT}
+            YAML,
             static function (): void {
                 $tracerProvider = Globals::tracerProvider();
 
@@ -784,53 +784,53 @@ YAML,
     {
         $this->runOTelConfig(
             <<<'YAML'
-        file_format: "1.2"
+            file_format: "1.2"
 
-        tracer_provider:
-          tracer_configurator/development:
-            default_config:
-              enabled: false
-            tracers:
-              - name: enabled.tracer
-                config:
-                  enabled: true
-
-          processors:
-            - batch:
-                exporter:
-                  otlp_http:
-                    endpoint: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT}
-
-        meter_provider:
-          meter_configurator/development:
-            default_config:
-              enabled: true
-            meters:
-              - name: disabled.meter
-                config:
+            tracer_provider:
+              tracer_configurator/development:
+                default_config:
                   enabled: false
+                tracers:
+                  - name: enabled.tracer
+                    config:
+                      enabled: true
 
-          readers:
-            - periodic:
-                exporter:
-                  otlp_http:
-                    endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
+              processors:
+                - batch:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT}
 
-        logger_provider:
-          logger_configurator/development:
-            default_config:
-              enabled: false
-            loggers:
-              - name: enabled.logger
-                config:
+            meter_provider:
+              meter_configurator/development:
+                default_config:
                   enabled: true
+                meters:
+                  - name: disabled.meter
+                    config:
+                      enabled: false
 
-          processors:
-            - batch:
-                exporter:
-                  otlp_http:
-                    endpoint: ${OTEL_EXPORTER_OTLP_LOGS_ENDPOINT}
-        YAML,
+              readers:
+                - periodic:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
+
+            logger_provider:
+              logger_configurator/development:
+                default_config:
+                  enabled: false
+                loggers:
+                  - name: enabled.logger
+                    config:
+                      enabled: true
+
+              processors:
+                - batch:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${OTEL_EXPORTER_OTLP_LOGS_ENDPOINT}
+            YAML,
             static function (): void {
                 Globals::tracerProvider()
                     ->getTracer('enabled.tracer')
@@ -1395,7 +1395,7 @@ YAML,
         $this->runOTelConfig(
             <<<'YAML'
             file_format: "1.2"
-            
+
             tracer_provider:
               tracer_configurator/development:
                 default_config:
@@ -1404,7 +1404,7 @@ YAML,
                   - name: enabled.tracer
                     config:
                       enabled: true
-            
+
               processors:
                 - batch:
                     exporter:
@@ -1440,23 +1440,23 @@ YAML,
     {
         $this->runOTelConfig(
             <<<'YAML'
-        file_format: "1.2"
+            file_format: "1.2"
 
-        tracer_provider:
-          tracer_configurator/development:
-            default_config:
-              enabled: false
-            tracers:
-              - name: application.*
-                config:
-                  enabled: true
+            tracer_provider:
+              tracer_configurator/development:
+                default_config:
+                  enabled: false
+                tracers:
+                  - name: application.*
+                    config:
+                      enabled: true
 
-          processors:
-            - batch:
-                exporter:
-                  otlp_http:
-                    endpoint: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT}
-        YAML,
+              processors:
+                - batch:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT}
+            YAML,
             static function (): void {
                 $tracer = Globals::tracerProvider();
 
@@ -1488,23 +1488,23 @@ YAML,
     {
         $this->runOTelConfig(
             <<<'YAML'
-        file_format: "1.2"
+            file_format: "1.2"
 
-        tracer_provider:
-          tracer_configurator/development:
-            default_config:
-              enabled: true
-            tracers:
-              - name: noisy.tracer
-                config:
-                  enabled: false
+            tracer_provider:
+              tracer_configurator/development:
+                default_config:
+                  enabled: true
+                tracers:
+                  - name: noisy.tracer
+                    config:
+                      enabled: false
 
-          processors:
-            - batch:
-                exporter:
-                  otlp_http:
-                    endpoint: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT}
-        YAML,
+              processors:
+                - batch:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT}
+            YAML,
             static function (): void {
                 $tracer = Globals::tracerProvider();
 
@@ -1536,23 +1536,23 @@ YAML,
     {
         $this->runOTelConfig(
             <<<'YAML'
-        file_format: "1.2"
+            file_format: "1.2"
 
-        tracer_provider:
-          tracer_configurator/development:
-            default_config:
-              enabled: false
-            tracers:
-              - name: app.?
-                config:
-                  enabled: true
+            tracer_provider:
+              tracer_configurator/development:
+                default_config:
+                  enabled: false
+                tracers:
+                  - name: app.?
+                    config:
+                      enabled: true
 
-          processors:
-            - batch:
-                exporter:
-                  otlp_http:
-                    endpoint: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT}
-        YAML,
+              processors:
+                - batch:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT}
+            YAML,
             static function (): void {
                 $tracerProvider = Globals::tracerProvider();
 
@@ -1584,23 +1584,23 @@ YAML,
     {
         $this->runOTelConfig(
             <<<'YAML'
-        file_format: "1.2"
+            file_format: "1.2"
 
-        tracer_provider:
-          tracer_configurator/development:
-            default_config:
-              enabled: false
-            tracers:
-              - name: app.tracer
-                config:
-                  enabled: true
+            tracer_provider:
+              tracer_configurator/development:
+                default_config:
+                  enabled: false
+                tracers:
+                  - name: app.tracer
+                    config:
+                      enabled: true
 
-          processors:
-            - batch:
-                exporter:
-                  otlp_http:
-                    endpoint: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT}
-        YAML,
+              processors:
+                - batch:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT}
+            YAML,
             static function (): void {
                 $tracerProvider = Globals::tracerProvider();
 
@@ -1725,7 +1725,7 @@ YAML,
         $this->runOTelConfig(
             <<<'YAML'
             file_format: "1.2"
-            
+
             meter_provider:
               meter_configurator/development:
                 default_config:
@@ -1734,7 +1734,7 @@ YAML,
                   - name: enabled.meter
                     config:
                       enabled: true
-            
+
               readers:
                 - periodic:
                     exporter:
@@ -1777,23 +1777,23 @@ YAML,
     {
         $this->runOTelConfig(
             <<<'YAML'
-        file_format: "1.2"
+            file_format: "1.2"
 
-        meter_provider:
-          meter_configurator/development:
-            default_config:
-              enabled: false
-            meters:
-              - name: application.*
-                config:
-                  enabled: true
+            meter_provider:
+              meter_configurator/development:
+                default_config:
+                  enabled: false
+                meters:
+                  - name: application.*
+                    config:
+                      enabled: true
 
-          readers:
-            - periodic:
-                exporter:
-                  otlp_http:
-                    endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
-        YAML,
+              readers:
+                - periodic:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
+            YAML,
             static function (): void {
                 Globals::meterProvider()
                     ->getMeter('application.http')
@@ -1830,23 +1830,23 @@ YAML,
     {
         $this->runOTelConfig(
             <<<'YAML'
-        file_format: "1.2"
+            file_format: "1.2"
 
-        meter_provider:
-          meter_configurator/development:
-            default_config:
-              enabled: true
-            meters:
-              - name: noisy.meter
-                config:
-                  enabled: false
+            meter_provider:
+              meter_configurator/development:
+                default_config:
+                  enabled: true
+                meters:
+                  - name: noisy.meter
+                    config:
+                      enabled: false
 
-          readers:
-            - periodic:
-                exporter:
-                  otlp_http:
-                    endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
-        YAML,
+              readers:
+                - periodic:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
+            YAML,
             static function (): void {
                 Globals::meterProvider()
                     ->getMeter('normal.meter')
@@ -1883,23 +1883,23 @@ YAML,
     {
         $this->runOTelConfig(
             <<<'YAML'
-        file_format: "1.2"
+            file_format: "1.2"
 
-        meter_provider:
-          meter_configurator/development:
-            default_config:
-              enabled: false
-            meters:
-              - name: app.?
-                config:
-                  enabled: true
+            meter_provider:
+              meter_configurator/development:
+                default_config:
+                  enabled: false
+                meters:
+                  - name: app.?
+                    config:
+                      enabled: true
 
-          readers:
-            - periodic:
-                exporter:
-                  otlp_http:
-                    endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
-        YAML,
+              readers:
+                - periodic:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
+            YAML,
             static function (): void {
                 $meterProvider = Globals::meterProvider();
 
@@ -1930,23 +1930,23 @@ YAML,
     {
         $this->runOTelConfig(
             <<<'YAML'
-        file_format: "1.2"
+            file_format: "1.2"
 
-        meter_provider:
-          meter_configurator/development:
-            default_config:
-              enabled: false
-            meters:
-              - name: app.meter
-                config:
-                  enabled: true
+            meter_provider:
+              meter_configurator/development:
+                default_config:
+                  enabled: false
+                meters:
+                  - name: app.meter
+                    config:
+                      enabled: true
 
-          readers:
-            - periodic:
-                exporter:
-                  otlp_http:
-                    endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
-        YAML,
+              readers:
+                - periodic:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
+            YAML,
             static function (): void {
                 $meterProvider = Globals::meterProvider();
 
@@ -1983,22 +1983,22 @@ YAML,
     {
         $this->runOTelConfig(
             <<<'YAML'
-        file_format: "1.2"
+            file_format: "1.2"
 
-        meter_provider:
-          readers:
-            - periodic:
-                exporter:
-                  otlp_http:
-                    endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
+            meter_provider:
+              readers:
+                - periodic:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
 
-          views:
-            - selector:
-                instrument_type: histogram
-                unit: ms
-              stream:
-                name: latency.selected
-        YAML,
+              views:
+                - selector:
+                    instrument_type: histogram
+                    unit: ms
+                  stream:
+                    name: latency.selected
+            YAML,
             static function (): void {
                 $meter = Globals::meterProvider()->getMeter('config-test');
 
@@ -2053,24 +2053,24 @@ YAML,
     {
         $this->runOTelConfig(
             <<<'YAML'
-        file_format: "1.2"
+            file_format: "1.2"
 
-        meter_provider:
-          readers:
-            - periodic:
-                exporter:
-                  otlp_http:
-                    endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
+            meter_provider:
+              readers:
+                - periodic:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
 
-          views:
-            - selector:
-                instrument_name: requests
-                meter_name: selected-meter
-                meter_version: "1.2.3"
-                meter_schema_url: https://example.com/schema
-              stream:
-                name: selected.requests
-        YAML,
+              views:
+                - selector:
+                    instrument_name: requests
+                    meter_name: selected-meter
+                    meter_version: "1.2.3"
+                    meter_schema_url: https://example.com/schema
+                  stream:
+                    name: selected.requests
+            YAML,
             static function (): void {
                 $selected = Globals::meterProvider()->getMeter(
                     'selected-meter',
@@ -2135,22 +2135,22 @@ YAML,
     {
         $this->runOTelConfig(
             <<<'YAML'
-        file_format: "1.2"
+            file_format: "1.2"
 
-        meter_provider:
-          readers:
-            - periodic:
-                exporter:
-                  otlp_http:
-                    endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
+            meter_provider:
+              readers:
+                - periodic:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
 
-          views:
-            - selector:
-                instrument_name: view.meter_name.requests
-                meter_name: selected-meter
-              stream:
-                name: selected.meter_name.requests
-        YAML,
+              views:
+                - selector:
+                    instrument_name: view.meter_name.requests
+                    meter_name: selected-meter
+                  stream:
+                    name: selected.meter_name.requests
+            YAML,
             static function (): void {
                 Globals::meterProvider()
                     ->getMeter('selected-meter')
@@ -2205,23 +2205,23 @@ YAML,
     {
         $this->runOTelConfig(
             <<<'YAML'
-        file_format: "1.2"
+            file_format: "1.2"
 
-        meter_provider:
-          readers:
-            - periodic:
-                exporter:
-                  otlp_http:
-                    endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
+            meter_provider:
+              readers:
+                - periodic:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
 
-          views:
-            - selector:
-                instrument_name: view.meter_version.requests
-                meter_name: versioned-meter
-                meter_version: "1.0.0"
-              stream:
-                name: selected.meter_version.requests
-        YAML,
+              views:
+                - selector:
+                    instrument_name: view.meter_version.requests
+                    meter_name: versioned-meter
+                    meter_version: "1.0.0"
+                  stream:
+                    name: selected.meter_version.requests
+            YAML,
             static function (): void {
                 Globals::meterProvider()
                     ->getMeter('versioned-meter', '1.0.0')
@@ -2276,23 +2276,23 @@ YAML,
     {
         $this->runOTelConfig(
             <<<'YAML'
-        file_format: "1.2"
+            file_format: "1.2"
 
-        meter_provider:
-          readers:
-            - periodic:
-                exporter:
-                  otlp_http:
-                    endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
+            meter_provider:
+              readers:
+                - periodic:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
 
-          views:
-            - selector:
-                instrument_name: view.meter_schema.requests
-                meter_name: schema-meter
-                meter_schema_url: https://example.test/schema/one
-              stream:
-                name: selected.meter_schema.requests
-        YAML,
+              views:
+                - selector:
+                    instrument_name: view.meter_schema.requests
+                    meter_name: schema-meter
+                    meter_schema_url: https://example.test/schema/one
+                  stream:
+                    name: selected.meter_schema.requests
+            YAML,
             static function (): void {
                 Globals::meterProvider()
                     ->getMeter(
@@ -2355,23 +2355,23 @@ YAML,
     {
         $this->runOTelConfig(
             <<<'YAML'
-        file_format: "1.2"
+            file_format: "1.2"
 
-        meter_provider:
-          readers:
-            - periodic:
-                exporter:
-                  otlp_http:
-                    endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
+            meter_provider:
+              readers:
+                - periodic:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
 
-          views:
-            - selector:
-                instrument_name: latency
-                instrument_type: histogram
-                unit: ms
-              stream:
-                name: selected.latency
-        YAML,
+              views:
+                - selector:
+                    instrument_name: latency
+                    instrument_type: histogram
+                    unit: ms
+                  stream:
+                    name: selected.latency
+            YAML,
             static function (): void {
                 $meter = Globals::meterProvider()->getMeter('config-test');
 
@@ -2447,26 +2447,26 @@ YAML,
     {
         $this->runOTelConfig(
             <<<'YAML'
-        file_format: "1.2"
+            file_format: "1.2"
 
-        meter_provider:
-          readers:
-            - periodic:
-                exporter:
-                  otlp_http:
-                    endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
+            meter_provider:
+              readers:
+                - periodic:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
 
-          views:
-            - selector:
-                instrument_name: view.all.criteria
-                instrument_type: counter
-                unit: requests
-                meter_name: selected-meter
-                meter_version: "1.2.3"
-                meter_schema_url: https://example.test/schema
-              stream:
-                name: view.all.criteria.selected
-        YAML,
+              views:
+                - selector:
+                    instrument_name: view.all.criteria
+                    instrument_type: counter
+                    unit: requests
+                    meter_name: selected-meter
+                    meter_version: "1.2.3"
+                    meter_schema_url: https://example.test/schema
+                  stream:
+                    name: view.all.criteria.selected
+            YAML,
             static function (): void {
                 $selected = Globals::meterProvider()
                     ->getMeter(
@@ -2587,20 +2587,20 @@ YAML,
     {
         $this->runOTelConfig(
             <<<'YAML'
-        file_format: "1.2"
+            file_format: "1.2"
 
-        meter_provider:
-          readers:
-            - periodic:
-                exporter:
-                  otlp_http:
-                    endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
+            meter_provider:
+              readers:
+                - periodic:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
 
-          views:
-            - selector: {}
-              stream:
-                name: all.instruments
-        YAML,
+              views:
+                - selector: {}
+                  stream:
+                    name: all.instruments
+            YAML,
             static function (): void {
                 $meter = Globals::meterProvider()->getMeter('config-test');
 
@@ -2652,24 +2652,24 @@ YAML,
     {
         $this->runOTelConfig(
             <<<'YAML'
-        file_format: "1.2"
+            file_format: "1.2"
 
-        meter_provider:
-          readers:
-            - periodic:
-                exporter:
-                  otlp_http:
-                    endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
-        
-          views:
-            - selector:
-                instrument_name: requests
-              stream:
-                attribute_keys:
-                  included:
-                    - http.method
-                    - http.route
-        YAML,
+            meter_provider:
+              readers:
+                - periodic:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
+
+              views:
+                - selector:
+                    instrument_name: requests
+                  stream:
+                    attribute_keys:
+                      included:
+                        - http.method
+                        - http.route
+            YAML,
             static function (): void {
                 Globals::meterProvider()
                     ->getMeter('config-test')
@@ -2720,25 +2720,25 @@ YAML,
     {
         $this->runOTelConfig(
             <<<'YAML'
-        file_format: "1.2"
+            file_format: "1.2"
 
-        meter_provider:
-          readers:
-            - periodic:
-                exporter:
-                  otlp_http:
-                    endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
+            meter_provider:
+              readers:
+                - periodic:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
 
-          views:
-            - selector:
-                instrument_name: requests
-              stream:
-                attribute_keys:
-                  included:
-                    - http.*
-                  excluded:
-                    - http.user_agent
-        YAML,
+              views:
+                - selector:
+                    instrument_name: requests
+                  stream:
+                    attribute_keys:
+                      included:
+                        - http.*
+                      excluded:
+                        - http.user_agent
+            YAML,
             static function (): void {
                 Globals::meterProvider()
                     ->getMeter('config-test')
@@ -2775,25 +2775,25 @@ YAML,
     {
         $this->runOTelConfig(
             <<<'YAML'
-        file_format: "1.2"
+            file_format: "1.2"
 
-        meter_provider:
-          readers:
-            - periodic:
-                exporter:
-                  otlp_http:
-                    endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
+            meter_provider:
+              readers:
+                - periodic:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
 
-          views:
-            - selector:
-                instrument_name: view.attribute.precedence
-              stream:
-                attribute_keys:
-                  included:
-                    - http.*
-                  excluded:
-                    - http.user_agent
-        YAML,
+              views:
+                - selector:
+                    instrument_name: view.attribute.precedence
+                  stream:
+                    attribute_keys:
+                      included:
+                        - http.*
+                      excluded:
+                        - http.user_agent
+            YAML,
             static function (): void {
                 Globals::meterProvider()
                     ->getMeter('config-test')
@@ -2829,24 +2829,24 @@ YAML,
     {
         $this->runOTelConfig(
             <<<'YAML'
-        file_format: "1.2"
+            file_format: "1.2"
 
-        meter_provider:
-          readers:
-            - periodic:
-                exporter:
-                  otlp_http:
-                    endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
+            meter_provider:
+              readers:
+                - periodic:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
 
-          views:
-            - selector:
-                instrument_name: view.cardinality.after.filtering
-              stream:
-                attribute_keys:
-                  included:
-                    - region
-                aggregation_cardinality_limit: 2
-        YAML,
+              views:
+                - selector:
+                    instrument_name: view.cardinality.after.filtering
+                  stream:
+                    attribute_keys:
+                      included:
+                        - region
+                    aggregation_cardinality_limit: 2
+            YAML,
             static function (): void {
                 $counter = Globals::meterProvider()
                     ->getMeter('config-test')
@@ -2917,34 +2917,34 @@ YAML,
     {
         $this->runOTelConfig(
             <<<'YAML'
-        file_format: "1.2"
+            file_format: "1.2"
 
-        meter_provider:
-          readers:
-            - periodic:
-                exporter:
-                  otlp_http:
-                    endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
+            meter_provider:
+              readers:
+                - periodic:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
 
-          views:
-            - selector:
-                instrument_name: view.default.counter
-              stream:
-                aggregation:
-                  default:
+              views:
+                - selector:
+                    instrument_name: view.default.counter
+                  stream:
+                    aggregation:
+                      default:
 
-            - selector:
-                instrument_name: view.default.gauge
-              stream:
-                aggregation:
-                  default:
+                - selector:
+                    instrument_name: view.default.gauge
+                  stream:
+                    aggregation:
+                      default:
 
-            - selector:
-                instrument_name: view.default.histogram
-              stream:
-                aggregation:
-                  default:
-        YAML,
+                - selector:
+                    instrument_name: view.default.histogram
+                  stream:
+                    aggregation:
+                      default:
+            YAML,
             static function (): void {
                 $meter = Globals::meterProvider()->getMeter('config-test');
 
@@ -3024,26 +3024,26 @@ YAML,
     {
         $this->runOTelConfig(
             <<<'YAML'
-        file_format: "1.2"
+            file_format: "1.2"
 
-        meter_provider:
-          readers:
-            - periodic:
-                exporter:
-                  otlp_http:
-                    endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
+            meter_provider:
+              readers:
+                - periodic:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
 
-          views:
-            - selector:
-                instrument_name: latency
-              stream:
-                aggregation:
-                  explicit_bucket_histogram:
-                    boundaries:
-                      - 10
-                      - 100
-                    record_min_max: true
-        YAML,
+              views:
+                - selector:
+                    instrument_name: latency
+                  stream:
+                    aggregation:
+                      explicit_bucket_histogram:
+                        boundaries:
+                          - 10
+                          - 100
+                        record_min_max: true
+            YAML,
             static function (): void {
                 $histogram = Globals::meterProvider()
                     ->getMeter('config-test')
@@ -3096,22 +3096,22 @@ YAML,
     {
         $this->runOTelConfig(
             <<<'YAML'
-        file_format: "1.2"
+            file_format: "1.2"
 
-        meter_provider:
-          readers:
-            - periodic:
-                exporter:
-                  otlp_http:
-                    endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
+            meter_provider:
+              readers:
+                - periodic:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
 
-          views:
-            - selector:
-                instrument_name: noisy.requests
-              stream:
-                aggregation:
-                  drop:
-        YAML,
+              views:
+                - selector:
+                    instrument_name: noisy.requests
+                  stream:
+                    aggregation:
+                      drop:
+            YAML,
             static function (): void {
                 $meter = Globals::meterProvider()->getMeter('config-test');
 
@@ -3148,28 +3148,28 @@ YAML,
     {
         $this->runOTelConfig(
             <<<'YAML'
-        file_format: "1.2"
+            file_format: "1.2"
 
-        meter_provider:
-          readers:
-            - periodic:
-                exporter:
-                  otlp_http:
-                    endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
+            meter_provider:
+              readers:
+                - periodic:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
 
-          views:
-            - selector:
-                instrument_name: counter.sum
-              stream:
-                aggregation:
-                  sum:
+              views:
+                - selector:
+                    instrument_name: counter.sum
+                  stream:
+                    aggregation:
+                      sum:
 
-            - selector:
-                instrument_name: gauge.last
-              stream:
-                aggregation:
-                  last_value:
-        YAML,
+                - selector:
+                    instrument_name: gauge.last
+                  stream:
+                    aggregation:
+                      last_value:
+            YAML,
             static function (): void {
                 $meter = Globals::meterProvider()->getMeter('config-test');
 
@@ -3236,21 +3236,21 @@ YAML,
     {
         $this->runOTelConfig(
             <<<'YAML'
-        file_format: "1.2"
+            file_format: "1.2"
 
-        meter_provider:
-          readers:
-            - periodic:
-                exporter:
-                  otlp_http:
-                    endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
+            meter_provider:
+              readers:
+                - periodic:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
 
-          views:
-            - selector:
-                instrument_name: requests
-              stream:
-                aggregation_cardinality_limit: 2
-        YAML,
+              views:
+                - selector:
+                    instrument_name: requests
+                  stream:
+                    aggregation_cardinality_limit: 2
+            YAML,
             static function (): void {
                 $counter = Globals::meterProvider()
                     ->getMeter('config-test')
@@ -3307,22 +3307,22 @@ YAML,
     {
         $this->runOTelConfig(
             <<<'YAML'
-        file_format: "1.2"
+            file_format: "1.2"
 
-        meter_provider:
-          readers:
-            - periodic:
-                exporter:
-                  otlp_http:
-                    endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
+            meter_provider:
+              readers:
+                - periodic:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
 
-          views:
-            - selector:
-                instrument_name: requests
-              stream:
-                aggregation:
-                  sum:
-        YAML,
+              views:
+                - selector:
+                    instrument_name: requests
+                  stream:
+                    aggregation:
+                      sum:
+            YAML,
             static function (): void {
                 $counter = Globals::meterProvider()
                     ->getMeter('config-test')
@@ -3367,22 +3367,22 @@ YAML,
     {
         $this->runOTelConfig(
             <<<'YAML'
-        file_format: "1.2"
+            file_format: "1.2"
 
-        meter_provider:
-          readers:
-            - periodic:
-                exporter:
-                  otlp_http:
-                    endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
+            meter_provider:
+              readers:
+                - periodic:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
 
-          views:
-            - selector:
-                instrument_name: requests
-              stream:
-                name: http.server.requests
-                description: HTTP server request count
-        YAML,
+              views:
+                - selector:
+                    instrument_name: requests
+                  stream:
+                    name: http.server.requests
+                    description: HTTP server request count
+            YAML,
             static function (): void {
                 Globals::meterProvider()
                     ->getMeter('config-test')
@@ -3422,22 +3422,22 @@ YAML,
     {
         $this->runOTelConfig(
             <<<'YAML'
-        file_format: "1.2"
+            file_format: "1.2"
 
-        meter_provider:
-          readers:
-            - periodic:
-                exporter:
-                  otlp_http:
-                    endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
+            meter_provider:
+              readers:
+                - periodic:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
 
-          views:
-            - selector:
-                instrument_name: requests
-              stream:
-                aggregation:
-                  last_value:
-        YAML,
+              views:
+                - selector:
+                    instrument_name: requests
+                  stream:
+                    aggregation:
+                      last_value:
+            YAML,
             static function (): void {
                 Globals::meterProvider()
                     ->getMeter('config-test')
@@ -3499,21 +3499,21 @@ YAML,
     {
         $this->runOTelConfig(
             <<<'YAML'
-        file_format: "1.2"
+            file_format: "1.2"
 
-        meter_provider:
-          readers:
-            - periodic:
-                exporter:
-                  otlp_http:
-                    endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
+            meter_provider:
+              readers:
+                - periodic:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
 
-          views:
-            - selector:
-                instrument_name: requests
-              stream:
-                description: Overridden request description
-        YAML,
+              views:
+                - selector:
+                    instrument_name: requests
+                  stream:
+                    description: Overridden request description
+            YAML,
             static function (): void {
                 Globals::meterProvider()
                     ->getMeter('config-test')
@@ -3558,21 +3558,21 @@ YAML,
     {
         $this->runOTelConfig(
             <<<'YAML'
-        file_format: "1.2"
+            file_format: "1.2"
 
-        meter_provider:
-          readers:
-            - periodic:
-                exporter:
-                  otlp_http:
-                    endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
+            meter_provider:
+              readers:
+                - periodic:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
 
-          views:
-            - selector:
-                instrument_name: requests
-              stream:
-                name: http.requests
-        YAML,
+              views:
+                - selector:
+                    instrument_name: requests
+                  stream:
+                    name: http.requests
+            YAML,
             static function (): void {
                 Globals::meterProvider()
                     ->getMeter('config-test')
@@ -3624,22 +3624,22 @@ YAML,
     {
         $this->runOTelConfig(
             <<<'YAML'
-        file_format: "1.2"
+            file_format: "1.2"
 
-        meter_provider:
-          readers:
-            - periodic:
-                exporter:
-                  otlp_http:
-                    endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
+            meter_provider:
+              readers:
+                - periodic:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
 
-          views:
-            - selector:
-                instrument_name: selected
-              stream:
-                name: selected.renamed
-                description: Selected description
-        YAML,
+              views:
+                - selector:
+                    instrument_name: selected
+                  stream:
+                    name: selected.renamed
+                    description: Selected description
+            YAML,
             static function (): void {
                 $meter = Globals::meterProvider()->getMeter('config-test');
 
@@ -3712,32 +3712,32 @@ YAML,
     {
         $this->runOTelConfig(
             <<<'YAML'
-        file_format: "1.2"
+            file_format: "1.2"
 
-        meter_provider:
-          readers:
-            - periodic:
-                exporter:
-                  otlp_http:
-                    endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
+            meter_provider:
+              readers:
+                - periodic:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
 
-          views:
-            - selector:
-                instrument_name: requests
-              stream:
-                name: requests.total
-                attribute_keys:
-                  excluded:
-                    - http.method
+              views:
+                - selector:
+                    instrument_name: requests
+                  stream:
+                    name: requests.total
+                    attribute_keys:
+                      excluded:
+                        - http.method
 
-            - selector:
-                instrument_name: requests
-              stream:
-                name: requests.by_method
-                attribute_keys:
-                  included:
-                    - http.method
-        YAML,
+                - selector:
+                    instrument_name: requests
+                  stream:
+                    name: requests.by_method
+                    attribute_keys:
+                      included:
+                        - http.method
+            YAML,
             static function (): void {
                 $counter = Globals::meterProvider()
                     ->getMeter('config-test')
@@ -3795,31 +3795,31 @@ YAML,
     {
         $this->runOTelConfig(
             <<<'YAML'
-        file_format: "1.2"
+            file_format: "1.2"
 
-        meter_provider:
-          readers:
-            - periodic:
-                exporter:
-                  otlp_http:
-                    endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
+            meter_provider:
+              readers:
+                - periodic:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
 
-          views:
-            - selector:
-                instrument_name: view.independent.requests
-              stream:
-                name: view.independent.sum
-                aggregation:
-                  sum:
+              views:
+                - selector:
+                    instrument_name: view.independent.requests
+                  stream:
+                    name: view.independent.sum
+                    aggregation:
+                      sum:
 
-            - selector:
-                instrument_name: view.independent.requests
-              stream:
-                name: view.independent.by_method
-                attribute_keys:
-                  included:
-                    - http.method
-        YAML,
+                - selector:
+                    instrument_name: view.independent.requests
+                  stream:
+                    name: view.independent.by_method
+                    attribute_keys:
+                      included:
+                        - http.method
+            YAML,
             static function (): void {
                 $counter = Globals::meterProvider()
                     ->getMeter('config-test')
@@ -3910,26 +3910,26 @@ YAML,
     {
         $this->runOTelConfig(
             <<<'YAML'
-        file_format: "1.2"
+            file_format: "1.2"
 
-        meter_provider:
-          readers:
-            - periodic:
-                exporter:
-                  otlp_http:
-                    endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
+            meter_provider:
+              readers:
+                - periodic:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
 
-          views:
-            - selector:
-                instrument_name: requests
-              stream: {}
+              views:
+                - selector:
+                    instrument_name: requests
+                  stream: {}
 
-            - selector:
-                instrument_name: "*"
-              stream:
-                aggregation:
-                  drop:
-        YAML,
+                - selector:
+                    instrument_name: "*"
+                  stream:
+                    aggregation:
+                      drop:
+            YAML,
             static function (): void {
                 $meter = Globals::meterProvider()->getMeter('config-test');
 
@@ -3967,30 +3967,30 @@ YAML,
     {
         $this->runOTelConfig(
             <<<'YAML'
-        file_format: "1.2"
+            file_format: "1.2"
 
-        meter_provider:
-          views:
-            - selector:
-                instrument_name: view.multiple.readers
-              stream:
-                name: view.multiple.readers.selected
-                description: View transformed metric
-                attribute_keys:
-                  included:
-                    - http.method
+            meter_provider:
+              views:
+                - selector:
+                    instrument_name: view.multiple.readers
+                  stream:
+                    name: view.multiple.readers.selected
+                    description: View transformed metric
+                    attribute_keys:
+                      included:
+                        - http.method
 
-          readers:
-            - periodic:
-                exporter:
-                  otlp_http:
-                    endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
+              readers:
+                - periodic:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
 
-            - periodic:
-                exporter:
-                  otlp_http:
-                    endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
-        YAML,
+                - periodic:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
+            YAML,
             static function (): void {
                 Globals::meterProvider()
                     ->getMeter('config-test')
@@ -4054,32 +4054,32 @@ YAML,
     {
         $this->runOTelConfig(
             <<<'YAML'
-        file_format: "1.2"
+            file_format: "1.2"
 
-        meter_provider:
-          view_matching_mode/development: composable
+            meter_provider:
+              view_matching_mode/development: composable
 
-          readers:
-            - periodic:
-                exporter:
-                  otlp_http:
-                    endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
+              readers:
+                - periodic:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
 
-          views:
-            - selector:
-                instrument_name: composable.requests
-              stream:
-                name: composable.requests.total
-                description: First description
-                aggregation:
-                  sum:
+              views:
+                - selector:
+                    instrument_name: composable.requests
+                  stream:
+                    name: composable.requests.total
+                    description: First description
+                    aggregation:
+                      sum:
 
-            - selector:
-                instrument_name: composable.requests
-              stream:
-                name: composable.requests.total
-                description: Second description
-        YAML,
+                - selector:
+                    instrument_name: composable.requests
+                  stream:
+                    name: composable.requests.total
+                    description: Second description
+            YAML,
             static function (): void {
                 Globals::meterProvider()
                     ->getMeter('config-test')
@@ -4133,34 +4133,34 @@ YAML,
     {
         $this->runOTelConfig(
             <<<'YAML'
-        file_format: "1.2"
+            file_format: "1.2"
 
-        meter_provider:
-          view_matching_mode/development: composable
+            meter_provider:
+              view_matching_mode/development: composable
 
-          readers:
-            - periodic:
-                exporter:
-                  otlp_http:
-                    endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
+              readers:
+                - periodic:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
 
-          views:
-            - selector:
-                instrument_name: composable.last_wins
-              stream:
-                name: composable.last_wins
-                description: First description
-                aggregation:
-                  sum:
+              views:
+                - selector:
+                    instrument_name: composable.last_wins
+                  stream:
+                    name: composable.last_wins
+                    description: First description
+                    aggregation:
+                      sum:
 
-            - selector:
-                instrument_name: composable.last_wins
-              stream:
-                name: composable.last_wins
-                description: Second description
-                aggregation:
-                  sum:
-        YAML,
+                - selector:
+                    instrument_name: composable.last_wins
+                  stream:
+                    name: composable.last_wins
+                    description: Second description
+                    aggregation:
+                      sum:
+            YAML,
             static function (): void {
                 Globals::meterProvider()
                     ->getMeter('config-test')
@@ -4201,36 +4201,36 @@ YAML,
     {
         $this->runOTelConfig(
             <<<'YAML'
-        file_format: "1.2"
+            file_format: "1.2"
 
-        meter_provider:
-          view_matching_mode/development: composable
+            meter_provider:
+              view_matching_mode/development: composable
 
-          readers:
-            - periodic:
-                exporter:
-                  otlp_http:
-                    endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
+              readers:
+                - periodic:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
 
-          views:
-            - selector:
-                instrument_name: composable.attributes
-              stream:
-                name: composable.attributes
-                attribute_keys:
-                  included:
-                    - http.method
-                    - http.route
+              views:
+                - selector:
+                    instrument_name: composable.attributes
+                  stream:
+                    name: composable.attributes
+                    attribute_keys:
+                      included:
+                        - http.method
+                        - http.route
 
-            - selector:
-                instrument_name: composable.attributes
-              stream:
-                name: composable.attributes
-                attribute_keys:
-                  included:
-                    - http.method
-                    - http.status_code
-        YAML,
+                - selector:
+                    instrument_name: composable.attributes
+                  stream:
+                    name: composable.attributes
+                    attribute_keys:
+                      included:
+                        - http.method
+                        - http.status_code
+            YAML,
             static function (): void {
                 Globals::meterProvider()
                     ->getMeter('config-test')
@@ -4267,30 +4267,30 @@ YAML,
     {
         $this->runOTelConfig(
             <<<'YAML'
-        file_format: "1.2"
+            file_format: "1.2"
 
-        meter_provider:
-          view_matching_mode/development: composable
+            meter_provider:
+              view_matching_mode/development: composable
 
-          readers:
-            - periodic:
-                exporter:
-                  otlp_http:
-                    endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
+              readers:
+                - periodic:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
 
-          views:
-            - selector:
-                instrument_name: composable.named_group
-              stream:
-                name: composable.named
-                aggregation:
-                  sum:
+              views:
+                - selector:
+                    instrument_name: composable.named_group
+                  stream:
+                    name: composable.named
+                    aggregation:
+                      sum:
 
-            - selector:
-                instrument_name: composable.named_group
-              stream:
-                description: Description from unnamed View
-        YAML,
+                - selector:
+                    instrument_name: composable.named_group
+                  stream:
+                    description: Description from unnamed View
+            YAML,
             static function (): void {
                 Globals::meterProvider()
                     ->getMeter('config-test')
@@ -4331,30 +4331,30 @@ YAML,
     {
         $this->runOTelConfig(
             <<<'YAML'
-        file_format: "1.2"
+            file_format: "1.2"
 
-        meter_provider:
-          view_matching_mode/development: composable
+            meter_provider:
+              view_matching_mode/development: composable
 
-          readers:
-            - periodic:
-                exporter:
-                  otlp_http:
-                    endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
+              readers:
+                - periodic:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
 
-          views:
-            - selector:
-                instrument_name: composable.different_names
-              stream:
-                name: composable.first
-                description: First stream
+              views:
+                - selector:
+                    instrument_name: composable.different_names
+                  stream:
+                    name: composable.first
+                    description: First stream
 
-            - selector:
-                instrument_name: composable.different_names
-              stream:
-                name: composable.second
-                description: Second stream
-        YAML,
+                - selector:
+                    instrument_name: composable.different_names
+                  stream:
+                    name: composable.second
+                    description: Second stream
+            YAML,
             static function (): void {
                 Globals::meterProvider()
                     ->getMeter('config-test')
@@ -4404,38 +4404,38 @@ YAML,
     {
         $this->runOTelConfig(
             <<<'YAML'
-        file_format: "1.2"
+            file_format: "1.2"
 
-        meter_provider:
-          view_matching_mode/development: composable
+            meter_provider:
+              view_matching_mode/development: composable
 
-          readers:
-            - periodic:
-                exporter:
-                  otlp_http:
-                    endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
+              readers:
+                - periodic:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
 
-          views:
-            - selector:
-                instrument_name: composable.ordered
-              stream:
-                name: composable.ordered
-                aggregation:
-                  sum:
+              views:
+                - selector:
+                    instrument_name: composable.ordered
+                  stream:
+                    name: composable.ordered
+                    aggregation:
+                      sum:
 
-            - selector:
-                instrument_name: composable.ordered
-              stream:
-                attribute_keys:
-                  included:
-                    - http.method
+                - selector:
+                    instrument_name: composable.ordered
+                  stream:
+                    attribute_keys:
+                      included:
+                        - http.method
 
-            - selector:
-                instrument_name: composable.ordered
-              stream:
-                aggregation:
-                  last_value:
-        YAML,
+                - selector:
+                    instrument_name: composable.ordered
+                  stream:
+                    aggregation:
+                      last_value:
+            YAML,
             static function (): void {
                 $meter = Globals::meterProvider()->getMeter('config-test');
 
@@ -4666,23 +4666,23 @@ YAML,
     {
         $this->runOTelConfig(
             <<<'YAML'
-        file_format: "1.2"
+            file_format: "1.2"
 
-        logger_provider:
-          logger_configurator/development:
-            default_config:
-              enabled: false
-            loggers:
-              - name: enabled.logger
-                config:
-                  enabled: true
+            logger_provider:
+              logger_configurator/development:
+                default_config:
+                  enabled: false
+                loggers:
+                  - name: enabled.logger
+                    config:
+                      enabled: true
 
-          processors:
-            - batch:
-                exporter:
-                  otlp_http:
-                    endpoint: ${OTEL_EXPORTER_OTLP_LOGS_ENDPOINT}
-        YAML,
+              processors:
+                - batch:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${OTEL_EXPORTER_OTLP_LOGS_ENDPOINT}
+            YAML,
             static function (): void {
                 Globals::loggerProvider()
                     ->getLogger('disabled.logger')
@@ -4709,23 +4709,23 @@ YAML,
     {
         $this->runOTelConfig(
             <<<'YAML'
-        file_format: "1.2"
+            file_format: "1.2"
 
-        logger_provider:
-          logger_configurator/development:
-            default_config:
-              enabled: false
-            loggers:
-              - name: application.*
-                config:
-                  enabled: true
+            logger_provider:
+              logger_configurator/development:
+                default_config:
+                  enabled: false
+                loggers:
+                  - name: application.*
+                    config:
+                      enabled: true
 
-          processors:
-            - batch:
-                exporter:
-                  otlp_http:
-                    endpoint: ${OTEL_EXPORTER_OTLP_LOGS_ENDPOINT}
-        YAML,
+              processors:
+                - batch:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${OTEL_EXPORTER_OTLP_LOGS_ENDPOINT}
+            YAML,
             static function (): void {
                 Globals::loggerProvider()
                     ->getLogger('application.http')
@@ -4752,23 +4752,23 @@ YAML,
     {
         $this->runOTelConfig(
             <<<'YAML'
-        file_format: "1.2"
+            file_format: "1.2"
 
-        logger_provider:
-          logger_configurator/development:
-            default_config:
-              enabled: true
-            loggers:
-              - name: noisy.logger
-                config:
-                  enabled: false
+            logger_provider:
+              logger_configurator/development:
+                default_config:
+                  enabled: true
+                loggers:
+                  - name: noisy.logger
+                    config:
+                      enabled: false
 
-          processors:
-            - batch:
-                exporter:
-                  otlp_http:
-                    endpoint: ${OTEL_EXPORTER_OTLP_LOGS_ENDPOINT}
-        YAML,
+              processors:
+                - batch:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${OTEL_EXPORTER_OTLP_LOGS_ENDPOINT}
+            YAML,
             static function (): void {
                 Globals::loggerProvider()
                     ->getLogger('normal.logger')
@@ -4795,23 +4795,23 @@ YAML,
     {
         $this->runOTelConfig(
             <<<'YAML'
-        file_format: "1.2"
+            file_format: "1.2"
 
-        logger_provider:
-          logger_configurator/development:
-            default_config:
-              enabled: true
-            loggers:
-              - name: application.logger
-                config:
-                  minimum_severity: warn
+            logger_provider:
+              logger_configurator/development:
+                default_config:
+                  enabled: true
+                loggers:
+                  - name: application.logger
+                    config:
+                      minimum_severity: warn
 
-          processors:
-            - batch:
-                exporter:
-                  otlp_http:
-                    endpoint: ${OTEL_EXPORTER_OTLP_LOGS_ENDPOINT}
-        YAML,
+              processors:
+                - batch:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${OTEL_EXPORTER_OTLP_LOGS_ENDPOINT}
+            YAML,
             static function (): void {
                 $logger = Globals::loggerProvider()
                     ->getLogger('application.logger');
@@ -4853,21 +4853,21 @@ YAML,
     {
         $this->runOTelConfig(
             <<<'YAML'
-        file_format: "1.2"
+            file_format: "1.2"
 
-        logger_provider:
-          logger_configurator/development:
-            loggers:
-              - name: severity-test.logger
-                config:
-                  minimum_severity: warn
+            logger_provider:
+              logger_configurator/development:
+                loggers:
+                  - name: severity-test.logger
+                    config:
+                      minimum_severity: warn
 
-          processors:
-            - batch:
-                exporter:
-                  otlp_http:
-                    endpoint: ${OTEL_EXPORTER_OTLP_LOGS_ENDPOINT}
-        YAML,
+              processors:
+                - batch:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${OTEL_EXPORTER_OTLP_LOGS_ENDPOINT}
+            YAML,
             static function (): void {
                 $logger = Globals::loggerProvider()
                     ->getLogger('severity-test.logger');
@@ -4914,21 +4914,21 @@ YAML,
     {
         $this->runOTelConfig(
             <<<'YAML'
-        file_format: "1.2"
+            file_format: "1.2"
 
-        logger_provider:
-          logger_configurator/development:
-            loggers:
-              - name: trace-disabled.logger
-                config:
-                  trace_based: false
+            logger_provider:
+              logger_configurator/development:
+                loggers:
+                  - name: trace-disabled.logger
+                    config:
+                      trace_based: false
 
-          processors:
-            - batch:
-                exporter:
-                  otlp_http:
-                    endpoint: ${OTEL_EXPORTER_OTLP_LOGS_ENDPOINT}
-        YAML,
+              processors:
+                - batch:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${OTEL_EXPORTER_OTLP_LOGS_ENDPOINT}
+            YAML,
             static function (): void {
                 $logger = Globals::loggerProvider()
                     ->getLogger('trace-disabled.logger');
@@ -4970,23 +4970,23 @@ YAML,
     {
         $this->runOTelConfig(
             <<<'YAML'
-        file_format: "1.2"
+            file_format: "1.2"
 
-        logger_provider:
-          logger_configurator/development:
-            default_config:
-              enabled: false
-            loggers:
-              - name: app.?
-                config:
-                  enabled: true
+            logger_provider:
+              logger_configurator/development:
+                default_config:
+                  enabled: false
+                loggers:
+                  - name: app.?
+                    config:
+                      enabled: true
 
-          processors:
-            - batch:
-                exporter:
-                  otlp_http:
-                    endpoint: ${OTEL_EXPORTER_OTLP_LOGS_ENDPOINT}
-        YAML,
+              processors:
+                - batch:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${OTEL_EXPORTER_OTLP_LOGS_ENDPOINT}
+            YAML,
             static function (): void {
                 $loggerProvider = Globals::loggerProvider();
 
@@ -5015,23 +5015,23 @@ YAML,
     {
         $this->runOTelConfig(
             <<<'YAML'
-        file_format: "1.2"
+            file_format: "1.2"
 
-        logger_provider:
-          logger_configurator/development:
-            default_config:
-              enabled: false
-            loggers:
-              - name: app.logger
-                config:
-                  enabled: true
+            logger_provider:
+              logger_configurator/development:
+                default_config:
+                  enabled: false
+                loggers:
+                  - name: app.logger
+                    config:
+                      enabled: true
 
-          processors:
-            - batch:
-                exporter:
-                  otlp_http:
-                    endpoint: ${OTEL_EXPORTER_OTLP_LOGS_ENDPOINT}
-        YAML,
+              processors:
+                - batch:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${OTEL_EXPORTER_OTLP_LOGS_ENDPOINT}
+            YAML,
             static function (): void {
                 $loggerProvider = Globals::loggerProvider();
 
@@ -5060,21 +5060,21 @@ YAML,
     {
         $this->runOTelConfig(
             <<<'YAML'
-        file_format: "1.2"
+            file_format: "1.2"
 
-        logger_provider:
-          logger_configurator/development:
-            loggers:
-              - name: trace-based.logger
-                config:
-                  trace_based: true
+            logger_provider:
+              logger_configurator/development:
+                loggers:
+                  - name: trace-based.logger
+                    config:
+                      trace_based: true
 
-          processors:
-            - batch:
-                exporter:
-                  otlp_http:
-                    endpoint: ${OTEL_EXPORTER_OTLP_LOGS_ENDPOINT}
-        YAML,
+              processors:
+                - batch:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${OTEL_EXPORTER_OTLP_LOGS_ENDPOINT}
+            YAML,
             static function (): void {
                 $logger = Globals::loggerProvider()
                     ->getLogger('trace-based.logger');
@@ -5130,21 +5130,21 @@ YAML,
     {
         $this->runOTelConfig(
             <<<'YAML'
-        file_format: "1.2"
+            file_format: "1.2"
 
-        logger_provider:
-          logger_configurator/development:
-            loggers:
-              - name: trace-based.logger
-                config:
-                  trace_based: true
+            logger_provider:
+              logger_configurator/development:
+                loggers:
+                  - name: trace-based.logger
+                    config:
+                      trace_based: true
 
-          processors:
-            - batch:
-                exporter:
-                  otlp_http:
-                    endpoint: ${OTEL_EXPORTER_OTLP_LOGS_ENDPOINT}
-        YAML,
+              processors:
+                - batch:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${OTEL_EXPORTER_OTLP_LOGS_ENDPOINT}
+            YAML,
             static function (): void {
                 $logger = Globals::loggerProvider()
                     ->getLogger('trace-based.logger');

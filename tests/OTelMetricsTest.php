@@ -20,25 +20,25 @@ final class OTelMetricsTest extends TestCase
     {
         $output = $this->runOTelConfig(
             <<<'YAML'
-file_format: "1.2"
+            file_format: "1.2"
 
-resource:
-  attributes:
-    - name: service.name
-      value: metrics-pipeline-test
-    - name: service.version
-      value: 1.0.0
-    - name: deployment.environment
-      value: test
+            resource:
+              attributes:
+                - name: service.name
+                  value: metrics-pipeline-test
+                - name: service.version
+                  value: 1.0.0
+                - name: deployment.environment
+                  value: test
 
-meter_provider:
-  readers:
-    - periodic:
-        interval: 250
-        exporter:
-          otlp_http:
-            endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
-YAML,
+            meter_provider:
+              readers:
+                - periodic:
+                    interval: 250
+                    exporter:
+                      otlp_http:
+                        endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
+            YAML,
             static function (): void {
                 $meter = Globals::meterProvider()->getMeter(
                     'metrics-test',
@@ -568,16 +568,16 @@ YAML,
     {
         $output = $this->runOTelConfig(
             <<<'YAML'
-file_format: "1.2"
+            file_format: "1.2"
 
-meter_provider:
-  readers:
-    - periodic:
-        interval: 250
-        exporter:
-          otlp_http:
-            endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
-YAML,
+            meter_provider:
+              readers:
+                - periodic:
+                    interval: 250
+                    exporter:
+                      otlp_http:
+                        endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
+            YAML,
             static function (): void {
                 $meter = Globals::meterProvider()->getMeter('attributes-test');
 
@@ -694,16 +694,16 @@ YAML,
     {
         $output = $this->runOTelConfig(
             <<<'YAML'
-file_format: "1.2"
+            file_format: "1.2"
 
-meter_provider:
-  readers:
-    - periodic:
-        interval: 250
-        exporter:
-          otlp_http:
-            endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
-YAML,
+            meter_provider:
+              readers:
+                - periodic:
+                    interval: 250
+                    exporter:
+                      otlp_http:
+                        endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
+            YAML,
             static function (): void {
                 $meter = Globals::meterProvider()->getMeter('histogram-test');
 
@@ -826,17 +826,17 @@ YAML,
     {
         $output = $this->runOTelConfig(
             <<<'YAML'
-file_format: "1.2"
+            file_format: "1.2"
 
-meter_provider:
-  readers:
-    - periodic:
-        interval: 250
-        exporter:
-          otlp_http:
-            endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
-            temporality_preference: cumulative
-YAML,
+            meter_provider:
+              readers:
+                - periodic:
+                    interval: 250
+                    exporter:
+                      otlp_http:
+                        endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
+                        temporality_preference: cumulative
+            YAML,
             static function (): void {
                 $meter = Globals::meterProvider()->getMeter(
                     'temporality-test',
@@ -902,17 +902,17 @@ YAML,
     {
         $output = $this->runOTelConfig(
             <<<'YAML'
-file_format: "1.2"
+            file_format: "1.2"
 
-meter_provider:
-  readers:
-    - periodic:
-        interval: 250
-        exporter:
-          otlp_http:
-            endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
-            temporality_preference: delta
-YAML,
+            meter_provider:
+              readers:
+                - periodic:
+                    interval: 250
+                    exporter:
+                      otlp_http:
+                        endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
+                        temporality_preference: delta
+            YAML,
             static function (): void {
                 $meter = Globals::meterProvider()->getMeter(
                     'temporality-test',
@@ -978,17 +978,17 @@ YAML,
     {
         $output = $this->runOTelConfig(
             <<<'YAML'
-file_format: "1.2"
+            file_format: "1.2"
 
-meter_provider:
-  readers:
-    - periodic:
-        interval: 250
-        exporter:
-          otlp_http:
-            endpoint: ${env:OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
-            temporality_preference: cumulative
-YAML,
+            meter_provider:
+              readers:
+                - periodic:
+                    interval: 250
+                    exporter:
+                      otlp_http:
+                        endpoint: ${env:OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
+                        temporality_preference: cumulative
+            YAML,
             static function (): void {
                 $meter = Globals::meterProvider()->getMeter(
                     'temporality-test',
@@ -1073,22 +1073,22 @@ YAML,
     {
         $output = $this->runOTelConfig(
             <<<'YAML'
-file_format: "1.2"
+            file_format: "1.2"
 
-meter_provider:
-  readers:
-    - periodic:
-        interval: 250
-        exporter:
-          otlp_http:
-            endpoint: ${env:OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
+            meter_provider:
+              readers:
+                - periodic:
+                    interval: 250
+                    exporter:
+                      otlp_http:
+                        endpoint: ${env:OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
 
-  views:
-    - selector:
-        instrument_name: test.requests
-      stream:
-        aggregation_cardinality_limit: 2
-YAML,
+              views:
+                - selector:
+                    instrument_name: test.requests
+                  stream:
+                    aggregation_cardinality_limit: 2
+            YAML,
             static function (): void {
                 $meter = Globals::meterProvider()->getMeter(
                     'cardinality-test',
@@ -1207,24 +1207,24 @@ YAML,
     {
         $output = $this->runOTelConfig(
             <<<'YAML'
-file_format: "1.2"
+            file_format: "1.2"
 
-meter_provider:
-  readers:
-    - periodic:
-        interval: 250
-        exporter:
-          otlp_http:
-            endpoint: ${env:OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
+            meter_provider:
+              readers:
+                - periodic:
+                    interval: 250
+                    exporter:
+                      otlp_http:
+                        endpoint: ${env:OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
 
-  views:
-    - selector:
-        instrument_name: test.requests
-      stream:
-        attribute_keys:
-          included:
-            - http.method
-YAML,
+              views:
+                - selector:
+                    instrument_name: test.requests
+                  stream:
+                    attribute_keys:
+                      included:
+                        - http.method
+            YAML,
             static function (): void {
                 $meter = Globals::meterProvider()->getMeter(
                     'view-test',
@@ -1307,33 +1307,33 @@ YAML,
     {
         $output = $this->runOTelConfig(
             <<<'YAML'
-file_format: "1.2"
+            file_format: "1.2"
 
-meter_provider:
-  readers:
-    - periodic:
-        interval: 250
-        exporter:
-          otlp_http:
-            endpoint: ${env:OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
+            meter_provider:
+              readers:
+                - periodic:
+                    interval: 250
+                    exporter:
+                      otlp_http:
+                        endpoint: ${env:OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
 
-  views:
-    - selector:
-        instrument_name: test.requests
-      stream:
-        name: test.requests.total
-        attribute_keys:
-          included:
-            - http.method
+              views:
+                - selector:
+                    instrument_name: test.requests
+                  stream:
+                    name: test.requests.total
+                    attribute_keys:
+                      included:
+                        - http.method
 
-    - selector:
-        instrument_name: test.requests
-      stream:
-        name: test.requests.by_route
-        attribute_keys:
-          included:
-            - http.route
-YAML,
+                - selector:
+                    instrument_name: test.requests
+                  stream:
+                    name: test.requests.by_route
+                    attribute_keys:
+                      included:
+                        - http.route
+            YAML,
             static function (): void {
                 $meter = Globals::meterProvider()->getMeter(
                     'view-test',
@@ -1408,23 +1408,23 @@ YAML,
     {
         $output = $this->runOTelConfig(
             <<<'YAML'
-file_format: "1.2"
+            file_format: "1.2"
 
-meter_provider:
-  readers:
-    - periodic:
-        interval: 250
-        exporter:
-          otlp_http:
-            endpoint: ${env:OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
+            meter_provider:
+              readers:
+                - periodic:
+                    interval: 250
+                    exporter:
+                      otlp_http:
+                        endpoint: ${env:OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
 
-  views:
-    - selector:
-        instrument_name: test.requests
-      stream:
-        name: http.server.requests
-        description: HTTP server request count
-YAML,
+              views:
+                - selector:
+                    instrument_name: test.requests
+                  stream:
+                    name: http.server.requests
+                    description: HTTP server request count
+            YAML,
             static function (): void {
                 $meter = Globals::meterProvider()->getMeter(
                     'view-test',

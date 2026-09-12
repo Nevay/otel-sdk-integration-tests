@@ -13,21 +13,22 @@ final class ConfigFileTracerProviderTest extends TestCase {
 
     #[Group('configurator')]
     public function testTracerConfiguratorTracerCanBeDisabled(): void {
-        $this->runOTelConfig(/* @lang yaml */ <<<'YAML'
-# $schema: https://raw.githubusercontent.com/open-telemetry/opentelemetry-configuration/refs/tags/v1.1.0/opentelemetry_configuration.json
-file_format: '1.1'
-tracer_provider: 
-  tracer_configurator/development: 
-    tracers:
-      - name: disabled
-        config: 
-          enabled: false
-  processors:
-    - batch: 
-        exporter: 
-          otlp_http:
-            endpoint: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT}
-YAML,
+        $this->runOTelConfig(
+            /* @lang yaml */ <<<'YAML'
+            # $schema: https://raw.githubusercontent.com/open-telemetry/opentelemetry-configuration/refs/tags/v1.1.0/opentelemetry_configuration.json
+            file_format: '1.1'
+            tracer_provider: 
+              tracer_configurator/development: 
+                tracers:
+                  - name: disabled
+                    config: 
+                      enabled: false
+              processors:
+                - batch: 
+                    exporter: 
+                      otlp_http:
+                        endpoint: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT}
+            YAML,
             static function (): void {
                 $tracer = Globals::tracerProvider()->getTracer('disabled');
                 $tracer
@@ -52,23 +53,24 @@ YAML,
 
     #[Group('configurator')]
     public function testTracerConfiguratorTracerCanBeEnabled(): void {
-        $this->runOTelConfig(/* @lang yaml */ <<<'YAML'
-# $schema: https://raw.githubusercontent.com/open-telemetry/opentelemetry-configuration/refs/tags/v1.1.0/opentelemetry_configuration.json
-file_format: '1.1'
-tracer_provider: 
-  tracer_configurator/development: 
-    default_config: 
-      enabled: false
-    tracers:
-      - name: enabled
-        config: 
-          enabled: true
-  processors:
-    - batch: 
-        exporter: 
-          otlp_http:
-            endpoint: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT}
-YAML,
+        $this->runOTelConfig(
+            /* @lang yaml */ <<<'YAML'
+            # $schema: https://raw.githubusercontent.com/open-telemetry/opentelemetry-configuration/refs/tags/v1.1.0/opentelemetry_configuration.json
+            file_format: '1.1'
+            tracer_provider: 
+              tracer_configurator/development: 
+                default_config: 
+                  enabled: false
+                tracers:
+                  - name: enabled
+                    config: 
+                      enabled: true
+              processors:
+                - batch: 
+                    exporter: 
+                      otlp_http:
+                        endpoint: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT}
+            YAML,
             static function (): void {
                 $tracer = Globals::tracerProvider()->getTracer('disabled');
                 $tracer
@@ -93,18 +95,19 @@ YAML,
 
     #[Group('sampler')]
     public function testSamplerAlwaysOffSamplesNoSpans(): void {
-        $this->runOTelConfig(/* @lang yaml */ <<<'YAML'
-# $schema: https://raw.githubusercontent.com/open-telemetry/opentelemetry-configuration/refs/tags/v1.1.0/opentelemetry_configuration.json
-file_format: '1.1'
-tracer_provider: 
-  sampler:
-    always_off: 
-  processors:
-    - batch: 
-        exporter: 
-          otlp_http:
-            endpoint: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT}
-YAML,
+        $this->runOTelConfig(
+            /* @lang yaml */ <<<'YAML'
+            # $schema: https://raw.githubusercontent.com/open-telemetry/opentelemetry-configuration/refs/tags/v1.1.0/opentelemetry_configuration.json
+            file_format: '1.1'
+            tracer_provider: 
+              sampler:
+                always_off: 
+              processors:
+                - batch: 
+                    exporter: 
+                      otlp_http:
+                        endpoint: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT}
+            YAML,
             static function (): void {
                 $tracer = Globals::tracerProvider()->getTracer('tracer');
                 $tracer
@@ -119,19 +122,20 @@ YAML,
 
     #[Group('sampler'), Retry(5)]
     public function testSamplerTraceIdRatioSamplesRatio(): void {
-        $this->runOTelConfig(/* @lang yaml */ <<<'YAML'
-# $schema: https://raw.githubusercontent.com/open-telemetry/opentelemetry-configuration/refs/tags/v1.1.0/opentelemetry_configuration.json
-file_format: '1.1'
-tracer_provider: 
-  sampler:
-    trace_id_ratio_based:
-      ratio: 0.5
-  processors:
-    - batch: 
-        exporter: 
-          otlp_http:
-            endpoint: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT}
-YAML,
+        $this->runOTelConfig(
+            /* @lang yaml */ <<<'YAML'
+            # $schema: https://raw.githubusercontent.com/open-telemetry/opentelemetry-configuration/refs/tags/v1.1.0/opentelemetry_configuration.json
+            file_format: '1.1'
+            tracer_provider: 
+              sampler:
+                trace_id_ratio_based:
+                  ratio: 0.5
+              processors:
+                - batch: 
+                    exporter: 
+                      otlp_http:
+                        endpoint: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT}
+            YAML,
             static function (): void {
                 $tracer = Globals::tracerProvider()->getTracer('test');
                 for ($i = 0; $i < 100; $i++) {
@@ -152,18 +156,19 @@ YAML,
 
     #[Group('limits')]
     public function testLinkCountLimit(): void {
-        $this->runOTelConfig(/* @lang yaml */ <<<'YAML'
-# $schema: https://raw.githubusercontent.com/open-telemetry/opentelemetry-configuration/refs/tags/v1.1.0/opentelemetry_configuration.json
-file_format: '1.1'
-tracer_provider: 
-  limits: 
-    link_count_limit: 2
-  processors:
-    - batch: 
-        exporter: 
-          otlp_http:
-            endpoint: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT}
-YAML,
+        $this->runOTelConfig(
+            /* @lang yaml */ <<<'YAML'
+            # $schema: https://raw.githubusercontent.com/open-telemetry/opentelemetry-configuration/refs/tags/v1.1.0/opentelemetry_configuration.json
+            file_format: '1.1'
+            tracer_provider: 
+              limits: 
+                link_count_limit: 2
+              processors:
+                - batch: 
+                    exporter: 
+                      otlp_http:
+                        endpoint: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT}
+            YAML,
             static function (): void {
                 $tracer = Globals::tracerProvider()->getTracer('test');
                 $tracer
@@ -184,18 +189,19 @@ YAML,
 
     #[Group('limits')]
     public function testEventCountLimit(): void {
-        $this->runOTelConfig(/* @lang yaml */ <<<'YAML'
-# $schema: https://raw.githubusercontent.com/open-telemetry/opentelemetry-configuration/refs/tags/v1.1.0/opentelemetry_configuration.json
-file_format: '1.1'
-tracer_provider: 
-  limits: 
-    event_count_limit: 2
-  processors:
-    - batch: 
-        exporter: 
-          otlp_http:
-            endpoint: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT}
-YAML,
+        $this->runOTelConfig(
+            /* @lang yaml */ <<<'YAML'
+            # $schema: https://raw.githubusercontent.com/open-telemetry/opentelemetry-configuration/refs/tags/v1.1.0/opentelemetry_configuration.json
+            file_format: '1.1'
+            tracer_provider: 
+              limits: 
+                event_count_limit: 2
+              processors:
+                - batch: 
+                    exporter: 
+                      otlp_http:
+                        endpoint: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT}
+            YAML,
             static function (): void {
                 $tracer = Globals::tracerProvider()->getTracer('test');
                 $tracer
@@ -216,18 +222,19 @@ YAML,
 
     #[Group('limits')]
     public function testAttributeCountLimit(): void {
-        $this->runOTelConfig(/* @lang yaml */ <<<'YAML'
-# $schema: https://raw.githubusercontent.com/open-telemetry/opentelemetry-configuration/refs/tags/v1.1.0/opentelemetry_configuration.json
-file_format: '1.1'
-tracer_provider: 
-  limits: 
-    attribute_count_limit: 2
-  processors:
-    - batch: 
-        exporter: 
-          otlp_http:
-            endpoint: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT}
-YAML,
+        $this->runOTelConfig(
+            /* @lang yaml */ <<<'YAML'
+            # $schema: https://raw.githubusercontent.com/open-telemetry/opentelemetry-configuration/refs/tags/v1.1.0/opentelemetry_configuration.json
+            file_format: '1.1'
+            tracer_provider: 
+              limits: 
+                attribute_count_limit: 2
+              processors:
+                - batch: 
+                    exporter: 
+                      otlp_http:
+                        endpoint: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT}
+            YAML,
             static function (): void {
                 $tracer = Globals::tracerProvider()->getTracer('test');
                 $tracer
@@ -248,18 +255,19 @@ YAML,
 
     #[Group('limits')]
     public function testAttributeValueLengthLimit(): void {
-        $this->runOTelConfig(/* @lang yaml */ <<<'YAML'
-# $schema: https://raw.githubusercontent.com/open-telemetry/opentelemetry-configuration/refs/tags/v1.1.0/opentelemetry_configuration.json
-file_format: '1.1'
-tracer_provider: 
-  limits: 
-    attribute_value_length_limit: 5
-  processors:
-    - batch: 
-        exporter: 
-          otlp_http:
-            endpoint: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT}
-YAML,
+        $this->runOTelConfig(
+            /* @lang yaml */ <<<'YAML'
+            # $schema: https://raw.githubusercontent.com/open-telemetry/opentelemetry-configuration/refs/tags/v1.1.0/opentelemetry_configuration.json
+            file_format: '1.1'
+            tracer_provider: 
+              limits: 
+                attribute_value_length_limit: 5
+              processors:
+                - batch: 
+                    exporter: 
+                      otlp_http:
+                        endpoint: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT}
+            YAML,
             static function (): void {
                 $tracer = Globals::tracerProvider()->getTracer('test');
                 $tracer
