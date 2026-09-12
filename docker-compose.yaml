@@ -1,0 +1,14 @@
+version: '3.9'
+services:
+  php:
+    build: .
+    working_dir: /php
+    user: ${UID:-root}:${GID:-root}
+    tty: true
+    environment:
+      - XDG_CACHE_HOME=/tmp/cache
+    volumes:
+      - .:/php
+      - /etc/machine-id:/etc/machine-id:ro
+    extra_hosts:
+        - host.docker.internal:host-gateway

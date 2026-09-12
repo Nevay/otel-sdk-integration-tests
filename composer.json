@@ -1,0 +1,37 @@
+{
+  "name": "tbachert/otel-test",
+  "require": {
+    "amphp/file": "^4.0",
+    "amphp/http-server-router": "^2.0",
+    "amphp/process": "^2.1",
+    "galbar/jsonpath": "^3.0",
+    "open-telemetry/api": "^1.10",
+    "open-telemetry/gen-otlp-protobuf": "^1.10",
+    "opis/closure": "^4.5",
+    "phpunit/phpunit": "^13.3",
+    "symfony/filesystem": "^8.1"
+  },
+  "autoload": {
+    "psr-4": {
+      "\\Nevay\\OTelTest\\": "tests/"
+    }
+  },
+  "prefer-stable": true,
+  "minimum-stability": "dev",
+  "config": {
+    "sort-packages": true,
+    "allow-plugins": {
+      "php-http/discovery": false,
+      "tbachert/spi": true
+    }
+  },
+  "require-dev": {
+    "tbachert/otel-sdk": "^0.1.0@dev"
+  },
+  "x-require-dev": {
+    "open-telemetry/exporter-otlp": "^1.4",
+    "open-telemetry/sdk": "^1.15",
+    "open-telemetry/sdk-configuration": "^0.9.0",
+    "php-http/guzzle7-adapter": "^1.1"
+  }
+}
