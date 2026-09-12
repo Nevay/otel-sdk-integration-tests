@@ -513,6 +513,110 @@ final class OTelConfigFileTest extends TestCase {
         );
     }
 
+    public function testConfigFilePropagatorNoneInjectsNothing(): void
+    {
+        $output = $this->runOTelConfig(
+            <<<'YAML'
+            file_format: "1.2"
+
+            propagator:
+              none:
+            YAML,
+            static function (): void {
+                $spanContext = SpanContext::create(
+                    '0123456789abcdef0123456789abcdef',
+                    '0123456789abcdef',
+                    TraceFlags::SAMPLED,
+                );
+
+                $context = Context::getCurrent()
+                    ->withContextValue(Span::wrap($spanContext));
+
+                $baggage = Baggage::fromContext($context)
+                    ->toBuilder()
+                    ->set('test-key', 'test-value')
+                    ->build();
+
+                $context = $baggage->storeInContext($context);
+
+                $carrier = [];
+
+                Globals::propagator()->inject(
+                    $carrier,
+                    null,
+                    $context,
+                );
+
+                echo json_encode($carrier, JSON_THROW_ON_ERROR);
+            },
+        );
+
+        self::assertSame(
+            [],
+            json_decode($output, true, 512, JSON_THROW_ON_ERROR),
+        );
+    }
+
+    /*
+     * =========================================================================
+     * Configuration file vs environment variables
+     * =========================================================================
+     */
+
+    public function testConfigFileResourceAttributesTakePrecedenceOverEnvironment(): void
+    {
+        $this->runOTelConfig(
+            <<<'YAML'
+            file_format: "1.2"
+
+            resource:
+              attributes:
+                - name: service.name
+                  value: from-config-file
+                - name: custom.attribute
+                  value: config-value
+
+            tracer_provider:
+              processors:
+                - batch:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT}
+            YAML,
+            static function (): void {
+                Globals::tracerProvider()
+                    ->getTracer('test')
+                    ->spanBuilder('precedence')
+                    ->startSpan()
+                    ->end();
+            },
+            'OTEL_SERVICE_NAME=from-env',
+            'OTEL_RESOURCE_ATTRIBUTES=custom.attribute=env-value,other.attribute=env-only',
+        );
+
+        self::assertSame(
+            'from-config-file',
+            $this->resourceAttribute($this->traces[0], 'service.name'),
+        );
+
+        self::assertSame(
+            'config-value',
+            $this->resourceAttribute($this->traces[0], 'custom.attribute'),
+        );
+
+        /*
+         * Resource attributes that only exist in the environment are not
+         * merged in: the config file replaces the environment resource.
+         */
+        self::assertSame(
+            [],
+            $this->path(
+                $this->traces[0],
+                '$.resourceSpans[*].resource.attributes[?(@.key == "other.attribute")]',
+            ),
+        );
+    }
+
     /*
      * =========================================================================
      * Configurators
