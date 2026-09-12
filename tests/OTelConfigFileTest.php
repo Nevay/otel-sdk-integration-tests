@@ -16,7 +16,7 @@ final class OTelConfigFileTest extends TestCase {
 
     /*
      * =========================================================================
-     * Basic configuration / resource
+     * Basic configuration
      * =========================================================================
      */
 
@@ -65,6 +65,100 @@ final class OTelConfigFileTest extends TestCase {
             $this->spanNames($this->traces[0]),
         );
     }
+
+    public function testSignalsCanBeConfiguredIndependently(): void
+    {
+        $this->runOTelConfig(
+            <<<'YAML'
+            file_format: "1.2"
+
+            resource:
+              attributes:
+                - name: service.name
+                  value: all-signals
+
+            tracer_provider:
+              processors:
+                - batch:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT}
+
+            meter_provider:
+              readers:
+                - periodic:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
+
+            logger_provider:
+              processors:
+                - batch:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${OTEL_EXPORTER_OTLP_LOGS_ENDPOINT}
+            YAML,
+            static function (): void {
+                $span = Globals::tracerProvider()
+                    ->getTracer('config-test')
+                    ->spanBuilder('all-signals-span')
+                    ->startSpan();
+
+                $span->end();
+
+                Globals::meterProvider()
+                    ->getMeter('config-test')
+                    ->createCounter('all-signals.counter')
+                    ->add(1);
+
+                Globals::loggerProvider()
+                    ->getLogger('config-test')
+                    ->emit(new LogRecord('all-signals-log'));
+
+                Globals::tracerProvider()->forceFlush();
+                Globals::meterProvider()->forceFlush();
+                Globals::loggerProvider()->forceFlush();
+            },
+        );
+
+        self::assertNotEmpty($this->traces);
+        self::assertNotEmpty($this->metrics);
+        self::assertNotEmpty($this->logs);
+
+        self::assertSame(
+            'all-signals',
+            $this->resourceAttribute(
+                $this->traces[0],
+                'service.name',
+            ),
+        );
+
+        self::assertSame(
+            ['all-signals-span'],
+            $this->spanNames($this->traces[0]),
+        );
+
+        self::assertNotEmpty(
+            $this->path(
+                $this->metrics[0],
+                '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "all-signals.counter")]',
+            ),
+        );
+
+        self::assertSame(
+            'all-signals-log',
+            $this->path(
+                $this->logs[0],
+                '$.resourceLogs[*].scopeLogs[*].logRecords[*].body.stringValue',
+            )[0],
+        );
+    }
+
+    /*
+     * =========================================================================
+     * Resource attributes
+     * =========================================================================
+     */
 
     public function testResourceAttributes(): void
     {
@@ -217,6 +311,229 @@ final class OTelConfigFileTest extends TestCase {
             $this->resourceAttribute($payload, 'service.version'),
         );
     }
+
+    /*
+     * =========================================================================
+     * SDK disabled
+     * =========================================================================
+     */
+
+    public function testDisabledConfigurationDisablesAllSignals(): void
+    {
+        $this->runOTelConfig(
+            <<<'YAML'
+            file_format: "1.2"
+
+            disabled: true
+
+            tracer_provider:
+              processors:
+                - batch:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT}
+
+            meter_provider:
+              readers:
+                - periodic:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
+
+            logger_provider:
+              processors:
+                - batch:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${OTEL_EXPORTER_OTLP_LOGS_ENDPOINT}
+            YAML,
+            static function (): void {
+                $span = Globals::tracerProvider()
+                    ->getTracer('config-test')
+                    ->spanBuilder('disabled')
+                    ->startSpan();
+
+                $span->end();
+
+                Globals::meterProvider()
+                    ->getMeter('config-test')
+                    ->createCounter('disabled.counter')
+                    ->add(1);
+
+                Globals::loggerProvider()
+                    ->getLogger('config-test')
+                    ->emit(new LogRecord('disabled'));
+
+                Globals::tracerProvider()->forceFlush();
+                Globals::meterProvider()->forceFlush();
+                Globals::loggerProvider()->forceFlush();
+            },
+        );
+
+        self::assertSame([], $this->traces);
+        self::assertSame([], $this->metrics);
+        self::assertSame([], $this->logs);
+    }
+
+    /*
+     * =========================================================================
+     * Propagators
+     * =========================================================================
+     */
+
+    public function testConfigFilePropagatorsConfigureTraceContextAndBaggage(): void
+    {
+        $output = $this->runOTelConfig(
+            <<<'YAML'
+file_format: "1.2"
+
+propagator:
+  composite:
+    - tracecontext:
+    - baggage:
+YAML,
+            static function (): void {
+                $traceId = '0123456789abcdef0123456789abcdef';
+                $spanId = '0123456789abcdef';
+
+                $carrier = [
+                    'traceparent' => sprintf(
+                        '00-%s-%s-01',
+                        $traceId,
+                        $spanId,
+                    ),
+                    'baggage' => 'test-key=test-value',
+                ];
+
+                $context = Globals::propagator()->extract($carrier);
+                $spanContext = Span::fromContext($context)->getContext();
+
+                echo json_encode([
+                    'traceId' => $spanContext->getTraceId(),
+                    'spanId' => $spanContext->getSpanId(),
+                    'sampled' => $spanContext->isSampled(),
+                    'baggage' => Baggage::fromContext($context)->getValue('test-key'),
+                ], JSON_THROW_ON_ERROR);
+            },
+        );
+
+        $result = json_decode($output, true, 512, JSON_THROW_ON_ERROR);
+
+        self::assertSame(
+            '0123456789abcdef0123456789abcdef',
+            $result['traceId'],
+        );
+
+        self::assertSame(
+            '0123456789abcdef',
+            $result['spanId'],
+        );
+
+        self::assertTrue($result['sampled']);
+
+        self::assertSame(
+            'test-value',
+            $result['baggage'],
+        );
+    }
+
+    public function testConfigFileCanConfigureOnlyTraceContextPropagator(): void
+    {
+        $output = $this->runOTelConfig(
+            <<<'YAML'
+file_format: "1.2"
+
+propagator:
+  composite:
+    - tracecontext:
+YAML,
+            static function (): void {
+                $carrier = [
+                    'traceparent' => '00-0123456789abcdef0123456789abcdef-0123456789abcdef-01',
+                    'baggage' => 'test-key=test-value',
+                ];
+
+                $context = Globals::propagator()->extract($carrier);
+                $spanContext = Span::fromContext($context)->getContext();
+
+                echo json_encode([
+                    'valid' => $spanContext->isValid(),
+                    'traceId' => $spanContext->getTraceId(),
+                    'baggage' => Baggage::fromContext($context)->getValue('test-key'),
+                ], JSON_THROW_ON_ERROR);
+            },
+        );
+
+        $result = json_decode($output, true, 512, JSON_THROW_ON_ERROR);
+
+        self::assertTrue($result['valid']);
+
+        self::assertSame(
+            '0123456789abcdef0123456789abcdef',
+            $result['traceId'],
+        );
+
+        self::assertNull($result['baggage']);
+    }
+
+    public function testConfigFilePropagatorsAreUsedForInjection(): void
+    {
+        $output = $this->runOTelConfig(
+            <<<'YAML'
+file_format: "1.2"
+
+propagator:
+  composite:
+    - tracecontext:
+    - baggage:
+YAML,
+            static function (): void {
+                $spanContext = SpanContext::create(
+                    '0123456789abcdef0123456789abcdef',
+                    '0123456789abcdef',
+                    TraceFlags::SAMPLED,
+                );
+
+                $context = Context::getCurrent()
+                    ->withContextValue(Span::wrap($spanContext));
+
+                $baggage = Baggage::fromContext($context)
+                    ->toBuilder()
+                    ->set('test-key', 'test-value')
+                    ->build();
+
+                $context = $baggage->storeInContext($context);
+
+                $carrier = [];
+
+                Globals::propagator()->inject(
+                    $carrier,
+                    null,
+                    $context,
+                );
+
+                echo json_encode($carrier, JSON_THROW_ON_ERROR);
+            },
+        );
+
+        $carrier = json_decode($output, true, 512, JSON_THROW_ON_ERROR);
+
+        self::assertSame(
+            '00-0123456789abcdef0123456789abcdef-0123456789abcdef-01',
+            $carrier['traceparent'],
+        );
+
+        self::assertSame(
+            'test-key=test-value',
+            $carrier['baggage'],
+        );
+    }
+
+    /*
+     * =========================================================================
+     * Configurators
+     * =========================================================================
+     */
 
     public function testConfiguratorDefaultsAreEnabledWhenDefaultConfigIsOmitted(): void
     {
@@ -572,218 +889,6 @@ final class OTelConfigFileTest extends TestCase {
         self::assertContains('config.isolation.enabled.logger', $logBodies);
         self::assertNotContains('config.isolation.disabled.logger', $logBodies);
     }
-
-    public function testConfigFilePropagatorsConfigureTraceContextAndBaggage(): void
-    {
-        $output = $this->runOTelConfig(
-            <<<'YAML'
-file_format: "1.2"
-
-propagator:
-  composite:
-    - tracecontext:
-    - baggage:
-YAML,
-            static function (): void {
-                $traceId = '0123456789abcdef0123456789abcdef';
-                $spanId = '0123456789abcdef';
-
-                $carrier = [
-                    'traceparent' => sprintf(
-                        '00-%s-%s-01',
-                        $traceId,
-                        $spanId,
-                    ),
-                    'baggage' => 'test-key=test-value',
-                ];
-
-                $context = Globals::propagator()->extract($carrier);
-                $spanContext = Span::fromContext($context)->getContext();
-
-                echo json_encode([
-                    'traceId' => $spanContext->getTraceId(),
-                    'spanId' => $spanContext->getSpanId(),
-                    'sampled' => $spanContext->isSampled(),
-                    'baggage' => Baggage::fromContext($context)->getValue('test-key'),
-                ], JSON_THROW_ON_ERROR);
-            },
-        );
-
-        $result = json_decode($output, true, 512, JSON_THROW_ON_ERROR);
-
-        self::assertSame(
-            '0123456789abcdef0123456789abcdef',
-            $result['traceId'],
-        );
-
-        self::assertSame(
-            '0123456789abcdef',
-            $result['spanId'],
-        );
-
-        self::assertTrue($result['sampled']);
-
-        self::assertSame(
-            'test-value',
-            $result['baggage'],
-        );
-    }
-
-    public function testConfigFileCanConfigureOnlyTraceContextPropagator(): void
-    {
-        $output = $this->runOTelConfig(
-            <<<'YAML'
-file_format: "1.2"
-
-propagator:
-  composite:
-    - tracecontext:
-YAML,
-            static function (): void {
-                $carrier = [
-                    'traceparent' => '00-0123456789abcdef0123456789abcdef-0123456789abcdef-01',
-                    'baggage' => 'test-key=test-value',
-                ];
-
-                $context = Globals::propagator()->extract($carrier);
-                $spanContext = Span::fromContext($context)->getContext();
-
-                echo json_encode([
-                    'valid' => $spanContext->isValid(),
-                    'traceId' => $spanContext->getTraceId(),
-                    'baggage' => Baggage::fromContext($context)->getValue('test-key'),
-                ], JSON_THROW_ON_ERROR);
-            },
-        );
-
-        $result = json_decode($output, true, 512, JSON_THROW_ON_ERROR);
-
-        self::assertTrue($result['valid']);
-
-        self::assertSame(
-            '0123456789abcdef0123456789abcdef',
-            $result['traceId'],
-        );
-
-        self::assertNull($result['baggage']);
-    }
-
-    public function testConfigFilePropagatorsAreUsedForInjection(): void
-    {
-        $output = $this->runOTelConfig(
-            <<<'YAML'
-file_format: "1.2"
-
-propagator:
-  composite:
-    - tracecontext:
-    - baggage:
-YAML,
-            static function (): void {
-                $spanContext = SpanContext::create(
-                    '0123456789abcdef0123456789abcdef',
-                    '0123456789abcdef',
-                    TraceFlags::SAMPLED,
-                );
-
-                $context = Context::getCurrent()
-                    ->withContextValue(Span::wrap($spanContext));
-
-                $baggage = Baggage::fromContext($context)
-                    ->toBuilder()
-                    ->set('test-key', 'test-value')
-                    ->build();
-
-                $context = $baggage->storeInContext($context);
-
-                $carrier = [];
-
-                Globals::propagator()->inject(
-                    $carrier,
-                    null,
-                    $context,
-                );
-
-                echo json_encode($carrier, JSON_THROW_ON_ERROR);
-            },
-        );
-
-        $carrier = json_decode($output, true, 512, JSON_THROW_ON_ERROR);
-
-        self::assertSame(
-            '00-0123456789abcdef0123456789abcdef-0123456789abcdef-01',
-            $carrier['traceparent'],
-        );
-
-        self::assertSame(
-            'test-key=test-value',
-            $carrier['baggage'],
-        );
-    }
-
-    /*
-     * =========================================================================
-     * SDK disabled
-     * =========================================================================
-     */
-
-    public function testDisabledConfigurationDisablesAllSignals(): void
-    {
-        $this->runOTelConfig(
-            <<<'YAML'
-            file_format: "1.2"
-
-            disabled: true
-
-            tracer_provider:
-              processors:
-                - batch:
-                    exporter:
-                      otlp_http:
-                        endpoint: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT}
-
-            meter_provider:
-              readers:
-                - periodic:
-                    exporter:
-                      otlp_http:
-                        endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
-
-            logger_provider:
-              processors:
-                - batch:
-                    exporter:
-                      otlp_http:
-                        endpoint: ${OTEL_EXPORTER_OTLP_LOGS_ENDPOINT}
-            YAML,
-            static function (): void {
-                $span = Globals::tracerProvider()
-                    ->getTracer('config-test')
-                    ->spanBuilder('disabled')
-                    ->startSpan();
-
-                $span->end();
-
-                Globals::meterProvider()
-                    ->getMeter('config-test')
-                    ->createCounter('disabled.counter')
-                    ->add(1);
-
-                Globals::loggerProvider()
-                    ->getLogger('config-test')
-                    ->emit(new LogRecord('disabled'));
-
-                Globals::tracerProvider()->forceFlush();
-                Globals::meterProvider()->forceFlush();
-                Globals::loggerProvider()->forceFlush();
-            },
-        );
-
-        self::assertSame([], $this->traces);
-        self::assertSame([], $this->metrics);
-        self::assertSame([], $this->logs);
-    }
-
 
     /*
      * =========================================================================
@@ -1279,6 +1384,12 @@ YAML,
         self::assertIsArray($this->traces);
     }
 
+    /*
+     * =========================================================================
+     * Tracer configurator
+     * =========================================================================
+     */
+
     public function testTracerConfiguratorCanDisableDefaultTracersAndEnableMatchingTracer(): void
     {
         $this->runOTelConfig(
@@ -1517,7 +1628,7 @@ YAML,
 
     /*
      * =========================================================================
-     * Metrics
+     * Metric reader & exemplars
      * =========================================================================
      */
 
@@ -1602,60 +1713,12 @@ YAML,
             ),
         );
     }
-    public function testViewRenamesMetricAndChangesDescription(): void
-    {
-        $this->runOTelConfig(
-            <<<'YAML'
-        file_format: "1.2"
 
-        meter_provider:
-          readers:
-            - periodic:
-                exporter:
-                  otlp_http:
-                    endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
-
-          views:
-            - selector:
-                instrument_name: requests
-              stream:
-                name: http.server.requests
-                description: HTTP server request count
-        YAML,
-            static function (): void {
-                Globals::meterProvider()
-                    ->getMeter('config-test')
-                    ->createCounter('requests')
-                    ->add(3);
-
-                Globals::meterProvider()->forceFlush();
-            },
-        );
-
-        $payload = $this->metrics[0];
-
-        self::assertNotEmpty(
-            $this->path(
-                $payload,
-                '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "http.server.requests")]',
-            ),
-        );
-
-        self::assertSame(
-            ['HTTP server request count'],
-            $this->path(
-                $payload,
-                '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "http.server.requests")].description',
-            ),
-        );
-
-        self::assertEmpty(
-            $this->path(
-                $payload,
-                '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "requests")]',
-            ),
-        );
-    }
+    /*
+     * =========================================================================
+     * Meter configurator
+     * =========================================================================
+     */
 
     public function testMeterConfiguratorCanDisableDefaultMetersAndEnableMatchingMeter(): void
     {
@@ -1816,7 +1879,6 @@ YAML,
         );
     }
 
-
     public function testMeterConfiguratorQuestionMarkWildcard(): void
     {
         $this->runOTelConfig(
@@ -1910,6 +1972,12 @@ YAML,
             ),
         );
     }
+
+    /*
+     * =========================================================================
+     * Views
+     * =========================================================================
+     */
 
     public function testViewSelectsByInstrumentTypeAndUnit(): void
     {
@@ -2283,6 +2351,426 @@ YAML,
         );
     }
 
+    public function testViewSelectorRequiresAllSpecifiedCriteriaToMatch(): void
+    {
+        $this->runOTelConfig(
+            <<<'YAML'
+        file_format: "1.2"
+
+        meter_provider:
+          readers:
+            - periodic:
+                exporter:
+                  otlp_http:
+                    endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
+
+          views:
+            - selector:
+                instrument_name: latency
+                instrument_type: histogram
+                unit: ms
+              stream:
+                name: selected.latency
+        YAML,
+            static function (): void {
+                $meter = Globals::meterProvider()->getMeter('config-test');
+
+                // Matches name + type + unit.
+                $meter
+                    ->createHistogram('latency', 'ms')
+                    ->record(10);
+
+                // Matches name + type, but not unit.
+                $meter
+                    ->createHistogram('latency.seconds', 's')
+                    ->record(10);
+
+                // Matches name + unit, but not type.
+                $meter
+                    ->createCounter('latency.counter', 'ms')
+                    ->add(10);
+
+                // Matches type + unit, but not name.
+                $meter
+                    ->createHistogram('other', 'ms')
+                    ->record(10);
+
+                Globals::meterProvider()->forceFlush();
+            },
+        );
+
+        $payload = $this->metrics[0];
+
+        self::assertCount(
+            1,
+            $this->path(
+                $payload,
+                '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "selected.latency")]',
+            ),
+        );
+
+        // Non-matching instruments continue to be exported normally.
+        self::assertCount(
+            1,
+            $this->path(
+                $payload,
+                '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "latency.seconds")]',
+            ),
+        );
+
+        self::assertCount(
+            1,
+            $this->path(
+                $payload,
+                '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "latency.counter")]',
+            ),
+        );
+
+        self::assertCount(
+            1,
+            $this->path(
+                $payload,
+                '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "other")]',
+            ),
+        );
+
+        self::assertSame(
+            10,
+            $this->path(
+                $payload,
+                '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "selected.latency")].histogram.dataPoints[*].sum',
+            )[0],
+        );
+    }
+
+    public function testViewSelectorMatchesAllSpecifiedInstrumentAndMeterCriteria(): void
+    {
+        $this->runOTelConfig(
+            <<<'YAML'
+        file_format: "1.2"
+
+        meter_provider:
+          readers:
+            - periodic:
+                exporter:
+                  otlp_http:
+                    endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
+
+          views:
+            - selector:
+                instrument_name: view.all.criteria
+                instrument_type: counter
+                unit: requests
+                meter_name: selected-meter
+                meter_version: "1.2.3"
+                meter_schema_url: https://example.test/schema
+              stream:
+                name: view.all.criteria.selected
+        YAML,
+            static function (): void {
+                $selected = Globals::meterProvider()
+                    ->getMeter(
+                        'selected-meter',
+                        '1.2.3',
+                        'https://example.test/schema',
+                    );
+
+                $selected
+                    ->createCounter('view.all.criteria', 'requests')
+                    ->add(1);
+
+                // Different instrument name.
+                Globals::meterProvider()
+                    ->getMeter(
+                        'selected-meter',
+                        '1.2.3',
+                        'https://example.test/schema',
+                    )
+                    ->createCounter('view.all.criteria.other-name', 'requests')
+                    ->add(2);
+
+                // Different instrument type.
+                Globals::meterProvider()
+                    ->getMeter(
+                        'selected-meter',
+                        '1.2.3',
+                        'https://example.test/schema',
+                    )
+                    ->createHistogram('view.all.criteria', 'requests')
+                    ->record(3);
+
+                // Different unit.
+                Globals::meterProvider()
+                    ->getMeter(
+                        'selected-meter',
+                        '1.2.3',
+                        'https://example.test/schema',
+                    )
+                    ->createCounter('view.all.criteria', 'other')
+                    ->add(4);
+
+                // Different meter name.
+                Globals::meterProvider()
+                    ->getMeter(
+                        'other-meter',
+                        '1.2.3',
+                        'https://example.test/schema',
+                    )
+                    ->createCounter('view.all.criteria', 'requests')
+                    ->add(5);
+
+                // Different meter version.
+                Globals::meterProvider()
+                    ->getMeter(
+                        'selected-meter',
+                        '9.9.9',
+                        'https://example.test/schema',
+                    )
+                    ->createCounter('view.all.criteria', 'requests')
+                    ->add(6);
+
+                // Different schema URL.
+                Globals::meterProvider()
+                    ->getMeter(
+                        'selected-meter',
+                        '1.2.3',
+                        'https://example.test/other-schema',
+                    )
+                    ->createCounter('view.all.criteria', 'requests')
+                    ->add(7);
+
+                Globals::meterProvider()->forceFlush();
+            },
+        );
+
+        $payload = $this->metrics[0];
+
+        self::assertCount(
+            1,
+            $this->path(
+                $payload,
+                '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "view.all.criteria.selected")]',
+            ),
+        );
+
+        self::assertSame(
+            ['1'],
+            $this->path(
+                $payload,
+                '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "view.all.criteria.selected")].sum.dataPoints[*].asInt',
+            ),
+        );
+
+        // Every non-matching instrument remains exported under its original name.
+        self::assertCount(
+            1,
+            $this->path(
+                $payload,
+                '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "view.all.criteria.other-name")]',
+            ),
+        );
+
+        // The original instrument name has multiple non-matching instruments,
+        // so verify their values rather than asserting a single metric.
+        $originalMetricValues = $this->path(
+            $payload,
+            '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "view.all.criteria")].sum.dataPoints[*].asInt',
+        );
+
+        self::assertContains('4', $originalMetricValues);
+        self::assertContains('5', $originalMetricValues);
+        self::assertContains('6', $originalMetricValues);
+        self::assertContains('7', $originalMetricValues);
+    }
+
+    public function testViewWithEmptySelectorMatchesEveryInstrument(): void
+    {
+        $this->runOTelConfig(
+            <<<'YAML'
+        file_format: "1.2"
+
+        meter_provider:
+          readers:
+            - periodic:
+                exporter:
+                  otlp_http:
+                    endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
+
+          views:
+            - selector: {}
+              stream:
+                name: all.instruments
+        YAML,
+            static function (): void {
+                $meter = Globals::meterProvider()->getMeter('config-test');
+
+                $meter
+                    ->createCounter('counter')
+                    ->add(1, ['test.instrument' => 'counter']);
+
+                $meter
+                    ->createHistogram('histogram')
+                    ->record(2, ['test.instrument' => 'histogram']);
+
+                $meter
+                    ->createGauge('gauge')
+                    ->record(3, ['test.instrument' => 'gauge']);
+
+                Globals::meterProvider()->forceFlush();
+            },
+        );
+
+        $payload = $this->metrics[0];
+
+        // An empty selector matches every instrument, including instruments
+        // created by installed auto-instrumentation. Therefore, don't assert
+        // an exact number of "all.instruments" metrics/data points.
+
+        $counterTestAttributes = $this->path(
+            $payload,
+            '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "all.instruments")].sum.dataPoints[*].attributes[?(@.key == "test.instrument")].value.stringValue',
+        );
+
+        self::assertContains('counter', $counterTestAttributes);
+
+        $histogramTestAttributes = $this->path(
+            $payload,
+            '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "all.instruments")].histogram.dataPoints[*].attributes[?(@.key == "test.instrument")].value.stringValue',
+        );
+
+        self::assertContains('histogram', $histogramTestAttributes);
+
+        $gaugeTestAttributes = $this->path(
+            $payload,
+            '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "all.instruments")].gauge.dataPoints[*].attributes[?(@.key == "test.instrument")].value.stringValue',
+        );
+
+        self::assertContains('gauge', $gaugeTestAttributes);
+    }
+
+    public function testViewFiltersAttributeKeys(): void
+    {
+        $this->runOTelConfig(
+            <<<'YAML'
+        file_format: "1.2"
+
+        meter_provider:
+          readers:
+            - periodic:
+                exporter:
+                  otlp_http:
+                    endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
+        
+          views:
+            - selector:
+                instrument_name: requests
+              stream:
+                attribute_keys:
+                  included:
+                    - http.method
+                    - http.route
+        YAML,
+            static function (): void {
+                Globals::meterProvider()
+                    ->getMeter('config-test')
+                    ->createCounter('requests')
+                    ->add(
+                        1,
+                        [
+                            'http.method' => 'GET',
+                            'http.route' => '/users',
+                            'http.status_code' => 200,
+                        ],
+                    );
+
+                Globals::meterProvider()->forceFlush();
+            },
+        );
+
+        $attributes = $this->path(
+            $this->metrics[0],
+            '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "requests")].sum.dataPoints[*].attributes[*]',
+        );
+
+        self::assertCount(2, $attributes);
+
+        self::assertNotEmpty(
+            $this->path(
+                $this->metrics[0],
+                '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "requests")].sum.dataPoints[*].attributes[?(@.key == "http.method")]',
+            ),
+        );
+
+        self::assertNotEmpty(
+            $this->path(
+                $this->metrics[0],
+                '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "requests")].sum.dataPoints[*].attributes[?(@.key == "http.route")]',
+            ),
+        );
+
+        self::assertEmpty(
+            $this->path(
+                $this->metrics[0],
+                '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "requests")].sum.dataPoints[*].attributes[?(@.key == "http.status_code")]',
+            ),
+        );
+    }
+
+    public function testViewAttributeKeysSupportIncludeAndExcludePatterns(): void
+    {
+        $this->runOTelConfig(
+            <<<'YAML'
+        file_format: "1.2"
+
+        meter_provider:
+          readers:
+            - periodic:
+                exporter:
+                  otlp_http:
+                    endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
+
+          views:
+            - selector:
+                instrument_name: requests
+              stream:
+                attribute_keys:
+                  included:
+                    - http.*
+                  excluded:
+                    - http.user_agent
+        YAML,
+            static function (): void {
+                Globals::meterProvider()
+                    ->getMeter('config-test')
+                    ->createCounter('requests')
+                    ->add(
+                        1,
+                        [
+                            'http.method' => 'GET',
+                            'http.route' => '/users',
+                            'http.user_agent' => 'test-agent',
+                            'other.attribute' => 'ignored',
+                        ],
+                    );
+
+                Globals::meterProvider()->forceFlush();
+            },
+        );
+
+        $payload = $this->metrics[0];
+
+        $keys = $this->path(
+            $payload,
+            '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "requests")].sum.dataPoints[*].attributes[*].key',
+        );
+
+        self::assertCount(2, $keys);
+        self::assertContains('http.method', $keys);
+        self::assertContains('http.route', $keys);
+        self::assertNotContains('http.user_agent', $keys);
+        self::assertNotContains('other.attribute', $keys);
+    }
+
     public function testViewExcludedAttributesTakePrecedenceOverIncludedAttributes(): void
     {
         $this->runOTelConfig(
@@ -2532,75 +3020,6 @@ YAML,
         );
     }
 
-
-    public function testViewFiltersAttributeKeys(): void
-    {
-        $this->runOTelConfig(
-            <<<'YAML'
-        file_format: "1.2"
-
-        meter_provider:
-          readers:
-            - periodic:
-                exporter:
-                  otlp_http:
-                    endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
-        
-          views:
-            - selector:
-                instrument_name: requests
-              stream:
-                attribute_keys:
-                  included:
-                    - http.method
-                    - http.route
-        YAML,
-            static function (): void {
-                Globals::meterProvider()
-                    ->getMeter('config-test')
-                    ->createCounter('requests')
-                    ->add(
-                        1,
-                        [
-                            'http.method' => 'GET',
-                            'http.route' => '/users',
-                            'http.status_code' => 200,
-                        ],
-                    );
-
-                Globals::meterProvider()->forceFlush();
-            },
-        );
-
-        $attributes = $this->path(
-            $this->metrics[0],
-            '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "requests")].sum.dataPoints[*].attributes[*]',
-        );
-
-        self::assertCount(2, $attributes);
-
-        self::assertNotEmpty(
-            $this->path(
-                $this->metrics[0],
-                '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "requests")].sum.dataPoints[*].attributes[?(@.key == "http.method")]',
-            ),
-        );
-
-        self::assertNotEmpty(
-            $this->path(
-                $this->metrics[0],
-                '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "requests")].sum.dataPoints[*].attributes[?(@.key == "http.route")]',
-            ),
-        );
-
-        self::assertEmpty(
-            $this->path(
-                $this->metrics[0],
-                '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "requests")].sum.dataPoints[*].attributes[?(@.key == "http.status_code")]',
-            ),
-        );
-    }
-
     public function testViewUsesExplicitBucketHistogramAggregation(): void
     {
         $this->runOTelConfig(
@@ -2725,388 +3144,6 @@ YAML,
         );
     }
 
-    public function testMultipleMatchingViewsProduceMultipleStreams(): void
-    {
-        $this->runOTelConfig(
-            <<<'YAML'
-        file_format: "1.2"
-
-        meter_provider:
-          readers:
-            - periodic:
-                exporter:
-                  otlp_http:
-                    endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
-
-          views:
-            - selector:
-                instrument_name: requests
-              stream:
-                name: requests.total
-                attribute_keys:
-                  excluded:
-                    - http.method
-
-            - selector:
-                instrument_name: requests
-              stream:
-                name: requests.by_method
-                attribute_keys:
-                  included:
-                    - http.method
-        YAML,
-            static function (): void {
-                $counter = Globals::meterProvider()
-                    ->getMeter('config-test')
-                    ->createCounter('requests');
-
-                $counter->add(1, ['http.method' => 'GET']);
-                $counter->add(2, ['http.method' => 'POST']);
-
-                Globals::meterProvider()->forceFlush();
-            },
-        );
-
-        $payload = $this->metrics[0];
-
-        self::assertNotEmpty(
-            $this->path(
-                $payload,
-                '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "requests.total")]',
-            ),
-        );
-
-        self::assertNotEmpty(
-            $this->path(
-                $payload,
-                '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "requests.by_method")]',
-            ),
-        );
-
-        self::assertSame(
-            '3',
-            $this->path(
-                $payload,
-                '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "requests.total")].sum.dataPoints[*].asInt',
-            )[0],
-        );
-
-        self::assertCount(
-            2,
-            $this->path(
-                $payload,
-                '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "requests.by_method")].sum.dataPoints[*]',
-            ),
-        );
-
-        self::assertSame(
-            ['GET', 'POST'],
-            $this->path(
-                $payload,
-                '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "requests.by_method")].sum.dataPoints[*].attributes[?(@.key == "http.method")].value.stringValue',
-            ),
-        );
-    }
-
-    public function testMultipleMatchingViewsApplyTheirConfigurationsIndependently(): void
-    {
-        $this->runOTelConfig(
-            <<<'YAML'
-        file_format: "1.2"
-
-        meter_provider:
-          readers:
-            - periodic:
-                exporter:
-                  otlp_http:
-                    endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
-
-          views:
-            - selector:
-                instrument_name: view.independent.requests
-              stream:
-                name: view.independent.sum
-                aggregation:
-                  sum:
-
-            - selector:
-                instrument_name: view.independent.requests
-              stream:
-                name: view.independent.by_method
-                attribute_keys:
-                  included:
-                    - http.method
-        YAML,
-            static function (): void {
-                $counter = Globals::meterProvider()
-                    ->getMeter('config-test')
-                    ->createCounter('view.independent.requests');
-
-                $counter->add(
-                    1,
-                    [
-                        'http.method' => 'GET',
-                        'http.route' => '/users',
-                    ],
-                );
-
-                $counter->add(
-                    2,
-                    [
-                        'http.method' => 'POST',
-                        'http.route' => '/users',
-                    ],
-                );
-
-                Globals::meterProvider()->forceFlush();
-            },
-        );
-
-        $payload = $this->metrics[0];
-
-        self::assertCount(
-            1,
-            $this->path(
-                $payload,
-                '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "view.independent.sum")]',
-            ),
-        );
-
-        self::assertCount(
-            1,
-            $this->path(
-                $payload,
-                '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "view.independent.by_method")]',
-            ),
-        );
-
-        // The first View only changes aggregation, so its stream retains both
-        // original attributes and therefore has two distinct data points.
-        $sumDataPoints = $this->path(
-            $payload,
-            '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "view.independent.sum")].sum.dataPoints[*]',
-        );
-
-        self::assertCount(2, $sumDataPoints);
-
-        $sumKeys = $this->path(
-            $payload,
-            '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "view.independent.sum")].sum.dataPoints[*].attributes[*].key',
-        );
-
-        self::assertContains('http.method', $sumKeys);
-        self::assertContains('http.route', $sumKeys);
-
-        // The second View only retains http.method.
-        $filteredKeys = $this->path(
-            $payload,
-            '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "view.independent.by_method")].sum.dataPoints[*].attributes[*].key',
-        );
-
-        self::assertContains('http.method', $filteredKeys);
-        self::assertNotContains('http.route', $filteredKeys);
-
-        $methods = $this->path(
-            $payload,
-            '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "view.independent.by_method")].sum.dataPoints[*].attributes[?(@.key == "http.method")].value.stringValue',
-        );
-
-        self::assertContains('GET', $methods);
-        self::assertContains('POST', $methods);
-
-        $values = $this->path(
-            $payload,
-            '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "view.independent.by_method")].sum.dataPoints[*].asInt',
-        );
-
-        self::assertContains('1', $values);
-        self::assertContains('2', $values);
-    }
-
-
-    public function testMatchAllDropViewCanBeUsedAsDefaultWithSpecificView(): void
-    {
-        $this->runOTelConfig(
-            <<<'YAML'
-        file_format: "1.2"
-
-        meter_provider:
-          readers:
-            - periodic:
-                exporter:
-                  otlp_http:
-                    endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
-
-          views:
-            - selector:
-                instrument_name: requests
-              stream: {}
-
-            - selector:
-                instrument_name: "*"
-              stream:
-                aggregation:
-                  drop:
-        YAML,
-            static function (): void {
-                $meter = Globals::meterProvider()->getMeter('config-test');
-
-                $meter
-                    ->createCounter('requests')
-                    ->add(1);
-
-                $meter
-                    ->createCounter('other')
-                    ->add(1);
-
-                Globals::meterProvider()->forceFlush();
-            },
-        );
-
-        $payload = $this->metrics[0];
-
-        self::assertSame(
-            ['requests'],
-            $this->path(
-                $payload,
-                '$.resourceMetrics[*].scopeMetrics[*].metrics[*].name',
-            ),
-        );
-
-        self::assertEmpty(
-            $this->path(
-                $payload,
-                '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "other")]',
-            ),
-        );
-    }
-
-    public function testViewAttributeKeysSupportIncludeAndExcludePatterns(): void
-    {
-        $this->runOTelConfig(
-            <<<'YAML'
-        file_format: "1.2"
-
-        meter_provider:
-          readers:
-            - periodic:
-                exporter:
-                  otlp_http:
-                    endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
-
-          views:
-            - selector:
-                instrument_name: requests
-              stream:
-                attribute_keys:
-                  included:
-                    - http.*
-                  excluded:
-                    - http.user_agent
-        YAML,
-            static function (): void {
-                Globals::meterProvider()
-                    ->getMeter('config-test')
-                    ->createCounter('requests')
-                    ->add(
-                        1,
-                        [
-                            'http.method' => 'GET',
-                            'http.route' => '/users',
-                            'http.user_agent' => 'test-agent',
-                            'other.attribute' => 'ignored',
-                        ],
-                    );
-
-                Globals::meterProvider()->forceFlush();
-            },
-        );
-
-        $payload = $this->metrics[0];
-
-        $keys = $this->path(
-            $payload,
-            '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "requests")].sum.dataPoints[*].attributes[*].key',
-        );
-
-        self::assertCount(2, $keys);
-        self::assertContains('http.method', $keys);
-        self::assertContains('http.route', $keys);
-        self::assertNotContains('http.user_agent', $keys);
-        self::assertNotContains('other.attribute', $keys);
-    }
-
-    public function testViewAggregationCardinalityLimitUsesOverflowSeries(): void
-    {
-        $this->runOTelConfig(
-            <<<'YAML'
-        file_format: "1.2"
-
-        meter_provider:
-          readers:
-            - periodic:
-                exporter:
-                  otlp_http:
-                    endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
-
-          views:
-            - selector:
-                instrument_name: requests
-              stream:
-                aggregation_cardinality_limit: 2
-        YAML,
-            static function (): void {
-                $counter = Globals::meterProvider()
-                    ->getMeter('config-test')
-                    ->createCounter('requests');
-
-                $counter->add(1, ['region' => 'eu']);
-                $counter->add(2, ['region' => 'us']);
-                $counter->add(3, ['region' => 'ap']);
-
-                Globals::meterProvider()->forceFlush();
-            },
-        );
-
-        $payload = $this->metrics[0];
-
-        $dataPoints = $this->path(
-            $payload,
-            '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "requests")].sum.dataPoints[*]',
-        );
-
-        // Two normal series plus the overflow series.
-        self::assertCount(3, $dataPoints);
-
-        $regions = $this->path(
-            $payload,
-            '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "requests")].sum.dataPoints[*].attributes[?(@.key == "region")].value.stringValue',
-        );
-
-        self::assertCount(2, $regions);
-        self::assertContains('eu', $regions);
-        self::assertContains('us', $regions);
-
-        self::assertSame(
-            [true],
-            $this->path(
-                $payload,
-                '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "requests")].sum.dataPoints[*].attributes[?(@.key == "otel.metric.overflow")].value.boolValue',
-            ),
-        );
-
-        // Every measurement must be represented exactly once.
-        $values = $this->path(
-            $payload,
-            '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "requests")].sum.dataPoints[*].asInt',
-        );
-
-        self::assertCount(3, $values);
-        self::assertContains('1', $values);
-        self::assertContains('2', $values);
-        self::assertContains('3', $values);
-    }
-
     public function testViewSupportsSumAndLastValueAggregations(): void
     {
         $this->runOTelConfig(
@@ -3195,6 +3232,192 @@ YAML,
         );
     }
 
+    public function testViewAggregationCardinalityLimitUsesOverflowSeries(): void
+    {
+        $this->runOTelConfig(
+            <<<'YAML'
+        file_format: "1.2"
+
+        meter_provider:
+          readers:
+            - periodic:
+                exporter:
+                  otlp_http:
+                    endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
+
+          views:
+            - selector:
+                instrument_name: requests
+              stream:
+                aggregation_cardinality_limit: 2
+        YAML,
+            static function (): void {
+                $counter = Globals::meterProvider()
+                    ->getMeter('config-test')
+                    ->createCounter('requests');
+
+                $counter->add(1, ['region' => 'eu']);
+                $counter->add(2, ['region' => 'us']);
+                $counter->add(3, ['region' => 'ap']);
+
+                Globals::meterProvider()->forceFlush();
+            },
+        );
+
+        $payload = $this->metrics[0];
+
+        $dataPoints = $this->path(
+            $payload,
+            '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "requests")].sum.dataPoints[*]',
+        );
+
+        // Two normal series plus the overflow series.
+        self::assertCount(3, $dataPoints);
+
+        $regions = $this->path(
+            $payload,
+            '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "requests")].sum.dataPoints[*].attributes[?(@.key == "region")].value.stringValue',
+        );
+
+        self::assertCount(2, $regions);
+        self::assertContains('eu', $regions);
+        self::assertContains('us', $regions);
+
+        self::assertSame(
+            [true],
+            $this->path(
+                $payload,
+                '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "requests")].sum.dataPoints[*].attributes[?(@.key == "otel.metric.overflow")].value.boolValue',
+            ),
+        );
+
+        // Every measurement must be represented exactly once.
+        $values = $this->path(
+            $payload,
+            '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "requests")].sum.dataPoints[*].asInt',
+        );
+
+        self::assertCount(3, $values);
+        self::assertContains('1', $values);
+        self::assertContains('2', $values);
+        self::assertContains('3', $values);
+    }
+
+    public function testViewAggregationPreservesInstrumentAttributes(): void
+    {
+        $this->runOTelConfig(
+            <<<'YAML'
+        file_format: "1.2"
+
+        meter_provider:
+          readers:
+            - periodic:
+                exporter:
+                  otlp_http:
+                    endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
+
+          views:
+            - selector:
+                instrument_name: requests
+              stream:
+                aggregation:
+                  sum:
+        YAML,
+            static function (): void {
+                $counter = Globals::meterProvider()
+                    ->getMeter('config-test')
+                    ->createCounter('requests');
+
+                $counter->add(1, ['http.method' => 'GET']);
+                $counter->add(2, ['http.method' => 'POST']);
+
+                Globals::meterProvider()->forceFlush();
+            },
+        );
+
+        $payload = $this->metrics[0];
+
+        $dataPoints = $this->path(
+            $payload,
+            '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "requests")].sum.dataPoints[*]',
+        );
+
+        self::assertCount(2, $dataPoints);
+
+        $methods = $this->path(
+            $payload,
+            '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "requests")].sum.dataPoints[*].attributes[?(@.key == "http.method")].value.stringValue',
+        );
+
+        self::assertCount(2, $methods);
+        self::assertContains('GET', $methods);
+        self::assertContains('POST', $methods);
+
+        $values = $this->path(
+            $payload,
+            '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "requests")].sum.dataPoints[*].asInt',
+        );
+
+        self::assertCount(2, $values);
+        self::assertContains('1', $values);
+        self::assertContains('2', $values);
+    }
+
+    public function testViewRenamesMetricAndChangesDescription(): void
+    {
+        $this->runOTelConfig(
+            <<<'YAML'
+        file_format: "1.2"
+
+        meter_provider:
+          readers:
+            - periodic:
+                exporter:
+                  otlp_http:
+                    endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
+
+          views:
+            - selector:
+                instrument_name: requests
+              stream:
+                name: http.server.requests
+                description: HTTP server request count
+        YAML,
+            static function (): void {
+                Globals::meterProvider()
+                    ->getMeter('config-test')
+                    ->createCounter('requests')
+                    ->add(3);
+
+                Globals::meterProvider()->forceFlush();
+            },
+        );
+
+        $payload = $this->metrics[0];
+
+        self::assertNotEmpty(
+            $this->path(
+                $payload,
+                '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "http.server.requests")]',
+            ),
+        );
+
+        self::assertSame(
+            ['HTTP server request count'],
+            $this->path(
+                $payload,
+                '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "http.server.requests")].description',
+            ),
+        );
+
+        self::assertEmpty(
+            $this->path(
+                $payload,
+                '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "requests")]',
+            ),
+        );
+    }
+
     public function testViewPreservesOriginalNameAndDescriptionWhenOmitted(): void
     {
         $this->runOTelConfig(
@@ -3271,306 +3494,6 @@ YAML,
             )[0],
         );
     }
-    public function testViewSelectorRequiresAllSpecifiedCriteriaToMatch(): void
-    {
-        $this->runOTelConfig(
-            <<<'YAML'
-        file_format: "1.2"
-
-        meter_provider:
-          readers:
-            - periodic:
-                exporter:
-                  otlp_http:
-                    endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
-
-          views:
-            - selector:
-                instrument_name: latency
-                instrument_type: histogram
-                unit: ms
-              stream:
-                name: selected.latency
-        YAML,
-            static function (): void {
-                $meter = Globals::meterProvider()->getMeter('config-test');
-
-                // Matches name + type + unit.
-                $meter
-                    ->createHistogram('latency', 'ms')
-                    ->record(10);
-
-                // Matches name + type, but not unit.
-                $meter
-                    ->createHistogram('latency.seconds', 's')
-                    ->record(10);
-
-                // Matches name + unit, but not type.
-                $meter
-                    ->createCounter('latency.counter', 'ms')
-                    ->add(10);
-
-                // Matches type + unit, but not name.
-                $meter
-                    ->createHistogram('other', 'ms')
-                    ->record(10);
-
-                Globals::meterProvider()->forceFlush();
-            },
-        );
-
-        $payload = $this->metrics[0];
-
-        self::assertCount(
-            1,
-            $this->path(
-                $payload,
-                '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "selected.latency")]',
-            ),
-        );
-
-        // Non-matching instruments continue to be exported normally.
-        self::assertCount(
-            1,
-            $this->path(
-                $payload,
-                '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "latency.seconds")]',
-            ),
-        );
-
-        self::assertCount(
-            1,
-            $this->path(
-                $payload,
-                '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "latency.counter")]',
-            ),
-        );
-
-        self::assertCount(
-            1,
-            $this->path(
-                $payload,
-                '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "other")]',
-            ),
-        );
-
-        self::assertSame(
-            10,
-            $this->path(
-                $payload,
-                '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "selected.latency")].histogram.dataPoints[*].sum',
-            )[0],
-        );
-    }
-
-
-    public function testViewSelectorMatchesAllSpecifiedInstrumentAndMeterCriteria(): void
-    {
-        $this->runOTelConfig(
-            <<<'YAML'
-        file_format: "1.2"
-
-        meter_provider:
-          readers:
-            - periodic:
-                exporter:
-                  otlp_http:
-                    endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
-
-          views:
-            - selector:
-                instrument_name: view.all.criteria
-                instrument_type: counter
-                unit: requests
-                meter_name: selected-meter
-                meter_version: "1.2.3"
-                meter_schema_url: https://example.test/schema
-              stream:
-                name: view.all.criteria.selected
-        YAML,
-            static function (): void {
-                $selected = Globals::meterProvider()
-                    ->getMeter(
-                        'selected-meter',
-                        '1.2.3',
-                        'https://example.test/schema',
-                    );
-
-                $selected
-                    ->createCounter('view.all.criteria', 'requests')
-                    ->add(1);
-
-                // Different instrument name.
-                Globals::meterProvider()
-                    ->getMeter(
-                        'selected-meter',
-                        '1.2.3',
-                        'https://example.test/schema',
-                    )
-                    ->createCounter('view.all.criteria.other-name', 'requests')
-                    ->add(2);
-
-                // Different instrument type.
-                Globals::meterProvider()
-                    ->getMeter(
-                        'selected-meter',
-                        '1.2.3',
-                        'https://example.test/schema',
-                    )
-                    ->createHistogram('view.all.criteria', 'requests')
-                    ->record(3);
-
-                // Different unit.
-                Globals::meterProvider()
-                    ->getMeter(
-                        'selected-meter',
-                        '1.2.3',
-                        'https://example.test/schema',
-                    )
-                    ->createCounter('view.all.criteria', 'other')
-                    ->add(4);
-
-                // Different meter name.
-                Globals::meterProvider()
-                    ->getMeter(
-                        'other-meter',
-                        '1.2.3',
-                        'https://example.test/schema',
-                    )
-                    ->createCounter('view.all.criteria', 'requests')
-                    ->add(5);
-
-                // Different meter version.
-                Globals::meterProvider()
-                    ->getMeter(
-                        'selected-meter',
-                        '9.9.9',
-                        'https://example.test/schema',
-                    )
-                    ->createCounter('view.all.criteria', 'requests')
-                    ->add(6);
-
-                // Different schema URL.
-                Globals::meterProvider()
-                    ->getMeter(
-                        'selected-meter',
-                        '1.2.3',
-                        'https://example.test/other-schema',
-                    )
-                    ->createCounter('view.all.criteria', 'requests')
-                    ->add(7);
-
-                Globals::meterProvider()->forceFlush();
-            },
-        );
-
-        $payload = $this->metrics[0];
-
-        self::assertCount(
-            1,
-            $this->path(
-                $payload,
-                '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "view.all.criteria.selected")]',
-            ),
-        );
-
-        self::assertSame(
-            ['1'],
-            $this->path(
-                $payload,
-                '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "view.all.criteria.selected")].sum.dataPoints[*].asInt',
-            ),
-        );
-
-        // Every non-matching instrument remains exported under its original name.
-        self::assertCount(
-            1,
-            $this->path(
-                $payload,
-                '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "view.all.criteria.other-name")]',
-            ),
-        );
-
-        // The original instrument name has multiple non-matching instruments,
-        // so verify their values rather than asserting a single metric.
-        $originalMetricValues = $this->path(
-            $payload,
-            '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "view.all.criteria")].sum.dataPoints[*].asInt',
-        );
-
-        self::assertContains('4', $originalMetricValues);
-        self::assertContains('5', $originalMetricValues);
-        self::assertContains('6', $originalMetricValues);
-        self::assertContains('7', $originalMetricValues);
-    }
-
-
-    public function testViewWithEmptySelectorMatchesEveryInstrument(): void
-    {
-        $this->runOTelConfig(
-            <<<'YAML'
-        file_format: "1.2"
-
-        meter_provider:
-          readers:
-            - periodic:
-                exporter:
-                  otlp_http:
-                    endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
-
-          views:
-            - selector: {}
-              stream:
-                name: all.instruments
-        YAML,
-            static function (): void {
-                $meter = Globals::meterProvider()->getMeter('config-test');
-
-                $meter
-                    ->createCounter('counter')
-                    ->add(1, ['test.instrument' => 'counter']);
-
-                $meter
-                    ->createHistogram('histogram')
-                    ->record(2, ['test.instrument' => 'histogram']);
-
-                $meter
-                    ->createGauge('gauge')
-                    ->record(3, ['test.instrument' => 'gauge']);
-
-                Globals::meterProvider()->forceFlush();
-            },
-        );
-
-        $payload = $this->metrics[0];
-
-        // An empty selector matches every instrument, including instruments
-        // created by installed auto-instrumentation. Therefore, don't assert
-        // an exact number of "all.instruments" metrics/data points.
-
-        $counterTestAttributes = $this->path(
-            $payload,
-            '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "all.instruments")].sum.dataPoints[*].attributes[?(@.key == "test.instrument")].value.stringValue',
-        );
-
-        self::assertContains('counter', $counterTestAttributes);
-
-        $histogramTestAttributes = $this->path(
-            $payload,
-            '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "all.instruments")].histogram.dataPoints[*].attributes[?(@.key == "test.instrument")].value.stringValue',
-        );
-
-        self::assertContains('histogram', $histogramTestAttributes);
-
-        $gaugeTestAttributes = $this->path(
-            $payload,
-            '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "all.instruments")].gauge.dataPoints[*].attributes[?(@.key == "test.instrument")].value.stringValue',
-        );
-
-        self::assertContains('gauge', $gaugeTestAttributes);
-    }
-
-
 
     public function testViewCanOverrideDescriptionWhilePreservingOriginalName(): void
     {
@@ -3785,8 +3708,7 @@ YAML,
         );
     }
 
-
-    public function testViewAggregationPreservesInstrumentAttributes(): void
+    public function testMultipleMatchingViewsProduceMultipleStreams(): void
     {
         $this->runOTelConfig(
             <<<'YAML'
@@ -3803,8 +3725,18 @@ YAML,
             - selector:
                 instrument_name: requests
               stream:
-                aggregation:
-                  sum:
+                name: requests.total
+                attribute_keys:
+                  excluded:
+                    - http.method
+
+            - selector:
+                instrument_name: requests
+              stream:
+                name: requests.by_method
+                attribute_keys:
+                  included:
+                    - http.method
         YAML,
             static function (): void {
                 $counter = Globals::meterProvider()
@@ -3820,31 +3752,303 @@ YAML,
 
         $payload = $this->metrics[0];
 
-        $dataPoints = $this->path(
-            $payload,
-            '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "requests")].sum.dataPoints[*]',
+        self::assertNotEmpty(
+            $this->path(
+                $payload,
+                '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "requests.total")]',
+            ),
         );
 
-        self::assertCount(2, $dataPoints);
+        self::assertNotEmpty(
+            $this->path(
+                $payload,
+                '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "requests.by_method")]',
+            ),
+        );
+
+        self::assertSame(
+            '3',
+            $this->path(
+                $payload,
+                '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "requests.total")].sum.dataPoints[*].asInt',
+            )[0],
+        );
+
+        self::assertCount(
+            2,
+            $this->path(
+                $payload,
+                '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "requests.by_method")].sum.dataPoints[*]',
+            ),
+        );
+
+        self::assertSame(
+            ['GET', 'POST'],
+            $this->path(
+                $payload,
+                '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "requests.by_method")].sum.dataPoints[*].attributes[?(@.key == "http.method")].value.stringValue',
+            ),
+        );
+    }
+
+    public function testMultipleMatchingViewsApplyTheirConfigurationsIndependently(): void
+    {
+        $this->runOTelConfig(
+            <<<'YAML'
+        file_format: "1.2"
+
+        meter_provider:
+          readers:
+            - periodic:
+                exporter:
+                  otlp_http:
+                    endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
+
+          views:
+            - selector:
+                instrument_name: view.independent.requests
+              stream:
+                name: view.independent.sum
+                aggregation:
+                  sum:
+
+            - selector:
+                instrument_name: view.independent.requests
+              stream:
+                name: view.independent.by_method
+                attribute_keys:
+                  included:
+                    - http.method
+        YAML,
+            static function (): void {
+                $counter = Globals::meterProvider()
+                    ->getMeter('config-test')
+                    ->createCounter('view.independent.requests');
+
+                $counter->add(
+                    1,
+                    [
+                        'http.method' => 'GET',
+                        'http.route' => '/users',
+                    ],
+                );
+
+                $counter->add(
+                    2,
+                    [
+                        'http.method' => 'POST',
+                        'http.route' => '/users',
+                    ],
+                );
+
+                Globals::meterProvider()->forceFlush();
+            },
+        );
+
+        $payload = $this->metrics[0];
+
+        self::assertCount(
+            1,
+            $this->path(
+                $payload,
+                '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "view.independent.sum")]',
+            ),
+        );
+
+        self::assertCount(
+            1,
+            $this->path(
+                $payload,
+                '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "view.independent.by_method")]',
+            ),
+        );
+
+        // The first View only changes aggregation, so its stream retains both
+        // original attributes and therefore has two distinct data points.
+        $sumDataPoints = $this->path(
+            $payload,
+            '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "view.independent.sum")].sum.dataPoints[*]',
+        );
+
+        self::assertCount(2, $sumDataPoints);
+
+        $sumKeys = $this->path(
+            $payload,
+            '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "view.independent.sum")].sum.dataPoints[*].attributes[*].key',
+        );
+
+        self::assertContains('http.method', $sumKeys);
+        self::assertContains('http.route', $sumKeys);
+
+        // The second View only retains http.method.
+        $filteredKeys = $this->path(
+            $payload,
+            '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "view.independent.by_method")].sum.dataPoints[*].attributes[*].key',
+        );
+
+        self::assertContains('http.method', $filteredKeys);
+        self::assertNotContains('http.route', $filteredKeys);
 
         $methods = $this->path(
             $payload,
-            '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "requests")].sum.dataPoints[*].attributes[?(@.key == "http.method")].value.stringValue',
+            '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "view.independent.by_method")].sum.dataPoints[*].attributes[?(@.key == "http.method")].value.stringValue',
         );
 
-        self::assertCount(2, $methods);
         self::assertContains('GET', $methods);
         self::assertContains('POST', $methods);
 
         $values = $this->path(
             $payload,
-            '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "requests")].sum.dataPoints[*].asInt',
+            '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "view.independent.by_method")].sum.dataPoints[*].asInt',
         );
 
-        self::assertCount(2, $values);
         self::assertContains('1', $values);
         self::assertContains('2', $values);
     }
+
+    public function testMatchAllDropViewCanBeUsedAsDefaultWithSpecificView(): void
+    {
+        $this->runOTelConfig(
+            <<<'YAML'
+        file_format: "1.2"
+
+        meter_provider:
+          readers:
+            - periodic:
+                exporter:
+                  otlp_http:
+                    endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
+
+          views:
+            - selector:
+                instrument_name: requests
+              stream: {}
+
+            - selector:
+                instrument_name: "*"
+              stream:
+                aggregation:
+                  drop:
+        YAML,
+            static function (): void {
+                $meter = Globals::meterProvider()->getMeter('config-test');
+
+                $meter
+                    ->createCounter('requests')
+                    ->add(1);
+
+                $meter
+                    ->createCounter('other')
+                    ->add(1);
+
+                Globals::meterProvider()->forceFlush();
+            },
+        );
+
+        $payload = $this->metrics[0];
+
+        self::assertSame(
+            ['requests'],
+            $this->path(
+                $payload,
+                '$.resourceMetrics[*].scopeMetrics[*].metrics[*].name',
+            ),
+        );
+
+        self::assertEmpty(
+            $this->path(
+                $payload,
+                '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "other")]',
+            ),
+        );
+    }
+
+    public function testViewIsAppliedBeforeMultipleMetricReadersExport(): void
+    {
+        $this->runOTelConfig(
+            <<<'YAML'
+        file_format: "1.2"
+
+        meter_provider:
+          views:
+            - selector:
+                instrument_name: view.multiple.readers
+              stream:
+                name: view.multiple.readers.selected
+                description: View transformed metric
+                attribute_keys:
+                  included:
+                    - http.method
+
+          readers:
+            - periodic:
+                exporter:
+                  otlp_http:
+                    endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
+
+            - periodic:
+                exporter:
+                  otlp_http:
+                    endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
+        YAML,
+            static function (): void {
+                Globals::meterProvider()
+                    ->getMeter('config-test')
+                    ->createCounter('view.multiple.readers')
+                    ->add(
+                        7,
+                        [
+                            'http.method' => 'GET',
+                            'http.route' => '/users',
+                        ],
+                    );
+
+            },
+        );
+
+        // There should be one export from each reader.
+        self::assertCount(2, $this->metrics);
+
+        foreach ($this->metrics as $payload) {
+            self::assertCount(
+                1,
+                $this->path(
+                    $payload,
+                    '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "view.multiple.readers.selected")]',
+                ),
+            );
+
+            self::assertSame(
+                ['View transformed metric'],
+                $this->path(
+                    $payload,
+                    '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "view.multiple.readers.selected")].description',
+                ),
+            );
+
+            self::assertSame(
+                ['http.method'],
+                $this->path(
+                    $payload,
+                    '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "view.multiple.readers.selected")].sum.dataPoints[*].attributes[*].key',
+                ),
+            );
+
+            self::assertSame(
+                ['7'],
+                $this->path(
+                    $payload,
+                    '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "view.multiple.readers.selected")].sum.dataPoints[*].asInt',
+                ),
+            );
+        }
+    }
+
+    /*
+     * =========================================================================
+     * Composable views
+     * =========================================================================
+     */
 
     public function testComposableViewsWithSameNameProduceOneComposedStream(): void
     {
@@ -4309,91 +4513,9 @@ YAML,
         self::assertContains('20', $values);
     }
 
-    public function testViewIsAppliedBeforeMultipleMetricReadersExport(): void
-    {
-        $this->runOTelConfig(
-            <<<'YAML'
-        file_format: "1.2"
-
-        meter_provider:
-          views:
-            - selector:
-                instrument_name: view.multiple.readers
-              stream:
-                name: view.multiple.readers.selected
-                description: View transformed metric
-                attribute_keys:
-                  included:
-                    - http.method
-
-          readers:
-            - periodic:
-                exporter:
-                  otlp_http:
-                    endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
-
-            - periodic:
-                exporter:
-                  otlp_http:
-                    endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
-        YAML,
-            static function (): void {
-                Globals::meterProvider()
-                    ->getMeter('config-test')
-                    ->createCounter('view.multiple.readers')
-                    ->add(
-                        7,
-                        [
-                            'http.method' => 'GET',
-                            'http.route' => '/users',
-                        ],
-                    );
-
-            },
-        );
-
-        // There should be one export from each reader.
-        self::assertCount(2, $this->metrics);
-
-        foreach ($this->metrics as $payload) {
-            self::assertCount(
-                1,
-                $this->path(
-                    $payload,
-                    '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "view.multiple.readers.selected")]',
-                ),
-            );
-
-            self::assertSame(
-                ['View transformed metric'],
-                $this->path(
-                    $payload,
-                    '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "view.multiple.readers.selected")].description',
-                ),
-            );
-
-            self::assertSame(
-                ['http.method'],
-                $this->path(
-                    $payload,
-                    '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "view.multiple.readers.selected")].sum.dataPoints[*].attributes[*].key',
-                ),
-            );
-
-            self::assertSame(
-                ['7'],
-                $this->path(
-                    $payload,
-                    '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "view.multiple.readers.selected")].sum.dataPoints[*].asInt',
-                ),
-            );
-        }
-    }
-
-
     /*
      * =========================================================================
-     * Logs
+     * Batch LogRecord Processor
      * =========================================================================
      */
 
@@ -4442,6 +4564,46 @@ YAML,
             $this->logsInExport($this->logs[2]),
         );
     }
+
+    public function testBatchLogRecordProcessorScheduleDelay(): void
+    {
+        $this->runOTelConfig(
+            <<<'YAML'
+            file_format: "1.2"
+
+            logger_provider:
+              processors:
+                - batch:
+                    schedule_delay: 60000
+                    exporter:
+                      otlp_http:
+                        endpoint: ${OTEL_EXPORTER_OTLP_LOGS_ENDPOINT}
+            YAML,
+            static function (): void {
+                Globals::loggerProvider()
+                    ->getLogger('config-test')
+                    ->emit(new LogRecord('scheduled-log'));
+
+                Globals::loggerProvider()->forceFlush();
+            },
+        );
+
+        self::assertNotEmpty($this->logs);
+
+        self::assertSame(
+            'scheduled-log',
+            $this->path(
+                $this->logs[0],
+                '$.resourceLogs[*].scopeLogs[*].logRecords[*].body.stringValue',
+            )[0],
+        );
+    }
+
+    /*
+     * =========================================================================
+     * LogRecord limits
+     * =========================================================================
+     */
 
     public function testLogRecordLimits(): void
     {
@@ -4494,39 +4656,11 @@ YAML,
         );
     }
 
-    public function testBatchLogRecordProcessorScheduleDelay(): void
-    {
-        $this->runOTelConfig(
-            <<<'YAML'
-            file_format: "1.2"
-
-            logger_provider:
-              processors:
-                - batch:
-                    schedule_delay: 60000
-                    exporter:
-                      otlp_http:
-                        endpoint: ${OTEL_EXPORTER_OTLP_LOGS_ENDPOINT}
-            YAML,
-            static function (): void {
-                Globals::loggerProvider()
-                    ->getLogger('config-test')
-                    ->emit(new LogRecord('scheduled-log'));
-
-                Globals::loggerProvider()->forceFlush();
-            },
-        );
-
-        self::assertNotEmpty($this->logs);
-
-        self::assertSame(
-            'scheduled-log',
-            $this->path(
-                $this->logs[0],
-                '$.resourceLogs[*].scopeLogs[*].logRecords[*].body.stringValue',
-            )[0],
-        );
-    }
+    /*
+     * =========================================================================
+     * Logger configurator
+     * =========================================================================
+     */
 
     public function testLoggerConfiguratorCanDisableDefaultLoggersAndEnableMatchingLogger(): void
     {
@@ -4832,8 +4966,6 @@ YAML,
         self::assertContains('trace-disabled.no-context', $bodies);
     }
 
-
-
     public function testLoggerConfiguratorQuestionMarkWildcard(): void
     {
         $this->runOTelConfig(
@@ -5057,98 +5189,4 @@ YAML,
         self::assertNotContains('unsampled', $bodies);
     }
 
-
-    /*
-     * =========================================================================
-     * All signals / independent signal configuration
-     * =========================================================================
-     */
-
-    public function testSignalsCanBeConfiguredIndependently(): void
-    {
-        $this->runOTelConfig(
-            <<<'YAML'
-            file_format: "1.2"
-
-            resource:
-              attributes:
-                - name: service.name
-                  value: all-signals
-
-            tracer_provider:
-              processors:
-                - batch:
-                    exporter:
-                      otlp_http:
-                        endpoint: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT}
-
-            meter_provider:
-              readers:
-                - periodic:
-                    exporter:
-                      otlp_http:
-                        endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
-
-            logger_provider:
-              processors:
-                - batch:
-                    exporter:
-                      otlp_http:
-                        endpoint: ${OTEL_EXPORTER_OTLP_LOGS_ENDPOINT}
-            YAML,
-            static function (): void {
-                $span = Globals::tracerProvider()
-                    ->getTracer('config-test')
-                    ->spanBuilder('all-signals-span')
-                    ->startSpan();
-
-                $span->end();
-
-                Globals::meterProvider()
-                    ->getMeter('config-test')
-                    ->createCounter('all-signals.counter')
-                    ->add(1);
-
-                Globals::loggerProvider()
-                    ->getLogger('config-test')
-                    ->emit(new LogRecord('all-signals-log'));
-
-                Globals::tracerProvider()->forceFlush();
-                Globals::meterProvider()->forceFlush();
-                Globals::loggerProvider()->forceFlush();
-            },
-        );
-
-        self::assertNotEmpty($this->traces);
-        self::assertNotEmpty($this->metrics);
-        self::assertNotEmpty($this->logs);
-
-        self::assertSame(
-            'all-signals',
-            $this->resourceAttribute(
-                $this->traces[0],
-                'service.name',
-            ),
-        );
-
-        self::assertSame(
-            ['all-signals-span'],
-            $this->spanNames($this->traces[0]),
-        );
-
-        self::assertNotEmpty(
-            $this->path(
-                $this->metrics[0],
-                '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "all-signals.counter")]',
-            ),
-        );
-
-        self::assertSame(
-            'all-signals-log',
-            $this->path(
-                $this->logs[0],
-                '$.resourceLogs[*].scopeLogs[*].logRecords[*].body.stringValue',
-            )[0],
-        );
-    }
 }

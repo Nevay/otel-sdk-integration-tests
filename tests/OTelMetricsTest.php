@@ -6,10 +6,15 @@ use Nevay\OTelTest\OTelEndpointTrait;
 use OpenTelemetry\API\Globals;
 use function Amp\delay;
 
-
 final class OTelMetricsTest extends TestCase
 {
     use OTelEndpointTrait;
+
+    /*
+     * =========================================================================
+     * Pipeline & collection cycles
+     * =========================================================================
+     */
 
     public function testMetricsPipelineExportsMultipleInstrumentsAcrossMultipleCollectionCycles(): void
     {
@@ -811,6 +816,12 @@ YAML,
         return $this->metrics[array_key_last($this->metrics)];
     }
 
+    /*
+     * =========================================================================
+     * Temporality
+     * =========================================================================
+     */
+
     public function testMetricsExporterUsesCumulativeTemporality(): void
     {
         $output = $this->runOTelConfig(
@@ -963,6 +974,101 @@ YAML,
         );
     }
 
+    public function testMetricsCumulativeTemporalityPreservesStartTimestamp(): void
+    {
+        $output = $this->runOTelConfig(
+            <<<'YAML'
+file_format: "1.2"
+
+meter_provider:
+  readers:
+    - periodic:
+        interval: 250
+        exporter:
+          otlp_http:
+            endpoint: ${env:OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
+            temporality_preference: cumulative
+YAML,
+            static function (): void {
+                $meter = Globals::meterProvider()->getMeter(
+                    'temporality-test',
+                    '1.0.0',
+                );
+
+                $counter = $meter->createCounter(
+                    'test.requests',
+                    'requests',
+                );
+
+                $counter->add(5);
+
+                delay(0.4);
+
+                $counter->add(3);
+
+                delay(0.4);
+
+                echo 'done';
+            },
+        );
+
+        self::assertSame('done', $output);
+
+        $exports = [];
+
+        foreach ($this->metrics as $payload) {
+            $points = $this->dataPoints(
+                $payload,
+                'test.requests',
+            );
+
+            if ($points !== []) {
+                $exports[] = $points[0];
+            }
+        }
+
+        self::assertGreaterThanOrEqual(2, count($exports));
+
+        $first = $exports[0];
+        $last = $exports[array_key_last($exports)];
+
+        self::assertSame(
+            '5',
+            $first['asInt'],
+        );
+
+        self::assertSame(
+            '8',
+            $last['asInt'],
+        );
+
+        self::assertArrayHasKey(
+            'startTimeUnixNano',
+            $first,
+        );
+
+        self::assertArrayHasKey(
+            'startTimeUnixNano',
+            $last,
+        );
+
+        self::assertSame(
+            $first['startTimeUnixNano'],
+            $last['startTimeUnixNano'],
+        );
+
+        self::assertLessThan(
+            (int) $last['timeUnixNano'],
+            (int) $first['startTimeUnixNano'],
+        );
+    }
+
+    /*
+     * =========================================================================
+     * Cardinality limit
+     * =========================================================================
+     */
+
     public function testMetricsCardinalityLimitLimitsNumberOfAttributeSets(): void
     {
         $output = $this->runOTelConfig(
@@ -1091,6 +1197,11 @@ YAML,
         );
     }
 
+    /*
+     * =========================================================================
+     * Views
+     * =========================================================================
+     */
 
     public function testMetricsViewCanFilterAttributes(): void
     {
@@ -1290,95 +1401,6 @@ YAML,
                 'test.requests.by_route',
                 ['http.route' => '/orders'],
             )['asInt'],
-        );
-    }
-
-    public function testMetricsCumulativeTemporalityPreservesStartTimestamp(): void
-    {
-        $output = $this->runOTelConfig(
-            <<<'YAML'
-file_format: "1.2"
-
-meter_provider:
-  readers:
-    - periodic:
-        interval: 250
-        exporter:
-          otlp_http:
-            endpoint: ${env:OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
-            temporality_preference: cumulative
-YAML,
-            static function (): void {
-                $meter = Globals::meterProvider()->getMeter(
-                    'temporality-test',
-                    '1.0.0',
-                );
-
-                $counter = $meter->createCounter(
-                    'test.requests',
-                    'requests',
-                );
-
-                $counter->add(5);
-
-                delay(0.4);
-
-                $counter->add(3);
-
-                delay(0.4);
-
-                echo 'done';
-            },
-        );
-
-        self::assertSame('done', $output);
-
-        $exports = [];
-
-        foreach ($this->metrics as $payload) {
-            $points = $this->dataPoints(
-                $payload,
-                'test.requests',
-            );
-
-            if ($points !== []) {
-                $exports[] = $points[0];
-            }
-        }
-
-        self::assertGreaterThanOrEqual(2, count($exports));
-
-        $first = $exports[0];
-        $last = $exports[array_key_last($exports)];
-
-        self::assertSame(
-            '5',
-            $first['asInt'],
-        );
-
-        self::assertSame(
-            '8',
-            $last['asInt'],
-        );
-
-        self::assertArrayHasKey(
-            'startTimeUnixNano',
-            $first,
-        );
-
-        self::assertArrayHasKey(
-            'startTimeUnixNano',
-            $last,
-        );
-
-        self::assertSame(
-            $first['startTimeUnixNano'],
-            $last['startTimeUnixNano'],
-        );
-
-        self::assertLessThan(
-            (int) $last['timeUnixNano'],
-            (int) $first['startTimeUnixNano'],
         );
     }
 

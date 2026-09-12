@@ -15,6 +15,57 @@ final class OTelEnvironmentTest extends TestCase {
 
     /*
      * =========================================================================
+     * SDK enablement
+     * =========================================================================
+     */
+
+    public function testSdkDisabled(): void {
+        $this->runOTel(
+            static function (): void {
+                $span = Globals::tracerProvider()
+                    ->getTracer('test')
+                    ->spanBuilder('disabled')
+                    ->startSpan();
+
+                $span->end();
+
+                Globals::meterProvider()
+                    ->getMeter('test')
+                    ->createCounter('disabled.counter')
+                    ->add(1);
+
+                Globals::loggerProvider()
+                    ->getLogger('test')
+                    ->emit(new LogRecord('disabled'));
+            },
+            'OTEL_SDK_DISABLED=true',
+        );
+
+        self::assertSame([], $this->traces);
+        self::assertSame([], $this->metrics);
+        self::assertSame([], $this->logs);
+    }
+
+    public function testSdkEnabled(): void {
+        $this->runOTel(
+            static function (): void {
+                $span = Globals::tracerProvider()
+                    ->getTracer('test')
+                    ->spanBuilder('enabled')
+                    ->startSpan();
+
+                $span->end();
+            },
+            'OTEL_SDK_DISABLED=false',
+            'OTEL_TRACES_SAMPLER=always_on',
+        );
+
+        self::assertNotEmpty($this->traces);
+        self::assertSpanNames(['enabled']);
+    }
+
+    /*
+     * =========================================================================
      * Resource
      * =========================================================================
      */
@@ -192,6 +243,12 @@ final class OTelEnvironmentTest extends TestCase {
         );
     }
 
+    /*
+     * =========================================================================
+     * Propagators
+     * =========================================================================
+     */
+
     public function testPropagatorsEnvironmentVariableConfiguresTraceContextAndBaggage(): void
     {
         $output = $this->runOTel(
@@ -319,209 +376,6 @@ final class OTelEnvironmentTest extends TestCase {
             $carrier['baggage'],
         );
     }
-
-    public function testAttributeValueLengthLimitEnvironmentVariable(): void
-    {
-        $this->runOTel(
-            static function (): void {
-                $span = Globals::tracerProvider()
-                    ->getTracer('environment-test')
-                    ->spanBuilder('environment.attribute.value.length')
-                    ->startSpan();
-
-                $span->setAttribute(
-                    'test.attribute',
-                    '1234567890',
-                );
-
-                $span->end();
-            },
-            'OTEL_ATTRIBUTE_VALUE_LENGTH_LIMIT=5',
-        );
-
-        $value = $this->path(
-            $this->traces[0],
-            '$.resourceSpans[*].scopeSpans[*].spans[?(@.name == "environment.attribute.value.length")].attributes[?(@.key == "test.attribute")].value.stringValue',
-        );
-
-        self::assertSame(['12345'], $value);
-    }
-    public function testAttributeCountLimitEnvironmentVariable(): void
-    {
-        $this->runOTel(
-            static function (): void {
-                $span = Globals::tracerProvider()
-                    ->getTracer('environment-test')
-                    ->spanBuilder('environment.attribute.count')
-                    ->startSpan();
-
-                $span->setAttributes([
-                    'test.attribute.1' => 'one',
-                    'test.attribute.2' => 'two',
-                    'test.attribute.3' => 'three',
-                    'test.attribute.4' => 'four',
-                ]);
-
-                $span->end();
-            },
-            'OTEL_ATTRIBUTE_COUNT_LIMIT=2',
-        );
-
-        $attributes = $this->path(
-            $this->traces[0],
-            '$.resourceSpans[*].scopeSpans[*].spans[?(@.name == "environment.attribute.count")].attributes[*]',
-        );
-
-        self::assertCount(2, $attributes);
-    }
-    public function testSpanEventCountLimitEnvironmentVariable(): void
-    {
-        $this->runOTel(
-            static function (): void {
-                $span = Globals::tracerProvider()
-                    ->getTracer('environment-test')
-                    ->spanBuilder('environment.event.count')
-                    ->startSpan();
-
-                $span->addEvent('event.one');
-                $span->addEvent('event.two');
-                $span->addEvent('event.three');
-
-                $span->end();
-            },
-            'OTEL_SPAN_EVENT_COUNT_LIMIT=1',
-        );
-
-        $events = $this->path(
-            $this->traces[0],
-            '$.resourceSpans[*].scopeSpans[*].spans[?(@.name == "environment.event.count")].events[*]',
-        );
-
-        self::assertCount(1, $events);
-    }
-    public function testSpanLinkCountLimitEnvironmentVariable(): void
-    {
-        $this->runOTel(
-            static function (): void {
-                $tracer = Globals::tracerProvider()
-                    ->getTracer('environment-test');
-
-                $spanContextOne = SpanContext::create(
-                    '0123456789abcdef0123456789abcdef',
-                    '0123456789abcdef',
-                    TraceFlags::SAMPLED,
-                );
-
-                $spanContextTwo = SpanContext::create(
-                    'fedcba9876543210fedcba9876543210',
-                    'fedcba9876543210',
-                    TraceFlags::SAMPLED,
-                );
-
-                $span = $tracer
-                    ->spanBuilder('environment.link.count')
-                    ->addLink($spanContextOne)
-                    ->addLink($spanContextTwo)
-                    ->startSpan();
-
-                $span->end();
-            },
-            'OTEL_SPAN_LINK_COUNT_LIMIT=1',
-        );
-
-        $links = $this->path(
-            $this->traces[0],
-            '$.resourceSpans[*].scopeSpans[*].spans[?(@.name == "environment.link.count")].links[*]',
-        );
-
-        self::assertCount(1, $links);
-    }
-    public function testLogRecordAttributeCountLimitEnvironmentVariable(): void
-    {
-        $this->runOTel(
-            static function (): void {
-                $record = new LogRecord('environment.log.attribute.count');
-
-                $record->setAttributes([
-                    'test.attribute.1' => 'one',
-                    'test.attribute.2' => 'two',
-                    'test.attribute.3' => 'three',
-                    'test.attribute.4' => 'four',
-                ]);
-
-                Globals::loggerProvider()
-                    ->getLogger('environment-test')
-                    ->emit($record);
-            },
-            'OTEL_LOGRECORD_ATTRIBUTE_COUNT_LIMIT=2',
-        );
-
-        $attributes = $this->path(
-            $this->logs[0],
-            '$.resourceLogs[*].scopeLogs[*].logRecords[?(@.body.stringValue == "environment.log.attribute.count")].attributes[*]',
-        );
-
-        self::assertCount(2, $attributes);
-    }
-
-
-
-    /*
-     * =========================================================================
-     * SDK disabled
-     * =========================================================================
-     */
-
-    public function testSdkDisabled(): void {
-        $this->runOTel(
-            static function (): void {
-                $span = Globals::tracerProvider()
-                    ->getTracer('test')
-                    ->spanBuilder('disabled')
-                    ->startSpan();
-
-                $span->end();
-
-                Globals::meterProvider()
-                    ->getMeter('test')
-                    ->createCounter('disabled.counter')
-                    ->add(1);
-
-                Globals::loggerProvider()
-                    ->getLogger('test')
-                    ->emit(new LogRecord('disabled'));
-            },
-            'OTEL_SDK_DISABLED=true',
-        );
-
-        self::assertSame([], $this->traces);
-        self::assertSame([], $this->metrics);
-        self::assertSame([], $this->logs);
-    }
-
-    public function testSdkEnabled(): void {
-        $this->runOTel(
-            static function (): void {
-                $span = Globals::tracerProvider()
-                    ->getTracer('test')
-                    ->spanBuilder('enabled')
-                    ->startSpan();
-
-                $span->end();
-            },
-            'OTEL_SDK_DISABLED=false',
-            'OTEL_TRACES_SAMPLER=always_on',
-        );
-
-        self::assertNotEmpty($this->traces);
-        self::assertSpanNames(['enabled']);
-    }
-
-    /*
-     * =========================================================================
-     * Propagators
-     * =========================================================================
-     */
 
     public function testTraceContextPropagator(): void {
         $this->runOTel(
@@ -769,6 +623,62 @@ final class OTelEnvironmentTest extends TestCase {
      * =========================================================================
      */
 
+    public function testAttributeValueLengthLimitEnvironmentVariable(): void
+    {
+        $this->runOTel(
+            static function (): void {
+                $span = Globals::tracerProvider()
+                    ->getTracer('environment-test')
+                    ->spanBuilder('environment.attribute.value.length')
+                    ->startSpan();
+
+                $span->setAttribute(
+                    'test.attribute',
+                    '1234567890',
+                );
+
+                $span->end();
+            },
+            'OTEL_ATTRIBUTE_VALUE_LENGTH_LIMIT=5',
+        );
+
+        $value = $this->path(
+            $this->traces[0],
+            '$.resourceSpans[*].scopeSpans[*].spans[?(@.name == "environment.attribute.value.length")].attributes[?(@.key == "test.attribute")].value.stringValue',
+        );
+
+        self::assertSame(['12345'], $value);
+    }
+
+    public function testAttributeCountLimitEnvironmentVariable(): void
+    {
+        $this->runOTel(
+            static function (): void {
+                $span = Globals::tracerProvider()
+                    ->getTracer('environment-test')
+                    ->spanBuilder('environment.attribute.count')
+                    ->startSpan();
+
+                $span->setAttributes([
+                    'test.attribute.1' => 'one',
+                    'test.attribute.2' => 'two',
+                    'test.attribute.3' => 'three',
+                    'test.attribute.4' => 'four',
+                ]);
+
+                $span->end();
+            },
+            'OTEL_ATTRIBUTE_COUNT_LIMIT=2',
+        );
+
+        $attributes = $this->path(
+            $this->traces[0],
+            '$.resourceSpans[*].scopeSpans[*].spans[?(@.name == "environment.attribute.count")].attributes[*]',
+        );
+
+        self::assertCount(2, $attributes);
+    }
+
     public function testAttributeCountLimit(): void {
         $this->runOTel(
             static function (): void {
@@ -822,6 +732,70 @@ final class OTelEnvironmentTest extends TestCase {
      * Span limits
      * =========================================================================
      */
+
+    public function testSpanEventCountLimitEnvironmentVariable(): void
+    {
+        $this->runOTel(
+            static function (): void {
+                $span = Globals::tracerProvider()
+                    ->getTracer('environment-test')
+                    ->spanBuilder('environment.event.count')
+                    ->startSpan();
+
+                $span->addEvent('event.one');
+                $span->addEvent('event.two');
+                $span->addEvent('event.three');
+
+                $span->end();
+            },
+            'OTEL_SPAN_EVENT_COUNT_LIMIT=1',
+        );
+
+        $events = $this->path(
+            $this->traces[0],
+            '$.resourceSpans[*].scopeSpans[*].spans[?(@.name == "environment.event.count")].events[*]',
+        );
+
+        self::assertCount(1, $events);
+    }
+
+    public function testSpanLinkCountLimitEnvironmentVariable(): void
+    {
+        $this->runOTel(
+            static function (): void {
+                $tracer = Globals::tracerProvider()
+                    ->getTracer('environment-test');
+
+                $spanContextOne = SpanContext::create(
+                    '0123456789abcdef0123456789abcdef',
+                    '0123456789abcdef',
+                    TraceFlags::SAMPLED,
+                );
+
+                $spanContextTwo = SpanContext::create(
+                    'fedcba9876543210fedcba9876543210',
+                    'fedcba9876543210',
+                    TraceFlags::SAMPLED,
+                );
+
+                $span = $tracer
+                    ->spanBuilder('environment.link.count')
+                    ->addLink($spanContextOne)
+                    ->addLink($spanContextTwo)
+                    ->startSpan();
+
+                $span->end();
+            },
+            'OTEL_SPAN_LINK_COUNT_LIMIT=1',
+        );
+
+        $links = $this->path(
+            $this->traces[0],
+            '$.resourceSpans[*].scopeSpans[*].spans[?(@.name == "environment.link.count")].links[*]',
+        );
+
+        self::assertCount(1, $links);
+    }
 
     public function testSpanAttributeCountLimit(): void {
         $this->runOTel(
@@ -1095,6 +1069,34 @@ final class OTelEnvironmentTest extends TestCase {
      * =========================================================================
      */
 
+    public function testLogRecordAttributeCountLimitEnvironmentVariable(): void
+    {
+        $this->runOTel(
+            static function (): void {
+                $record = new LogRecord('environment.log.attribute.count');
+
+                $record->setAttributes([
+                    'test.attribute.1' => 'one',
+                    'test.attribute.2' => 'two',
+                    'test.attribute.3' => 'three',
+                    'test.attribute.4' => 'four',
+                ]);
+
+                Globals::loggerProvider()
+                    ->getLogger('environment-test')
+                    ->emit($record);
+            },
+            'OTEL_LOGRECORD_ATTRIBUTE_COUNT_LIMIT=2',
+        );
+
+        $attributes = $this->path(
+            $this->logs[0],
+            '$.resourceLogs[*].scopeLogs[*].logRecords[?(@.body.stringValue == "environment.log.attribute.count")].attributes[*]',
+        );
+
+        self::assertCount(2, $attributes);
+    }
+
     public function testLogRecordAttributeCountLimit(): void {
         $this->runOTel(
             static function (): void {
@@ -1282,12 +1284,6 @@ final class OTelEnvironmentTest extends TestCase {
         self::assertIsArray($this->metrics);
     }
 
-    /*
-     * =========================================================================
-     * Metrics exemplar filter
-     * =========================================================================
-     */
-
     public function testMetricsExemplarFilterAlwaysOff(): void {
         $this->runOTel(
             static function (): void {
@@ -1326,7 +1322,7 @@ final class OTelEnvironmentTest extends TestCase {
 
     /*
      * =========================================================================
-     * Boolean / invalid configuration
+     * Edge cases
      * =========================================================================
      */
 
@@ -1378,12 +1374,6 @@ final class OTelEnvironmentTest extends TestCase {
 
         self::assertNotEmpty($this->traces);
     }
-
-    /*
-     * =========================================================================
-     * JSONPath helpers
-     * =========================================================================
-     */
 
     /**
      * @param list<string> $expected
