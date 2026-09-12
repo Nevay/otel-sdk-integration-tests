@@ -45,8 +45,6 @@ final class OTelConfigFileTest extends TestCase {
                     ->startSpan();
 
                 $span->end();
-
-                Globals::tracerProvider()->forceFlush();
             },
         );
 
@@ -114,10 +112,6 @@ final class OTelConfigFileTest extends TestCase {
                 Globals::loggerProvider()
                     ->getLogger('config-test')
                     ->emit(new LogRecord('all-signals-log'));
-
-                Globals::tracerProvider()->forceFlush();
-                Globals::meterProvider()->forceFlush();
-                Globals::loggerProvider()->forceFlush();
             },
         );
 
@@ -191,8 +185,6 @@ final class OTelConfigFileTest extends TestCase {
                     ->startSpan();
 
                 $span->end();
-
-                Globals::tracerProvider()->forceFlush();
             },
         );
 
@@ -248,8 +240,6 @@ final class OTelConfigFileTest extends TestCase {
                     ->startSpan();
 
                 $span->end();
-
-                Globals::tracerProvider()->forceFlush();
             },
         );
 
@@ -294,8 +284,6 @@ final class OTelConfigFileTest extends TestCase {
                     ->startSpan();
 
                 $span->end();
-
-                Globals::tracerProvider()->forceFlush();
             },
         );
 
@@ -363,10 +351,6 @@ final class OTelConfigFileTest extends TestCase {
                 Globals::loggerProvider()
                     ->getLogger('config-test')
                     ->emit(new LogRecord('disabled'));
-
-                Globals::tracerProvider()->forceFlush();
-                Globals::meterProvider()->forceFlush();
-                Globals::loggerProvider()->forceFlush();
             },
         );
 
@@ -616,10 +600,6 @@ final class OTelConfigFileTest extends TestCase {
                 $loggerProvider
                     ->getLogger('disabled.logger')
                     ->emit(new LogRecord('disabled'));
-
-                Globals::tracerProvider()->forceFlush();
-                Globals::meterProvider()->forceFlush();
-                Globals::loggerProvider()->forceFlush();
             },
         );
 
@@ -739,10 +719,6 @@ final class OTelConfigFileTest extends TestCase {
                 $loggerProvider
                     ->getLogger('other')
                     ->emit(new LogRecord('wildcard.logger.other'));
-
-                Globals::tracerProvider()->forceFlush();
-                Globals::meterProvider()->forceFlush();
-                Globals::loggerProvider()->forceFlush();
             },
         );
 
@@ -861,10 +837,6 @@ final class OTelConfigFileTest extends TestCase {
                 Globals::loggerProvider()
                     ->getLogger('disabled.logger')
                     ->emit(new LogRecord('config.isolation.disabled.logger'));
-
-                Globals::tracerProvider()->forceFlush();
-                Globals::meterProvider()->forceFlush();
-                Globals::loggerProvider()->forceFlush();
             },
         );
 
@@ -919,8 +891,6 @@ final class OTelConfigFileTest extends TestCase {
                     ->startSpan();
 
                 $span->end();
-
-                Globals::tracerProvider()->forceFlush();
             },
         );
 
@@ -953,8 +923,6 @@ final class OTelConfigFileTest extends TestCase {
                     ->startSpan();
 
                 $span->end();
-
-                Globals::tracerProvider()->forceFlush();
             },
         );
 
@@ -985,8 +953,6 @@ final class OTelConfigFileTest extends TestCase {
                     ->startSpan();
 
                 $span->end();
-
-                Globals::tracerProvider()->forceFlush();
             },
         );
 
@@ -1020,8 +986,6 @@ final class OTelConfigFileTest extends TestCase {
                     ->startSpan();
 
                 $span->end();
-
-                Globals::tracerProvider()->forceFlush();
             },
         );
 
@@ -1053,8 +1017,6 @@ final class OTelConfigFileTest extends TestCase {
                     ->startSpan();
 
                 $span->end();
-
-                Globals::tracerProvider()->forceFlush();
             },
         );
 
@@ -1089,8 +1051,6 @@ final class OTelConfigFileTest extends TestCase {
                     ->startSpan();
 
                 $span->end();
-
-                Globals::tracerProvider()->forceFlush();
             },
         );
 
@@ -1130,8 +1090,6 @@ final class OTelConfigFileTest extends TestCase {
                     ->startSpan();
 
                 $span->end();
-
-                Globals::tracerProvider()->forceFlush();
             },
         );
 
@@ -1217,8 +1175,6 @@ final class OTelConfigFileTest extends TestCase {
                     ->addEvent('event-3');
 
                 $span->end();
-
-                Globals::tracerProvider()->forceFlush();
             },
         );
 
@@ -1298,8 +1254,6 @@ final class OTelConfigFileTest extends TestCase {
 
                     $span->end();
                 }
-
-                Globals::tracerProvider()->forceFlush();
             },
         );
 
@@ -1342,8 +1296,6 @@ final class OTelConfigFileTest extends TestCase {
                     ->startSpan();
 
                 $span->end();
-
-                Globals::tracerProvider()->forceFlush();
             },
         );
 
@@ -1376,8 +1328,6 @@ final class OTelConfigFileTest extends TestCase {
                     ->startSpan();
 
                 $span->end();
-
-                Globals::tracerProvider()->forceFlush();
             },
         );
 
@@ -1425,8 +1375,6 @@ final class OTelConfigFileTest extends TestCase {
                     ->startSpan();
 
                 $enabled->end();
-
-                Globals::tracerProvider()->forceFlush();
             },
         );
 
@@ -1473,8 +1421,6 @@ final class OTelConfigFileTest extends TestCase {
                     ->startSpan();
 
                 $disabled->end();
-
-                Globals::tracerProvider()->forceFlush();
             },
         );
 
@@ -1521,8 +1467,6 @@ final class OTelConfigFileTest extends TestCase {
                     ->startSpan();
 
                 $noisy->end();
-
-                Globals::tracerProvider()->forceFlush();
             },
         );
 
@@ -1569,8 +1513,6 @@ final class OTelConfigFileTest extends TestCase {
                     ->startSpan();
 
                 $disabled->end();
-
-                Globals::tracerProvider()->forceFlush();
             },
         );
 
@@ -1615,8 +1557,6 @@ final class OTelConfigFileTest extends TestCase {
                     ->spanBuilder('uppercase')
                     ->startSpan()
                     ->end();
-
-                Globals::tracerProvider()->forceFlush();
             },
         );
 
@@ -1652,8 +1592,6 @@ final class OTelConfigFileTest extends TestCase {
                     ->getMeter('config-test')
                     ->createCounter('config.counter')
                     ->add(1);
-
-                Globals::meterProvider()->forceFlush();
             },
         );
 
@@ -1698,9 +1636,6 @@ final class OTelConfigFileTest extends TestCase {
 
                 $scope->detach();
                 $span->end();
-
-                Globals::meterProvider()->forceFlush();
-                Globals::tracerProvider()->forceFlush();
             },
         );
 
@@ -1751,8 +1686,6 @@ final class OTelConfigFileTest extends TestCase {
                     ->getMeter('enabled.meter')
                     ->createCounter('enabled.counter')
                     ->add(2);
-
-                Globals::meterProvider()->forceFlush();
             },
         );
 
@@ -1804,8 +1737,6 @@ final class OTelConfigFileTest extends TestCase {
                     ->getMeter('library.http')
                     ->createCounter('disabled.counter')
                     ->add(1);
-
-                Globals::meterProvider()->forceFlush();
             },
         );
 
@@ -1857,8 +1788,6 @@ final class OTelConfigFileTest extends TestCase {
                     ->getMeter('noisy.meter')
                     ->createCounter('noisy.counter')
                     ->add(1);
-
-                Globals::meterProvider()->forceFlush();
             },
         );
 
@@ -1912,8 +1841,6 @@ final class OTelConfigFileTest extends TestCase {
                     ->getMeter('app.ab')
                     ->createCounter('disabled')
                     ->add(1);
-
-                Globals::meterProvider()->forceFlush();
             },
         );
 
@@ -1959,8 +1886,6 @@ final class OTelConfigFileTest extends TestCase {
                     ->getMeter('APP.METER')
                     ->createCounter('uppercase')
                     ->add(1);
-
-                Globals::meterProvider()->forceFlush();
             },
         );
 
@@ -2013,8 +1938,6 @@ final class OTelConfigFileTest extends TestCase {
                 $meter
                     ->createCounter('latency.counter', 'ms')
                     ->add(1);
-
-                Globals::meterProvider()->forceFlush();
             },
         );
 
@@ -2101,8 +2024,6 @@ final class OTelConfigFileTest extends TestCase {
                 $wrongMeter
                     ->createCounter('requests')
                     ->add(1);
-
-                Globals::meterProvider()->forceFlush();
             },
         );
 
@@ -2161,8 +2082,6 @@ final class OTelConfigFileTest extends TestCase {
                     ->getMeter('other-meter')
                     ->createCounter('view.meter_name.requests')
                     ->add(2);
-
-                Globals::meterProvider()->forceFlush();
             },
         );
 
@@ -2232,8 +2151,6 @@ final class OTelConfigFileTest extends TestCase {
                     ->getMeter('versioned-meter', '2.0.0')
                     ->createCounter('view.meter_version.requests')
                     ->add(2);
-
-                Globals::meterProvider()->forceFlush();
             },
         );
 
@@ -2311,8 +2228,6 @@ final class OTelConfigFileTest extends TestCase {
                     )
                     ->createCounter('view.meter_schema.requests')
                     ->add(2);
-
-                Globals::meterProvider()->forceFlush();
             },
         );
 
@@ -2394,8 +2309,6 @@ final class OTelConfigFileTest extends TestCase {
                 $meter
                     ->createHistogram('other', 'ms')
                     ->record(10);
-
-                Globals::meterProvider()->forceFlush();
             },
         );
 
@@ -2538,8 +2451,6 @@ final class OTelConfigFileTest extends TestCase {
                     )
                     ->createCounter('view.all.criteria', 'requests')
                     ->add(7);
-
-                Globals::meterProvider()->forceFlush();
             },
         );
 
@@ -2615,8 +2526,6 @@ final class OTelConfigFileTest extends TestCase {
                 $meter
                     ->createGauge('gauge')
                     ->record(3, ['test.instrument' => 'gauge']);
-
-                Globals::meterProvider()->forceFlush();
             },
         );
 
@@ -2682,8 +2591,6 @@ final class OTelConfigFileTest extends TestCase {
                             'http.status_code' => 200,
                         ],
                     );
-
-                Globals::meterProvider()->forceFlush();
             },
         );
 
@@ -2752,8 +2659,6 @@ final class OTelConfigFileTest extends TestCase {
                             'other.attribute' => 'ignored',
                         ],
                     );
-
-                Globals::meterProvider()->forceFlush();
             },
         );
 
@@ -2807,8 +2712,6 @@ final class OTelConfigFileTest extends TestCase {
                             'other.attribute' => 'ignored',
                         ],
                     );
-
-                Globals::meterProvider()->forceFlush();
             },
         );
 
@@ -2875,8 +2778,6 @@ final class OTelConfigFileTest extends TestCase {
                         'request_id' => 'request-3',
                     ],
                 );
-
-                Globals::meterProvider()->forceFlush();
             },
         );
 
@@ -2959,8 +2860,6 @@ final class OTelConfigFileTest extends TestCase {
                 $meter
                     ->createHistogram('view.default.histogram')
                     ->record(9);
-
-                Globals::meterProvider()->forceFlush();
             },
         );
 
@@ -3052,8 +2951,6 @@ final class OTelConfigFileTest extends TestCase {
                 $histogram->record(5);
                 $histogram->record(50);
                 $histogram->record(150);
-
-                Globals::meterProvider()->forceFlush();
             },
         );
 
@@ -3122,8 +3019,6 @@ final class OTelConfigFileTest extends TestCase {
                 $meter
                     ->createCounter('normal.requests')
                     ->add(20);
-
-                Globals::meterProvider()->forceFlush();
             },
         );
 
@@ -3180,8 +3075,6 @@ final class OTelConfigFileTest extends TestCase {
                 $gauge = $meter->createGauge('gauge.last');
                 $gauge->record(2);
                 $gauge->record(3);
-
-                Globals::meterProvider()->forceFlush();
             },
         );
 
@@ -3259,8 +3152,6 @@ final class OTelConfigFileTest extends TestCase {
                 $counter->add(1, ['region' => 'eu']);
                 $counter->add(2, ['region' => 'us']);
                 $counter->add(3, ['region' => 'ap']);
-
-                Globals::meterProvider()->forceFlush();
             },
         );
 
@@ -3330,8 +3221,6 @@ final class OTelConfigFileTest extends TestCase {
 
                 $counter->add(1, ['http.method' => 'GET']);
                 $counter->add(2, ['http.method' => 'POST']);
-
-                Globals::meterProvider()->forceFlush();
             },
         );
 
@@ -3388,8 +3277,6 @@ final class OTelConfigFileTest extends TestCase {
                     ->getMeter('config-test')
                     ->createCounter('requests')
                     ->add(3);
-
-                Globals::meterProvider()->forceFlush();
             },
         );
 
@@ -3447,8 +3334,6 @@ final class OTelConfigFileTest extends TestCase {
                         'Original request description',
                     )
                     ->record(42);
-
-                Globals::meterProvider()->forceFlush();
             },
         );
 
@@ -3523,8 +3408,6 @@ final class OTelConfigFileTest extends TestCase {
                         'Original request description',
                     )
                     ->add(1);
-
-                Globals::meterProvider()->forceFlush();
             },
         );
 
@@ -3582,8 +3465,6 @@ final class OTelConfigFileTest extends TestCase {
                         'Original request description',
                     )
                     ->add(1);
-
-                Globals::meterProvider()->forceFlush();
             },
         );
 
@@ -3658,8 +3539,6 @@ final class OTelConfigFileTest extends TestCase {
                         'Unselected original description',
                     )
                     ->add(7);
-
-                Globals::meterProvider()->forceFlush();
             },
         );
 
@@ -3745,8 +3624,6 @@ final class OTelConfigFileTest extends TestCase {
 
                 $counter->add(1, ['http.method' => 'GET']);
                 $counter->add(2, ['http.method' => 'POST']);
-
-                Globals::meterProvider()->forceFlush();
             },
         );
 
@@ -3840,8 +3717,6 @@ final class OTelConfigFileTest extends TestCase {
                         'http.route' => '/users',
                     ],
                 );
-
-                Globals::meterProvider()->forceFlush();
             },
         );
 
@@ -3940,8 +3815,6 @@ final class OTelConfigFileTest extends TestCase {
                 $meter
                     ->createCounter('other')
                     ->add(1);
-
-                Globals::meterProvider()->forceFlush();
             },
         );
 
@@ -4089,8 +3962,6 @@ final class OTelConfigFileTest extends TestCase {
                         'Original description',
                     )
                     ->add(5);
-
-                Globals::meterProvider()->forceFlush();
             },
         );
 
@@ -4166,8 +4037,6 @@ final class OTelConfigFileTest extends TestCase {
                     ->getMeter('config-test')
                     ->createCounter('composable.last_wins')
                     ->add(7);
-
-                Globals::meterProvider()->forceFlush();
             },
         );
 
@@ -4244,8 +4113,6 @@ final class OTelConfigFileTest extends TestCase {
                             'server.address' => 'example.test',
                         ],
                     );
-
-                Globals::meterProvider()->forceFlush();
             },
         );
 
@@ -4296,8 +4163,6 @@ final class OTelConfigFileTest extends TestCase {
                     ->getMeter('config-test')
                     ->createCounter('composable.named_group')
                     ->add(11);
-
-                Globals::meterProvider()->forceFlush();
             },
         );
 
@@ -4360,8 +4225,6 @@ final class OTelConfigFileTest extends TestCase {
                     ->getMeter('config-test')
                     ->createCounter('composable.different_names')
                     ->add(13);
-
-                Globals::meterProvider()->forceFlush();
             },
         );
 
@@ -4456,8 +4319,6 @@ final class OTelConfigFileTest extends TestCase {
                         'http.route' => '/users',
                     ],
                 );
-
-                Globals::meterProvider()->forceFlush();
             },
         );
 
@@ -4542,8 +4403,6 @@ final class OTelConfigFileTest extends TestCase {
                 for ($i = 1; $i <= 5; ++$i) {
                     $logger->emit(new LogRecord("log-{$i}"));
                 }
-
-                Globals::loggerProvider()->forceFlush();
             },
         );
 
@@ -4583,8 +4442,6 @@ final class OTelConfigFileTest extends TestCase {
                 Globals::loggerProvider()
                     ->getLogger('config-test')
                     ->emit(new LogRecord('scheduled-log'));
-
-                Globals::loggerProvider()->forceFlush();
             },
         );
 
@@ -4634,8 +4491,6 @@ final class OTelConfigFileTest extends TestCase {
                 Globals::loggerProvider()
                     ->getLogger('config-test')
                     ->emit($record);
-
-                Globals::loggerProvider()->forceFlush();
             },
         );
 
@@ -4691,8 +4546,6 @@ final class OTelConfigFileTest extends TestCase {
                 Globals::loggerProvider()
                     ->getLogger('enabled.logger')
                     ->emit(new LogRecord('enabled'));
-
-                Globals::loggerProvider()->forceFlush();
             },
         );
 
@@ -4734,8 +4587,6 @@ final class OTelConfigFileTest extends TestCase {
                 Globals::loggerProvider()
                     ->getLogger('library.http')
                     ->emit(new LogRecord('disabled'));
-
-                Globals::loggerProvider()->forceFlush();
             },
         );
 
@@ -4777,8 +4628,6 @@ final class OTelConfigFileTest extends TestCase {
                 Globals::loggerProvider()
                     ->getLogger('noisy.logger')
                     ->emit(new LogRecord('noisy'));
-
-                Globals::loggerProvider()->forceFlush();
             },
         );
 
@@ -4835,8 +4684,6 @@ final class OTelConfigFileTest extends TestCase {
                     (new LogRecord('error'))
                         ->setSeverityNumber(17),
                 );
-
-                Globals::loggerProvider()->forceFlush();
             },
         );
 
@@ -4894,8 +4741,6 @@ final class OTelConfigFileTest extends TestCase {
                 $logger->emit(
                     new LogRecord('severity.unspecified'),
                 );
-
-                Globals::loggerProvider()->forceFlush();
             },
         );
 
@@ -4952,8 +4797,6 @@ final class OTelConfigFileTest extends TestCase {
                 $logger->emit(
                     new LogRecord('trace-disabled.no-context'),
                 );
-
-                Globals::loggerProvider()->forceFlush();
             },
         );
 
@@ -4997,8 +4840,6 @@ final class OTelConfigFileTest extends TestCase {
                 $loggerProvider
                     ->getLogger('app.ab')
                     ->emit(new LogRecord('disabled'));
-
-                Globals::loggerProvider()->forceFlush();
             },
         );
 
@@ -5042,8 +4883,6 @@ final class OTelConfigFileTest extends TestCase {
                 $loggerProvider
                     ->getLogger('APP.LOGGER')
                     ->emit(new LogRecord('uppercase'));
-
-                Globals::loggerProvider()->forceFlush();
             },
         );
 
@@ -5108,8 +4947,6 @@ final class OTelConfigFileTest extends TestCase {
 
                 // No trace context.
                 $logger->emit(new LogRecord('no-context'));
-
-                Globals::loggerProvider()->forceFlush();
             },
         );
 
@@ -5174,8 +5011,6 @@ final class OTelConfigFileTest extends TestCase {
                 $logger->emit(
                     new LogRecord('no-context'),
                 );
-
-                Globals::loggerProvider()->forceFlush();
             },
         );
 

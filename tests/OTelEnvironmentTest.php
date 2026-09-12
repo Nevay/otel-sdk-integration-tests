@@ -973,8 +973,6 @@ final class OTelEnvironmentTest extends TestCase {
 
                     $span->end();
                 }
-
-                Globals::tracerProvider()->forceFlush();
             },
             'OTEL_BSP_MAX_EXPORT_BATCH_SIZE=2',
             'OTEL_BSP_MAX_QUEUE_SIZE=10',
@@ -1001,8 +999,6 @@ final class OTelEnvironmentTest extends TestCase {
 
                     $span->end();
                 }
-
-                Globals::tracerProvider()->forceFlush();
             },
             'OTEL_BSP_MAX_QUEUE_SIZE=2',
             'OTEL_BSP_MAX_EXPORT_BATCH_SIZE=2',
@@ -1030,8 +1026,6 @@ final class OTelEnvironmentTest extends TestCase {
                     ->startSpan();
 
                 $span->end();
-
-                Globals::tracerProvider()->forceFlush();
             },
             'OTEL_BSP_EXPORT_TIMEOUT=100',
             'OTEL_BSP_SCHEDULE_DELAY=60000',
@@ -1052,8 +1046,6 @@ final class OTelEnvironmentTest extends TestCase {
                     ->startSpan();
 
                 $span->end();
-
-                Globals::tracerProvider()->forceFlush();
             },
             'OTEL_BSP_SCHEDULE_DELAY=60000',
             'OTEL_TRACES_SAMPLER=always_on',
@@ -1111,8 +1103,6 @@ final class OTelEnvironmentTest extends TestCase {
                 Globals::loggerProvider()
                     ->getLogger('test')
                     ->emit($record);
-
-                Globals::loggerProvider()->forceFlush();
             },
             'OTEL_LOGRECORD_ATTRIBUTE_COUNT_LIMIT=2',
         );
@@ -1138,8 +1128,6 @@ final class OTelEnvironmentTest extends TestCase {
                 Globals::loggerProvider()
                     ->getLogger('test')
                     ->emit($record);
-
-                Globals::loggerProvider()->forceFlush();
             },
             'OTEL_LOGRECORD_ATTRIBUTE_VALUE_LENGTH_LIMIT=4',
         );
@@ -1167,8 +1155,6 @@ final class OTelEnvironmentTest extends TestCase {
                 for ($i = 1; $i <= 5; ++$i) {
                     $logger->emit(new LogRecord("log-{$i}"));
                 }
-
-                Globals::loggerProvider()->forceFlush();
             },
             'OTEL_BLRP_MAX_EXPORT_BATCH_SIZE=2',
             'OTEL_BLRP_MAX_QUEUE_SIZE=10',
@@ -1190,8 +1176,6 @@ final class OTelEnvironmentTest extends TestCase {
                 for ($i = 1; $i <= 5; ++$i) {
                     $logger->emit(new LogRecord("log-{$i}"));
                 }
-
-                Globals::loggerProvider()->forceFlush();
             },
             'OTEL_BLRP_MAX_QUEUE_SIZE=2',
             'OTEL_BLRP_MAX_EXPORT_BATCH_SIZE=2',
@@ -1215,8 +1199,6 @@ final class OTelEnvironmentTest extends TestCase {
                 Globals::loggerProvider()
                     ->getLogger('test')
                     ->emit(new LogRecord('scheduled-log'));
-
-                Globals::loggerProvider()->forceFlush();
             },
             'OTEL_BLRP_SCHEDULE_DELAY=60000',
         );
@@ -1230,8 +1212,6 @@ final class OTelEnvironmentTest extends TestCase {
                 Globals::loggerProvider()
                     ->getLogger('test')
                     ->emit(new LogRecord('timeout-log'));
-
-                Globals::loggerProvider()->forceFlush();
             },
             'OTEL_BLRP_EXPORT_TIMEOUT=100',
         );
@@ -1252,8 +1232,6 @@ final class OTelEnvironmentTest extends TestCase {
                     ->getMeter('test')
                     ->createCounter('test.counter')
                     ->add(1);
-
-                Globals::meterProvider()->forceFlush();
             },
             'OTEL_METRIC_EXPORT_INTERVAL=100',
         );
@@ -1275,8 +1253,6 @@ final class OTelEnvironmentTest extends TestCase {
                     ->getMeter('test')
                     ->createCounter('timeout.counter')
                     ->add(1);
-
-                Globals::meterProvider()->forceFlush();
             },
             'OTEL_METRIC_EXPORT_TIMEOUT=100',
         );
@@ -1302,9 +1278,6 @@ final class OTelEnvironmentTest extends TestCase {
 
                 $scope->detach();
                 $span->end();
-
-                Globals::meterProvider()->forceFlush();
-                Globals::tracerProvider()->forceFlush();
             },
             'OTEL_METRICS_EXEMPLAR_FILTER=always_off',
             'OTEL_TRACES_SAMPLER=always_on',
