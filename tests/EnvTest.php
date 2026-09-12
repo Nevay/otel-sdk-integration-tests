@@ -1,12 +1,9 @@
 <?php declare(strict_types=1);
 namespace Nevay\OTelTest;
 
-use JsonPath\JsonObject;
 use Nevay\OTelTest\OTelEndpointTrait;
 use OpenTelemetry\API\Globals;
-use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
-use function Amp\delay;
 
 final class EnvTest extends TestCase {
     use OTelEndpointTrait;

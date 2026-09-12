@@ -1,11 +1,9 @@
 <?php declare(strict_types=1);
 namespace Nevay\OTelTest;
 
-use JsonPath\JsonObject;
 use PHPUnit\Framework\TestCase;
 use Nevay\OTelTest\OTelEndpointTrait;
 use OpenTelemetry\API\Globals;
-use OpenTelemetry\API\Metrics\ObserverInterface;
 use function Amp\delay;
 
 
@@ -210,6 +208,7 @@ YAML,
             $this->resourceAttribute(
                 $payload,
                 'service.name',
+                '$.resourceMetrics[*].resource',
             ),
         );
 
@@ -218,6 +217,7 @@ YAML,
             $this->resourceAttribute(
                 $payload,
                 'service.version',
+                '$.resourceMetrics[*].resource',
             ),
         );
 
@@ -226,6 +226,7 @@ YAML,
             $this->resourceAttribute(
                 $payload,
                 'deployment.environment',
+                '$.resourceMetrics[*].resource',
             ),
         );
 
@@ -548,29 +549,6 @@ YAML,
         ));
     }
 
-    private function resourceAttribute(
-        string $payload,
-        string $name,
-    ): mixed {
-        $values = $this->path(
-            $payload,
-            sprintf(
-                '$.resourceMetrics[*].resource.attributes[?(@.key == "%s")].value.*',
-                $name,
-            ),
-        );
-
-        self::assertNotEmpty(
-            $values,
-            sprintf(
-                'Resource attribute "%s" was not found.',
-                $name,
-            ),
-        );
-
-        return $values[0];
-    }
-
     private function attributeValue(array $value): mixed
     {
         return $value['stringValue']
@@ -580,26 +558,6 @@ YAML,
             ?? $value['bytesValue']
             ?? null;
     }
-
-    private function path(
-        string $payload,
-        string $expression,
-    ): array {
-        if ($payload === '') {
-            return [];
-        }
-
-        $result = (new JsonObject($payload))->get($expression);
-
-        if ($result === null || $result === false) {
-            return [];
-        }
-
-        return is_array($result)
-            ? array_values($result)
-            : [$result];
-    }
-
 
     public function testMetricsPipelineKeepsMetricSeriesSeparateByAttributes(): void
     {
@@ -851,54 +809,6 @@ YAML,
         );
 
         return $this->metrics[array_key_last($this->metrics)];
-    }
-
-    private function exportsContainingMetric(
-        string $metricName,
-    ): array {
-        $exports = [];
-
-        foreach ($this->metrics as $payload) {
-            $metrics = $this->path(
-                $payload,
-                sprintf(
-                    '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "%s")]',
-                    $metricName,
-                ),
-            );
-
-            if ($metrics !== []) {
-                $exports[] = $payload;
-            }
-        }
-
-        return $exports;
-    }
-
-
-    private function scopeAttribute(
-        string $payload,
-        string $metricName,
-        string $attribute,
-    ): mixed {
-        $values = $this->path(
-            $payload,
-            sprintf(
-                '$.resourceMetrics[*].scopeMetrics[*].scope.%s',
-                $attribute,
-            ),
-        );
-
-        self::assertNotEmpty(
-            $values,
-            sprintf(
-                'Scope attribute "%s" for metric "%s" was not found.',
-                $attribute,
-                $metricName,
-            ),
-        );
-
-        return $values[0];
     }
 
     public function testMetricsExporterUsesCumulativeTemporality(): void

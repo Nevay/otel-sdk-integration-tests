@@ -15,6 +15,7 @@ use Amp\Socket\InternetAddress;
 use Closure;
 use Composer\InstalledVersions;
 use Google\Protobuf\PrintOptions;
+use JsonPath\JsonObject;
 use Opentelemetry\Proto\Collector\Logs\V1\ExportLogsServiceRequest;
 use Opentelemetry\Proto\Collector\Logs\V1\ExportLogsServiceResponse;
 use Opentelemetry\Proto\Collector\Metrics\V1\ExportMetricsServiceRequest;
@@ -121,5 +122,146 @@ trait OTelEndpointTrait {
         } finally {
             deleteFile($configFile);
         }
+    }
+
+    /*
+     * =========================================================================
+     * OTLP payload helpers
+     *
+     * The captured payloads ($this->traces / $this->metrics / $this->logs)
+     * are JSON-serialized OTLP export requests. These helpers query them
+     * with JSONPath.
+     * =========================================================================
+     */
+
+    /**
+     * @return list<mixed>
+     */
+    protected function path(string $payload, string $expression): array {
+        if ($payload === '') {
+            return [];
+        }
+
+        $result = (new JsonObject($payload))->get($expression);
+
+        if ($result === null || $result === false) {
+            return [];
+        }
+
+        return is_array($result)
+            ? array_values($result)
+            : [$result];
+    }
+
+    /**
+     * @return list<array<string, mixed>>
+     */
+    protected function spansInExport(string $payload): array {
+        return $this->path(
+            $payload,
+            '$.resourceSpans[*].scopeSpans[*].spans[*]',
+        );
+    }
+
+    /**
+     * @return list<array<string, mixed>>
+     */
+    protected function logsInExport(string $payload): array {
+        return $this->path(
+            $payload,
+            '$.resourceLogs[*].scopeLogs[*].logRecords[*]',
+        );
+    }
+
+    /**
+     * @return list<string>
+     */
+    protected function spanNames(string $payload): array {
+        return $this->path(
+            $payload,
+            '$.resourceSpans[*].scopeSpans[*].spans[*].name',
+        );
+    }
+
+    protected function resourceAttribute(
+        string $payload,
+        string $name,
+        string $resourcePath = '$.resourceSpans[*].resource',
+    ): mixed {
+        $values = $this->path(
+            $payload,
+            sprintf(
+                '%s.attributes[?(@.key == "%s")].value.*',
+                $resourcePath,
+                $name,
+            ),
+        );
+
+        self::assertNotEmpty(
+            $values,
+            sprintf('Resource attribute "%s" was not found.', $name),
+        );
+
+        return $values[0];
+    }
+
+    /**
+     * @return list<array<string, mixed>>
+     */
+    protected function spanAttributes(string $spanName): array {
+        return $this->path(
+            $this->combinedTracePayload(),
+            sprintf(
+                '$.resourceSpans[*].scopeSpans[*].spans[?(@.name == "%s")].attributes[*]',
+                $spanName,
+            ),
+        );
+    }
+
+    protected function spanAttribute(
+        string $spanName,
+        string $attribute,
+    ): mixed {
+        $values = $this->path(
+            $this->combinedTracePayload(),
+            sprintf(
+                '$.resourceSpans[*].scopeSpans[*].spans[?(@.name == "%s")].attributes[?(@.key == "%s")].value.*',
+                $spanName,
+                $attribute,
+            ),
+        );
+
+        self::assertNotEmpty(
+            $values,
+            sprintf(
+                'Attribute "%s" was not found on span "%s".',
+                $attribute,
+                $spanName,
+            ),
+        );
+
+        return $values[0];
+    }
+
+    protected function combinedTracePayload(): string {
+        $resourceSpans = [];
+
+        foreach ($this->traces as $payload) {
+            $decoded = json_decode(
+                $payload,
+                true,
+                512,
+                JSON_THROW_ON_ERROR,
+            );
+
+            foreach ($decoded['resourceSpans'] ?? [] as $resourceSpan) {
+                $resourceSpans[] = $resourceSpan;
+            }
+        }
+
+        return json_encode(
+            ['resourceSpans' => $resourceSpans],
+            JSON_THROW_ON_ERROR,
+        );
     }
 }
