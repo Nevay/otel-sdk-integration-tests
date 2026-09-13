@@ -240,4 +240,46 @@ final class EnvLogRecordTest extends TestCase {
         self::assertContains(['doubleValue' => 3.5], $bodies);
         self::assertContains(['intValue' => '1234567890123'], $bodies);
     }
+
+    public function testLogBodySupportsNestedMaps(): void {
+        $this->runOTel(
+            static function (): void {
+                $logger = Globals::loggerProvider()->getLogger('test');
+
+                $logger->emit(new LogRecord(['nested' => ['key' => 'value'], 'count' => 2]));
+            },
+        );
+
+        self::assertNotEmpty($this->logs);
+
+        /*
+         * Map bodies are exported as OTLP kvlist values, including nested
+         * maps; int64 values are encoded as strings in JSON.
+         */
+        $body = $this->path(
+            $this->logs[0],
+            '$.resourceLogs[*].scopeLogs[*].logRecords[*].body',
+        )[0];
+
+        self::assertSame(
+            [
+                'kvlistValue' => [
+                    'values' => [
+                        [
+                            'key' => 'nested',
+                            'value' => [
+                                'kvlistValue' => [
+                                    'values' => [
+                                        ['key' => 'key', 'value' => ['stringValue' => 'value']],
+                                    ],
+                                ],
+                            ],
+                        ],
+                        ['key' => 'count', 'value' => ['intValue' => '2']],
+                    ],
+                ],
+            ],
+            $body,
+        );
+    }
 }

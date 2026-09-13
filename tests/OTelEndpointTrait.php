@@ -29,6 +29,7 @@ use function Amp\ByteStream\getStderr;
 use function Amp\ByteStream\pipe;
 use function Amp\File\deleteFile;
 use function Amp\File\write;
+use function Amp\delay;
 use function sprintf;
 use function sys_get_temp_dir;
 use function uniqid;
@@ -47,6 +48,11 @@ trait OTelEndpointTrait {
      * @var list<array<string, string>>
      */
     public array $requestHeaders = [];
+
+    /**
+     * Number of requests received by the /v1/slow route.
+     */
+    public int $slowRequests = 0;
 
     public array $env = [];
 
@@ -77,6 +83,22 @@ trait OTelEndpointTrait {
          * status; used to test collector failure handling.
          */
         $router->addRoute('POST', 'v1/fail', new ClosureRequestHandler(fn(Request $request): Response => new Response(HttpStatus::INTERNAL_SERVER_ERROR)));
+
+        /*
+         * A route that delays its response; used to test exporter timeout
+         * handling.
+         */
+        $router->addRoute('POST', 'v1/slow', new ClosureRequestHandler(function (Request $request): Response {
+            $this->slowRequests++;
+
+            /*
+             * Delay the response beyond the export timeout used by the test
+             * (Amp\delay accepts fractional seconds, so this stays fast).
+             */
+            delay(0.5);
+
+            return new Response(HttpStatus::OK);
+        }));
         $server->expose(new InternetAddress('127.0.0.1', 0));
         $server->start($router, new DefaultErrorHandler());
 
@@ -119,6 +141,18 @@ trait OTelEndpointTrait {
     }
 
     protected function runOTel(Closure $closure, string ...$env): string {
+        return $this->runOTelInternal($closure, false, ...$env);
+    }
+
+    /**
+     * Like runOTel, but expects the SDK initialization in the child process
+     * to fail: the init error must be present on stderr.
+     */
+    protected function runOTelExpectingInitError(Closure $closure, string ...$env): string {
+        return $this->runOTelInternal($closure, true, ...$env);
+    }
+
+    private function runOTelInternal(Closure $closure, bool $expectInitError, string ...$env): string {
         $autoloadPath = Path::makeAbsolute('vendor/autoload.php', InstalledVersions::getRootPackage()['install_path']);
 
         $process = Process::start(
@@ -153,21 +187,43 @@ trait OTelEndpointTrait {
          * initialization' vs 'Error during opentelemetry initialization'), so
          * compare case-insensitively.
          */
-        self::assertStringNotContainsString(
-            strtolower('Error during opentelemetry initialization'),
-            strtolower($stderr),
-            'The OTel SDK failed to initialize in the child process.',
-        );
+        if ($expectInitError) {
+            self::assertStringContainsString(
+                strtolower('Error during opentelemetry initialization'),
+                strtolower($stderr),
+                'Expected the OTel SDK to fail to initialize in the child process.',
+            );
+        } else {
+            self::assertStringNotContainsString(
+                strtolower('Error during opentelemetry initialization'),
+                strtolower($stderr),
+                'The OTel SDK failed to initialize in the child process.',
+            );
+        }
 
         return $output;
     }
 
     protected function runOTelConfig(string $config, Closure $closure, string ...$env): string {
+        return $this->runOTelConfigInternal($config, $closure, false, ...$env);
+    }
+
+    /**
+     * Like runOTelConfig, but expects the SDK initialization in the child
+     * process to fail: the init error must be present on stderr.
+     */
+    protected function runOTelConfigExpectingInitError(string $config, Closure $closure, string ...$env): string {
+        return $this->runOTelConfigInternal($config, $closure, true, ...$env);
+    }
+
+    private function runOTelConfigInternal(string $config, Closure $closure, bool $expectInitError, string ...$env): string {
         $tmpDir = sys_get_temp_dir();
         $configFile = $tmpDir . '/' . uniqid('otel-sdk-config-', true) . '.yaml';
         write($configFile, $config);
         try {
-            return $this->runOTel($closure, ...$env, OTEL_CONFIG_FILE: $configFile);
+            return $expectInitError
+                ? $this->runOTelExpectingInitError($closure, ...$env, OTEL_CONFIG_FILE: $configFile)
+                : $this->runOTel($closure, ...$env, OTEL_CONFIG_FILE: $configFile);
         } finally {
             deleteFile($configFile);
         }
@@ -422,6 +478,7 @@ trait OTelEndpointTrait {
             ),
         );
     }
+
 
     protected function dataPoint(
         string $payload,

@@ -138,6 +138,92 @@ final class ConfigBasicTest extends TestCase {
         self::assertContains('gzip-span', $this->spanNames($this->traces[0]));
     }
 
+    #[Group('traces')]
+    public function testOtlpHttpEncodingJsonIsApplied(): void {
+        $this->runOTelConfig(
+            <<<'YAML'
+            file_format: "1.2"
+
+            tracer_provider:
+              processors:
+                - batch:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${env:OTEL_EXPORTER_OTLP_TRACES_ENDPOINT}
+                        encoding: json
+            YAML,
+            static function (): void {
+                $span = Globals::tracerProvider()
+                    ->getTracer('config-test')
+                    ->spanBuilder('json-encoding')
+                    ->startSpan();
+
+                $span->end();
+            },
+        );
+
+        self::assertNotEmpty($this->traces);
+
+        /*
+         * The default encoding is protobuf; with 'json' the payload is sent
+         * as application/json.
+         */
+        $headers = array_change_key_case($this->requestHeaders[0]);
+        self::assertSame(['application/json'], $headers['content-type']);
+
+        self::assertContains('json-encoding', $this->spanNames($this->traces[0]));
+    }
+
+    #[Group('traces')]
+    public function testOtlpHttpTimeoutDropsExportWhenCollectorIsSlow(): void {
+        $this->runOTelConfig(
+            <<<'YAML'
+            file_format: "1.2"
+
+            distribution:
+              tbachert/otel-sdk:
+                #
+                # Bound the shutdown so the test does not wait out the SDK's
+                # full exponential-backoff retry sequence (~30 s).
+                #
+                shutdown_timeout: 1
+
+            tracer_provider:
+              processors:
+                - batch:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${env:OTEL_EXPORTER_OTLP_TRACES_ENDPOINT}
+                        timeout: 300
+            YAML,
+            static function (): void {
+                $span = Globals::tracerProvider()
+                    ->getTracer('config-test')
+                    ->spanBuilder('slow-collector')
+                    ->startSpan();
+
+                $span->end();
+            },
+            'OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=' . str_replace(
+                '/v1/traces',
+                '/v1/slow',
+                $this->env['OTEL_EXPORTER_OTLP_TRACES_ENDPOINT'],
+            ),
+        );
+
+        /*
+         * The export was attempted...
+         */
+        self::assertGreaterThanOrEqual(1, $this->slowRequests);
+
+        /*
+         * ...but the collector does not answer within the 300 ms timeout:
+         * the payload is dropped and the process still shuts down cleanly
+         * (runOTelConfig would throw on a non-zero exit code).
+         */
+        self::assertSame([], $this->traces);
+    }
+
     #[Group('traces'), Group('metrics'), Group('logs')]
     public function testSignalsCanBeConfiguredIndependently(): void
     {
@@ -278,6 +364,47 @@ final class ConfigBasicTest extends TestCase {
             },
         );
 
+        self::assertSame([], $this->traces);
+        self::assertSame([], $this->metrics);
+        self::assertSame([], $this->logs);
+    }
+
+    #[Group('traces'), Group('metrics'), Group('logs')]
+    public function testUnsupportedFileFormatResultsInNoOpSdk(): void {
+        $this->runOTelConfigExpectingInitError(
+            <<<'YAML'
+            file_format: "9.9"
+
+            tracer_provider:
+              processors:
+                - batch:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${env:OTEL_EXPORTER_OTLP_TRACES_ENDPOINT}
+            YAML,
+            static function (): void {
+                $span = Globals::tracerProvider()
+                    ->getTracer('config-test')
+                    ->spanBuilder('invalid-format')
+                    ->startSpan();
+
+                $span->end();
+
+                Globals::meterProvider()
+                    ->getMeter('config-test')
+                    ->createCounter('c')
+                    ->add(1);
+
+                Globals::loggerProvider()
+                    ->getLogger('config-test')
+                    ->emit(new LogRecord('c'));
+            },
+        );
+
+        /*
+         * The invalid configuration is logged during initialization and the
+         * SDK degrades to a no-op: nothing is exported.
+         */
         self::assertSame([], $this->traces);
         self::assertSame([], $this->metrics);
         self::assertSame([], $this->logs);
