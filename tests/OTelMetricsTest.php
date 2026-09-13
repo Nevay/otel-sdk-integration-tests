@@ -4,6 +4,7 @@ namespace Nevay\OTelTest;
 use PHPUnit\Framework\TestCase;
 use Nevay\OTelTest\OTelEndpointTrait;
 use OpenTelemetry\API\Globals;
+use OpenTelemetry\API\Metrics\ObserverInterface;
 use function Amp\delay;
 
 final class OTelMetricsTest extends TestCase
@@ -1017,6 +1018,131 @@ final class OTelMetricsTest extends TestCase
                 array_search('3', $values, true),
                 array_search('5', $values, true),
             );
+        }
+    }
+
+    public function testObservableCounterExportsCumulativeObservedValue(): void
+    {
+        $output = $this->runOTelConfig(
+            <<<'YAML'
+            file_format: "1.2"
+
+            meter_provider:
+              readers:
+                - periodic:
+                    interval: 200
+                    exporter:
+                      otlp_http:
+                        endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
+            YAML,
+            static function (): void {
+                $counter = Globals::meterProvider()
+                    ->getMeter('observable-test')
+                    ->createObservableCounter('obs.counter');
+
+                /*
+                 * The callback runs once per collection cycle and reports
+                 * a growing cumulative value.
+                 */
+                $counter->observe(
+                    static function (ObserverInterface $observer): void {
+                        static $value = 0;
+                        $value += 10;
+                        $observer->observe($value);
+                    },
+                );
+
+                delay(0.5);
+
+                echo 'done';
+            },
+        );
+
+        self::assertSame('done', $output);
+
+        $values = [];
+
+        foreach ($this->metrics as $payload) {
+            $dataPoints = $this->dataPoints(
+                $payload,
+                'obs.counter',
+            );
+
+            if ($dataPoints !== []) {
+                $values[] = (int) $dataPoints[0]['asInt'];
+            }
+        }
+
+        self::assertGreaterThanOrEqual(2, count($values));
+
+        /*
+         * Every collection cycle observes the next cumulative value.
+         */
+        foreach ($values as $index => $value) {
+            self::assertSame(10 * ($index + 1), $value);
+        }
+
+        /*
+         * Observable counters are monotonic sums.
+         */
+        $metric = $this->metric($this->lastMetricExport(), 'obs.counter');
+
+        self::assertTrue($metric['sum']['isMonotonic']);
+    }
+
+    public function testObservableGaugeExportsObservedValue(): void
+    {
+        $output = $this->runOTelConfig(
+            <<<'YAML'
+            file_format: "1.2"
+
+            meter_provider:
+              readers:
+                - periodic:
+                    interval: 200
+                    exporter:
+                      otlp_http:
+                        endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
+            YAML,
+            static function (): void {
+                $gauge = Globals::meterProvider()
+                    ->getMeter('observable-test')
+                    ->createObservableGauge('obs.gauge');
+
+                $gauge->observe(
+                    static function (ObserverInterface $observer): void {
+                        $observer->observe(42);
+                    },
+                );
+
+                delay(0.5);
+
+                echo 'done';
+            },
+        );
+
+        self::assertSame('done', $output);
+
+        $exports = [];
+
+        foreach ($this->metrics as $payload) {
+            $dataPoints = $this->path(
+                $payload,
+                '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "obs.gauge")].gauge.dataPoints[*]',
+            );
+
+            if ($dataPoints !== []) {
+                $exports[] = $dataPoints[0];
+            }
+        }
+
+        self::assertGreaterThanOrEqual(2, count($exports));
+
+        /*
+         * The observed value is reported in every collection cycle.
+         */
+        foreach ($exports as $export) {
+            self::assertSame('42', $export['asInt']);
         }
     }
 
