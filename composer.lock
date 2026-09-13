@@ -1798,16 +1798,16 @@
         },
         {
             "name": "nikic/php-parser",
-            "version": "v5.8.0",
+            "version": "v5.9.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/nikic/PHP-Parser.git",
-                "reference": "044a6a392ff8ad0d61f14370a5fbbd0a0107152f"
+                "reference": "9e33da9553fe7786f0962b35f4e4ecf01be89def"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/nikic/PHP-Parser/zipball/044a6a392ff8ad0d61f14370a5fbbd0a0107152f",
-                "reference": "044a6a392ff8ad0d61f14370a5fbbd0a0107152f",
+                "url": "https://api.github.com/repos/nikic/PHP-Parser/zipball/9e33da9553fe7786f0962b35f4e4ecf01be89def",
+                "reference": "9e33da9553fe7786f0962b35f4e4ecf01be89def",
                 "shasum": ""
             },
             "require": {
@@ -1849,9 +1849,9 @@
             ],
             "support": {
                 "issues": "https://github.com/nikic/PHP-Parser/issues",
-                "source": "https://github.com/nikic/PHP-Parser/tree/v5.8.0"
+                "source": "https://github.com/nikic/PHP-Parser/tree/v5.9.0"
             },
-            "time": "2026-07-04T14:30:18+00:00"
+            "time": "2026-09-13T18:51:52+00:00"
         },
         {
             "name": "open-telemetry/api",
@@ -5190,12 +5190,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/Nevay/otel-sdk-config.git",
-                "reference": "802bb77af0cfa3c26ef7c3bdcc383d655225d1e9"
+                "reference": "c71bfc2078b6d4beda9f71bafccc32e7d139b307"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/Nevay/otel-sdk-config/zipball/802bb77af0cfa3c26ef7c3bdcc383d655225d1e9",
-                "reference": "802bb77af0cfa3c26ef7c3bdcc383d655225d1e9",
+                "url": "https://api.github.com/repos/Nevay/otel-sdk-config/zipball/c71bfc2078b6d4beda9f71bafccc32e7d139b307",
+                "reference": "c71bfc2078b6d4beda9f71bafccc32e7d139b307",
                 "shasum": ""
             },
             "require": {
@@ -5256,7 +5256,7 @@
                 "issues": "https://github.com/Nevay/otel-sdk-config/issues",
                 "source": "https://github.com/Nevay/otel-sdk-config/tree/main"
             },
-            "time": "2026-09-13T15:13:29+00:00"
+            "time": "2026-09-13T20:23:21+00:00"
         },
         {
             "name": "tbachert/otel-sdk-core",
@@ -5506,12 +5506,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/Nevay/otel-sdk-resourcedetectors.git",
-                "reference": "065700e860c426322250fd9cdd2a6d36c584b7d6"
+                "reference": "3e371f418c4bf301b5581dacb07d9a32eed278b6"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/Nevay/otel-sdk-resourcedetectors/zipball/065700e860c426322250fd9cdd2a6d36c584b7d6",
-                "reference": "065700e860c426322250fd9cdd2a6d36c584b7d6",
+                "url": "https://api.github.com/repos/Nevay/otel-sdk-resourcedetectors/zipball/3e371f418c4bf301b5581dacb07d9a32eed278b6",
+                "reference": "3e371f418c4bf301b5581dacb07d9a32eed278b6",
                 "shasum": ""
             },
             "require": {
@@ -5551,7 +5551,7 @@
                 "issues": "https://github.com/Nevay/otel-sdk-resourcedetectors/issues",
                 "source": "https://github.com/Nevay/otel-sdk-resourcedetectors/tree/main"
             },
-            "time": "2026-08-08T23:29:40+00:00"
+            "time": "2026-09-13T20:23:21+00:00"
         },
         {
             "name": "tbachert/spi",
