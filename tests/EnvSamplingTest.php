@@ -9,7 +9,7 @@ use OpenTelemetry\Context\Context;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 
-    #[Group('env'), Group('traces')]
+#[Group('env'), Group('traces')]
 final class EnvSamplingTest extends TestCase {
     use OTelEndpointTrait;
 

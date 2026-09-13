@@ -5,7 +5,7 @@ use OpenTelemetry\API\Globals;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 
-    #[Group('config-file'), Group('traces')]
+#[Group('config-file'), Group('traces')]
 final class ConfigTracerConfiguratorTest extends TestCase {
     use OTelEndpointTrait;
 

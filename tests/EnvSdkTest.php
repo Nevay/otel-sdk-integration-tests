@@ -7,7 +7,7 @@ use Opentelemetry\Proto\Collector\Trace\V1\ExportTraceServiceRequest;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 
-    #[Group('env')]
+#[Group('env')]
 final class EnvSdkTest extends TestCase {
     use OTelEndpointTrait;
 

@@ -6,7 +6,7 @@ use OpenTelemetry\API\Logs\LogRecord;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 
-    #[Group('config-file'), Group('logs')]
+#[Group('config-file'), Group('logs')]
 final class ConfigLogRecordTest extends TestCase {
     use OTelEndpointTrait;
 
@@ -147,6 +147,7 @@ final class ConfigLogRecordTest extends TestCase {
         );
     }
 
+    #[Group('async')]
     public function testSimpleLogRecordProcessorExportsOnEmit(): void
     {
         $this->runOTelConfig(

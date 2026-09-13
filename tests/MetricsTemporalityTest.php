@@ -6,7 +6,7 @@ use function Amp\delay;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 
-    #[Group('config-file'), Group('metrics')]
+#[Group('config-file'), Group('metrics')]
 final class MetricsTemporalityTest extends TestCase {
     use OTelEndpointTrait;
 
@@ -16,6 +16,7 @@ final class MetricsTemporalityTest extends TestCase {
      * =========================================================================
      */
 
+    #[Group('async')]
     public function testMetricsExporterUsesCumulativeTemporality(): void
     {
         $output = $this->runOTelConfig(
@@ -113,6 +114,7 @@ final class MetricsTemporalityTest extends TestCase {
         }
     }
 
+    #[Group('async')]
     public function testMetricsExporterUsesDeltaTemporality(): void
     {
         $output = $this->runOTelConfig(
@@ -205,6 +207,7 @@ final class MetricsTemporalityTest extends TestCase {
         );
     }
 
+    #[Group('async')]
     public function testMetricsCumulativeTemporalityPreservesStartTimestamp(): void
     {
         $output = $this->runOTelConfig(

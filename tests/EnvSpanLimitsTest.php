@@ -8,7 +8,7 @@ use OpenTelemetry\API\Trace\TraceFlags;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 
-    #[Group('env'), Group('traces')]
+#[Group('env'), Group('traces')]
 final class EnvSpanLimitsTest extends TestCase {
     use OTelEndpointTrait;
 

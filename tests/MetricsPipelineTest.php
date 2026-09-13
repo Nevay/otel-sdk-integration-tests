@@ -7,7 +7,7 @@ use function Amp\delay;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 
-    #[Group('config-file'), Group('metrics')]
+#[Group('config-file'), Group('metrics')]
 final class MetricsPipelineTest extends TestCase {
     use OTelEndpointTrait;
 
@@ -17,6 +17,7 @@ final class MetricsPipelineTest extends TestCase {
      * =========================================================================
      */
 
+    #[Group('async')]
     public function testMetricsPipelineExportsMultipleInstrumentsAcrossMultipleCollectionCycles(): void
     {
         $output = $this->runOTelConfig(
@@ -453,6 +454,7 @@ final class MetricsPipelineTest extends TestCase {
         );
     }
 
+    #[Group('async')]
     public function testMetricsPipelineKeepsMetricSeriesSeparateByAttributes(): void
     {
         $output = $this->runOTelConfig(
@@ -579,6 +581,7 @@ final class MetricsPipelineTest extends TestCase {
         );
     }
 
+    #[Group('async')]
     public function testMetricsPipelineExportsHistogramAggregationAcrossCollections(): void
     {
         $output = $this->runOTelConfig(
@@ -695,6 +698,7 @@ final class MetricsPipelineTest extends TestCase {
         self::assertSame(15, $health['max']);
     }
 
+    #[Group('async')]
     public function testMetricsGaugeExportsLastValuePerCollection(): void
     {
         $output = $this->runOTelConfig(
@@ -765,6 +769,7 @@ final class MetricsPipelineTest extends TestCase {
         }
     }
 
+    #[Group('async')]
     public function testMultipleMetersProduceSeparateScopesInOneExport(): void
     {
         $output = $this->runOTelConfig(
@@ -838,6 +843,7 @@ final class MetricsPipelineTest extends TestCase {
         self::assertSame('meter-b', $metricScopes['scope.b']);
     }
 
+    #[Group('async')]
     public function testUpDownCounterExportsNonMonotonicSum(): void
     {
         $output = $this->runOTelConfig(
@@ -916,6 +922,7 @@ final class MetricsPipelineTest extends TestCase {
         }
     }
 
+    #[Group('async')]
     public function testObservableCounterExportsCumulativeObservedValue(): void
     {
         $output = $this->runOTelConfig(
@@ -990,6 +997,7 @@ final class MetricsPipelineTest extends TestCase {
         self::assertTrue($metric['sum']['isMonotonic']);
     }
 
+    #[Group('async')]
     public function testObservableGaugeExportsObservedValue(): void
     {
         $output = $this->runOTelConfig(

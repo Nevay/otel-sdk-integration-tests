@@ -6,7 +6,7 @@ use OpenTelemetry\API\Trace\Span;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 
-    #[Group('config-file'), Group('traces')]
+#[Group('config-file'), Group('traces')]
 final class ConfigBatchSpanProcessorTest extends TestCase {
     use OTelEndpointTrait;
 
@@ -123,6 +123,7 @@ final class ConfigBatchSpanProcessorTest extends TestCase {
         self::assertIsArray($this->traces);
     }
 
+    #[Group('async')]
     public function testSimpleSpanProcessorExportsOnSpanEnd(): void
     {
         $this->runOTelConfig(

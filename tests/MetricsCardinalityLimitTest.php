@@ -6,7 +6,7 @@ use function Amp\delay;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 
-    #[Group('config-file'), Group('metrics')]
+#[Group('config-file'), Group('metrics')]
 final class MetricsCardinalityLimitTest extends TestCase {
     use OTelEndpointTrait;
 
@@ -16,6 +16,7 @@ final class MetricsCardinalityLimitTest extends TestCase {
      * =========================================================================
      */
 
+    #[Group('async')]
     public function testMetricsCardinalityLimitLimitsNumberOfAttributeSets(): void
     {
         $output = $this->runOTelConfig(

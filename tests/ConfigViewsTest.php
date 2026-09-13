@@ -5,7 +5,7 @@ use OpenTelemetry\API\Globals;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 
-    #[Group('config-file'), Group('metrics')]
+#[Group('config-file'), Group('metrics')]
 final class ConfigViewsTest extends TestCase {
     use OTelEndpointTrait;
 

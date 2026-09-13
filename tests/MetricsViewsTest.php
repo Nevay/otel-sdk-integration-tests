@@ -6,7 +6,7 @@ use function Amp\delay;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 
-    #[Group('config-file'), Group('metrics')]
+#[Group('config-file'), Group('metrics')]
 final class MetricsViewsTest extends TestCase {
     use OTelEndpointTrait;
 
@@ -16,6 +16,7 @@ final class MetricsViewsTest extends TestCase {
      * =========================================================================
      */
 
+    #[Group('async')]
     public function testMetricsViewCanFilterAttributes(): void
     {
         $output = $this->runOTelConfig(
@@ -116,6 +117,7 @@ final class MetricsViewsTest extends TestCase {
         }
     }
 
+    #[Group('async')]
     public function testMetricsInstrumentCanProduceMultipleViewStreams(): void
     {
         $output = $this->runOTelConfig(
@@ -217,6 +219,7 @@ final class MetricsViewsTest extends TestCase {
         );
     }
 
+    #[Group('async')]
     public function testMetricsViewCanOverrideMetricMetadata(): void
     {
         $output = $this->runOTelConfig(

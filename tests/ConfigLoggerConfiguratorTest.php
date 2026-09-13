@@ -10,7 +10,7 @@ use OpenTelemetry\Context\Context;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 
-    #[Group('config-file'), Group('logs')]
+#[Group('config-file'), Group('logs')]
 final class ConfigLoggerConfiguratorTest extends TestCase {
     use OTelEndpointTrait;
 
