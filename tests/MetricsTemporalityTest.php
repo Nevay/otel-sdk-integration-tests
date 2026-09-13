@@ -75,6 +75,8 @@ final class MetricsTemporalityTest extends TestCase {
             }
         }
 
+        $exports = $this->sortByCollectionTime($exports);
+
         self::assertGreaterThanOrEqual(
             2,
             count($exports),
@@ -170,6 +172,8 @@ final class MetricsTemporalityTest extends TestCase {
             }
         }
 
+        $exports = $this->sortByCollectionTime($exports);
+
         self::assertGreaterThanOrEqual(
             2,
             count($exports),
@@ -253,6 +257,8 @@ final class MetricsTemporalityTest extends TestCase {
                 $exports[] = $points[0];
             }
         }
+
+        $exports = $this->sortByCollectionTime($exports);
 
         self::assertGreaterThanOrEqual(2, count($exports));
 

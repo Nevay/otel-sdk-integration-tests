@@ -480,6 +480,25 @@ trait OTelEndpointTrait {
     }
 
 
+    /**
+     * Sort data points collected from multiple exports by collection time.
+     *
+     * Exports may arrive out of order (the exporter uses a connection pool),
+     * so tests asserting on value sequences must sort first.
+     */
+    protected function sortByCollectionTime(array $dataPoints): array {
+        usort(
+            $dataPoints,
+            static fn(array $a, array $b): int => (
+                (int) ($a['timeUnixNano'] ?? 0)
+            ) <=> (
+                (int) ($b['timeUnixNano'] ?? 0)
+            ),
+        );
+
+        return $dataPoints;
+    }
+
     protected function dataPoint(
         string $payload,
         string $metricName,

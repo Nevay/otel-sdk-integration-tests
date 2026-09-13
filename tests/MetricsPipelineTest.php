@@ -742,6 +742,8 @@ final class MetricsPipelineTest extends TestCase {
             }
         }
 
+        $exports = $this->sortByCollectionTime($exports);
+
         self::assertGreaterThanOrEqual(
             2,
             count($exports),
@@ -869,7 +871,7 @@ final class MetricsPipelineTest extends TestCase {
 
         self::assertSame('done', $output);
 
-        $values = [];
+        $exports = [];
 
         foreach ($this->metrics as $payload) {
             $dataPoints = $this->dataPoints(
@@ -878,9 +880,14 @@ final class MetricsPipelineTest extends TestCase {
             );
 
             if ($dataPoints !== []) {
-                $values[] = $dataPoints[0]['asInt'];
+                $exports[] = $dataPoints[0];
             }
         }
+
+        $values = array_map(
+            static fn(array $export): string => $export['asInt'],
+            $this->sortByCollectionTime($exports),
+        );
 
         self::assertNotEmpty($values);
 
@@ -948,7 +955,7 @@ final class MetricsPipelineTest extends TestCase {
 
         self::assertSame('done', $output);
 
-        $values = [];
+        $exports = [];
 
         foreach ($this->metrics as $payload) {
             $dataPoints = $this->dataPoints(
@@ -957,9 +964,14 @@ final class MetricsPipelineTest extends TestCase {
             );
 
             if ($dataPoints !== []) {
-                $values[] = (int) $dataPoints[0]['asInt'];
+                $exports[] = $dataPoints[0];
             }
         }
+
+        $values = array_map(
+            static fn(array $export): int => (int) $export['asInt'],
+            $this->sortByCollectionTime($exports),
+        );
 
         self::assertGreaterThanOrEqual(2, count($values));
 
