@@ -313,4 +313,167 @@ trait OTelEndpointTrait {
             JSON_THROW_ON_ERROR,
         );
     }
+    protected function assertSpanNames(array $expected): void {
+        $actual = [];
+
+        foreach ($this->traces as $payload) {
+            $actual = [
+                ...$actual,
+                ...$this->spanNames($payload),
+            ];
+        }
+
+        self::assertSame($expected, $actual);
+    }
+
+    protected function spanIdByName(string $name): string {
+        $values = $this->path(
+            $this->combinedTracePayload(),
+            sprintf(
+                '$.resourceSpans[*].scopeSpans[*].spans[?(@.name == "%s")].spanId',
+                $name,
+            ),
+        );
+
+        self::assertCount(1, $values);
+
+        return $values[0];
+    }
+
+    protected function spanParentIdByName(string $name): string {
+        $values = $this->path(
+            $this->combinedTracePayload(),
+            sprintf(
+                '$.resourceSpans[*].scopeSpans[*].spans[?(@.name == "%s")].parentSpanId',
+                $name,
+            ),
+        );
+
+        self::assertCount(1, $values);
+
+        return $values[0];
+    }
+
+    protected function scopeForMetric(
+        string $payload,
+        string $metricName,
+    ): array {
+        $scopeMetrics = $this->path(
+            $payload,
+            '$.resourceMetrics[*].scopeMetrics[*]',
+        );
+
+        foreach ($scopeMetrics as $scopeMetric) {
+            foreach ($scopeMetric['metrics'] ?? [] as $metric) {
+                if (($metric['name'] ?? null) !== $metricName) {
+                    continue;
+                }
+
+                self::assertArrayHasKey(
+                    'scope',
+                    $scopeMetric,
+                    sprintf(
+                        'Scope was not found for metric "%s".',
+                        $metricName,
+                    ),
+                );
+
+                return $scopeMetric['scope'];
+            }
+        }
+
+        self::fail(sprintf(
+            'Metric "%s" was not found in any instrumentation scope.',
+            $metricName,
+        ));
+    }
+
+    protected function metric(
+        string $payload,
+        string $name,
+    ): array {
+        $metrics = $this->path(
+            $payload,
+            sprintf(
+                '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "%s")]',
+                $name,
+            ),
+        );
+
+        self::assertNotEmpty(
+            $metrics,
+            sprintf('Metric "%s" was not found.', $name),
+        );
+
+        return $metrics[0];
+    }
+
+    protected function dataPoints(
+        string $payload,
+        string $metricName,
+        string $type = 'sum',
+    ): array {
+        return $this->path(
+            $payload,
+            sprintf(
+                '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "%s")].%s.dataPoints[*]',
+                $metricName,
+                $type,
+            ),
+        );
+    }
+
+    protected function dataPoint(
+        string $payload,
+        string $metricName,
+        array $attributes = [],
+        string $type = 'sum',
+    ): array {
+        $dataPoints = $this->dataPoints(
+            $payload,
+            $metricName,
+            $type,
+        );
+
+        foreach ($dataPoints as $dataPoint) {
+            $actualAttributes = [];
+
+            foreach ($dataPoint['attributes'] ?? [] as $attribute) {
+                $actualAttributes[$attribute['key']] = $this->attributeValue(
+                    $attribute['value'] ?? [],
+                );
+            }
+
+            if ($actualAttributes === $attributes) {
+                return $dataPoint;
+            }
+        }
+
+        self::fail(sprintf(
+            'Data point for metric "%s" with attributes %s was not found.',
+            $metricName,
+            json_encode($attributes, JSON_THROW_ON_ERROR),
+        ));
+    }
+
+    protected function attributeValue(array $value): mixed
+    {
+        return $value['stringValue']
+            ?? $value['intValue']
+            ?? $value['doubleValue']
+            ?? $value['boolValue']
+            ?? $value['bytesValue']
+            ?? null;
+    }
+
+    protected function lastMetricExport(): string
+    {
+        self::assertNotEmpty(
+            $this->metrics,
+            'No metric export was received.',
+        );
+
+        return $this->metrics[array_key_last($this->metrics)];
+    }
+
 }
