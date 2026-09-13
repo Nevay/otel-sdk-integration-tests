@@ -1438,6 +1438,78 @@ final class OTelEnvironmentTest extends TestCase {
         );
     }
 
+    public function testMetricsExemplarFilterAlwaysOnCapturesWithoutSpan(): void {
+        $this->runOTel(
+            static function (): void {
+                Globals::meterProvider()
+                    ->getMeter('test')
+                    ->createCounter('no-span.counter')
+                    ->add(1);
+            },
+            'OTEL_METRICS_EXEMPLAR_FILTER=always_on',
+        );
+
+        $exemplars = $this->path(
+            $this->metrics[0],
+            '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "no-span.counter")]..exemplars[*]',
+        );
+
+        /*
+         * always_on captures measurements even without an active span;
+         * the exemplar then carries no trace context.
+         */
+        self::assertCount(1, $exemplars);
+        self::assertSame('1', $exemplars[0]['asInt']);
+        self::assertArrayNotHasKey('traceId', $exemplars[0]);
+        self::assertArrayNotHasKey('spanId', $exemplars[0]);
+    }
+
+    public function testMetricsExemplarFilterTraceBasedOnlyCapturesInSampledSpans(): void {
+        $this->runOTel(
+            static function (): void {
+                // Measurement without an active span: no exemplar.
+                Globals::meterProvider()
+                    ->getMeter('test')
+                    ->createCounter('outside.counter')
+                    ->add(1);
+
+                $span = Globals::tracerProvider()
+                    ->getTracer('test')
+                    ->spanBuilder('tb-parent')
+                    ->startSpan();
+
+                $scope = $span->activate();
+
+                // Measurement inside a sampled span: exemplar with trace context.
+                Globals::meterProvider()
+                    ->getMeter('test')
+                    ->createCounter('inside.counter')
+                    ->add(1);
+
+                $scope->detach();
+                $span->end();
+            },
+            'OTEL_METRICS_EXEMPLAR_FILTER=trace_based',
+        );
+
+        self::assertEmpty(
+            $this->path(
+                $this->metrics[0],
+                '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "outside.counter")]..exemplars[*]',
+            ),
+        );
+
+        $exemplars = $this->path(
+            $this->metrics[0],
+            '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "inside.counter")]..exemplars[*]',
+        );
+
+        self::assertCount(1, $exemplars);
+        self::assertSame('1', $exemplars[0]['asInt']);
+        self::assertArrayHasKey('traceId', $exemplars[0]);
+        self::assertArrayHasKey('spanId', $exemplars[0]);
+    }
+
     /*
      * =========================================================================
      * Cross-signal correlation
