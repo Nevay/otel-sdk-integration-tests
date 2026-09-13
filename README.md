@@ -26,6 +26,11 @@ Tests can be selected with PHPUnit groups (`--group` / `--exclude-group`):
 - signal: `traces`, `metrics`, `logs`
 - `async`: tests whose server handlers use `Amp\delay`
 
+## Tested SDKs
+
+- [`tbachert/otel-sdk`](https://github.com/tbachert/otel-sdk) (exact package
+  versions pinned in `composer.lock`)
+
 ## Spec compliance notes
 
 **Scope.** All stable environment variables from the specification's SDK
