@@ -361,6 +361,22 @@ trait OTelEndpointTrait {
     }
 
     /**
+     * Entity references exported with the resource: type plus keys into the
+     * resource attributes (the payload carries references, not full entities).
+     *
+     * @return list<array<string, mixed>>
+     */
+    protected function resourceEntityRefs(
+        string $payload,
+        string $resourcePath = '$.resourceSpans[*].resource',
+    ): array {
+        return $this->path(
+            $payload,
+            sprintf('%s.entityRefs[*]', $resourcePath),
+        );
+    }
+
+    /**
      * @return list<array<string, mixed>>
      */
     protected function spanAttributes(string $spanName): array {

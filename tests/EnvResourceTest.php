@@ -241,4 +241,114 @@ final class EnvResourceTest extends TestCase {
             'Expected a randomly generated UUID service.instance.id',
         );
     }
+
+    /*
+     * =========================================================================
+     * Entities (OTEL_ENTITIES)
+     * =========================================================================
+     */
+
+    #[Group('resource')]
+    public function testEntitiesFromEnvironmentVariable(): void {
+        $this->runOTel(
+            static function (): void {
+                Globals::tracerProvider()
+                    ->getTracer('test')
+                    ->spanBuilder('entities')
+                    ->startSpan()
+                    ->end();
+            },
+            'OTEL_ENTITIES=myapp{custom.id=abc,custom.other=xyz}[custom.desc=v1]@https://opentelemetry.io/schemas/1.21.0',
+            'OTEL_TRACES_SAMPLER=always_on',
+        );
+
+        self::assertNotEmpty($this->traces);
+
+        $payload = $this->traces[0];
+
+        /*
+         * The entity's identifying and descriptive attributes are merged
+         * into the resource attributes.
+         */
+        self::assertSame('abc', $this->resourceAttribute($payload, 'custom.id'));
+        self::assertSame('xyz', $this->resourceAttribute($payload, 'custom.other'));
+        self::assertSame('v1', $this->resourceAttribute($payload, 'custom.desc'));
+
+        /*
+         * The entity is exported as a reference: type plus keys into the
+         * resource attributes.
+         */
+        $refs = array_values(array_filter(
+            $this->resourceEntityRefs($payload),
+            static fn(array $ref): bool => ($ref['type'] ?? null) === 'myapp',
+        ));
+
+        self::assertCount(1, $refs);
+        self::assertSame(['custom.id', 'custom.other'], $refs[0]['idKeys']);
+        self::assertSame(['custom.desc'], $refs[0]['descriptionKeys']);
+    }
+
+    #[Group('resource')]
+    public function testEntityDuplicateUsesLastOccurrence(): void {
+        $this->runOTel(
+            static function (): void {
+                Globals::tracerProvider()
+                    ->getTracer('test')
+                    ->spanBuilder('entities-duplicate')
+                    ->startSpan()
+                    ->end();
+            },
+            'OTEL_ENTITIES=myapp{custom.id=abc}[custom.desc=v1]@https://opentelemetry.io/schemas/1.21.0;myapp{custom.id=abc}[custom.desc=v2]@https://opentelemetry.io/schemas/1.21.0',
+            'OTEL_TRACES_SAMPLER=always_on',
+        );
+
+        self::assertNotEmpty($this->traces);
+
+        $payload = $this->traces[0];
+
+        /*
+         * Duplicate entities of the same type with identical identifying
+         * attributes: the last occurrence wins.
+         */
+        self::assertSame('v2', $this->resourceAttribute($payload, 'custom.desc'));
+
+        $refs = array_values(array_filter(
+            $this->resourceEntityRefs($payload),
+            static fn(array $ref): bool => ($ref['type'] ?? null) === 'myapp',
+        ));
+
+        self::assertCount(1, $refs);
+    }
+
+    #[Group('resource')]
+    public function testEntityMalformedDefinitionIsSkipped(): void {
+        $this->runOTel(
+            static function (): void {
+                Globals::tracerProvider()
+                    ->getTracer('test')
+                    ->spanBuilder('entities-malformed')
+                    ->startSpan()
+                    ->end();
+            },
+            'OTEL_ENTITIES=malformed-without-braces;myapp{custom.id=abc}@https://opentelemetry.io/schemas/1.21.0',
+            'OTEL_TRACES_SAMPLER=always_on',
+        );
+
+        self::assertNotEmpty($this->traces);
+
+        $payload = $this->traces[0];
+
+        /*
+         * Malformed entity definitions are skipped while the valid parts are
+         * still processed.
+         */
+        self::assertSame('abc', $this->resourceAttribute($payload, 'custom.id'));
+
+        $refs = array_values(array_filter(
+            $this->resourceEntityRefs($payload),
+            static fn(array $ref): bool => ($ref['type'] ?? null) === 'myapp',
+        ));
+
+        self::assertCount(1, $refs);
+    }
 }

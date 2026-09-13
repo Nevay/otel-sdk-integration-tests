@@ -456,4 +456,56 @@ final class ConfigResourceTest extends TestCase {
 
         self::assertMatchesRegularExpression('/^[0-9a-f]{64}$/', $containerId);
     }
+
+    #[Group('resource')]
+    public function testEnvDetectorParsesEntitiesFromEnvironmentVariable(): void {
+        $this->runOTelConfig(
+            <<<'YAML'
+            file_format: "1.2"
+
+            resource:
+              detection/development:
+                detectors:
+                  - env:
+
+            tracer_provider:
+              processors:
+                - batch:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${env:OTEL_EXPORTER_OTLP_TRACES_ENDPOINT}
+            YAML,
+            static function (): void {
+                $span = Globals::tracerProvider()
+                    ->getTracer('test')
+                    ->spanBuilder('detector-env-entities')
+                    ->startSpan();
+
+                $span->end();
+            },
+            'OTEL_ENTITIES=myapp{custom.id=abc}[custom.desc=v1]@https://opentelemetry.io/schemas/1.21.0',
+        );
+
+        self::assertNotEmpty($this->traces);
+
+        $payload = $this->traces[0];
+
+        /*
+         * The entity's identifying and descriptive attributes are merged
+         * into the resource attributes, and the entity is exported as a
+         * reference carrying its own schema URL.
+         */
+        self::assertSame('abc', $this->resourceAttribute($payload, 'custom.id'));
+        self::assertSame('v1', $this->resourceAttribute($payload, 'custom.desc'));
+
+        $refs = array_values(array_filter(
+            $this->resourceEntityRefs($payload),
+            static fn(array $ref): bool => ($ref['type'] ?? null) === 'myapp',
+        ));
+
+        self::assertCount(1, $refs);
+        self::assertSame(['custom.id'], $refs[0]['idKeys']);
+        self::assertSame(['custom.desc'], $refs[0]['descriptionKeys']);
+        self::assertSame('https://opentelemetry.io/schemas/1.21.0', $refs[0]['schemaUrl']);
+    }
 }
