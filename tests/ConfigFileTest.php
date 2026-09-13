@@ -49,6 +49,7 @@ final class ConfigFileTest extends TestCase {
                     ->add(1);
                 $logger
                     ->logRecordBuilder()
+                    ->setBody('smoke-log')
                     ->emit();
             }
         );
@@ -56,6 +57,23 @@ final class ConfigFileTest extends TestCase {
         $this->assertNotEmpty($this->traces);
         $this->assertNotEmpty($this->metrics);
         $this->assertNotEmpty($this->logs);
+
+        /*
+         * The log record body must round-trip through the exporter.
+         */
+        self::assertSame(
+            ['smoke-log'],
+            $this->path($this->logs[0], '$.resourceLogs[*].scopeLogs[*].logRecords[*].body.stringValue'),
+        );
+
+        /*
+         * Without an explicit service name, the config-file based resource
+         * falls back to the spec default.
+         */
+        self::assertSame(
+            'unknown_service:php',
+            $this->resourceAttribute($this->traces[0], 'service.name'),
+        );
     }
 
     public function testSdkCanBeDisabled(): void {

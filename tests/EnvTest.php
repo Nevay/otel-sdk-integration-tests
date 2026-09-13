@@ -24,6 +24,7 @@ final class EnvTest extends TestCase {
                     ->add(1);
                 $logger
                     ->logRecordBuilder()
+                    ->setBody('smoke-log')
                     ->emit();
             }
         );
@@ -31,6 +32,35 @@ final class EnvTest extends TestCase {
         $this->assertNotEmpty($this->traces);
         $this->assertNotEmpty($this->metrics);
         $this->assertNotEmpty($this->logs);
+
+        /*
+         * The log record body must round-trip through the exporter.
+         */
+        self::assertSame(
+            ['smoke-log'],
+            $this->path($this->logs[0], '$.resourceLogs[*].scopeLogs[*].logRecords[*].body.stringValue'),
+        );
+
+        /*
+         * The default resource identifies the SDK...
+         */
+        self::assertSame(
+            'php',
+            $this->resourceAttribute($this->traces[0], 'telemetry.sdk.language'),
+        );
+
+        self::assertSame(
+            'tbachert/otel-sdk',
+            $this->resourceAttribute($this->traces[0], 'telemetry.sdk.name'),
+        );
+
+        /*
+         * ...and derives the service name from the root composer package.
+         */
+        self::assertSame(
+            'tbachert/otel-test',
+            $this->resourceAttribute($this->traces[0], 'service.name'),
+        );
     }
 
     public function testSdkCanBeDisabled(): void {
