@@ -50,7 +50,8 @@ final class EnvCorrelationTest extends TestCase {
 
         /*
          * The log record is correlated with the active span. (OTLP JSON
-         * encodes byte fields as base64, while span payloads use hex.)
+         * encodes byte fields as base64, while this SDK's env-mode span
+         * payloads use hex; see tbachert-sdk-issues.md.)
          */
         self::assertSame(
             $spans[0]['traceId'],

@@ -62,3 +62,55 @@ Because of the bug above, no positive TLS test can be written for the exporter
 harness *server* side was verified to work (Amp `SocketHttpServer` +
 `ServerTlsContext` with a self-signed cert serves HTTPS correctly), so once
 the SDK bug is fixed, a TLS test can be added quickly.
+
+## 2. OTLP/JSON trace and span IDs are hex in env mode, base64 in config-file mode
+
+**Severity:** medium — the two configuration modes of the same SDK produce
+different wire formats for the same bytes fields; one of them deviates from
+the specification.
+
+**Specification:** OTLP over HTTP with JSON encoding uses the canonical
+proto3 JSON mapping, where `bytes` fields (including `trace_id` and
+`span_id`) are encoded as **base64** strings.
+
+**Observed behavior** (verified by exporting spans/logs in both modes to the
+same collector):
+
+| mode | span `traceId`/`spanId` | log `traceId`/`spanId` |
+|---|---|---|
+| env (`OTEL_EXPORTER_OTLP_*_ENDPOINT`) | hex, e.g. `ab0f5ec184a547f3d7dede62581573b6` | base64, e.g. `mum6JhpK4zxCeVVIbsoeoQ==` |
+| config file (`file_format: "1.2"`) | base64 | base64 |
+
+So in env mode even the span IDs and log IDs of *the same trace* use
+different encodings within a single export, and both modes disagree with
+each other.
+
+**Impact:** consumers that strictly follow the OTLP/JSON spec (base64) fail
+to parse span IDs from env-mode exports; tests in this suite therefore
+normalize with `bin2hex(base64_decode(...))` / accept-either assertions.
+
+**Expected:** both modes emit base64 for all bytes fields, per the proto3
+JSON mapping.
+
+## 3. Default histogram boundaries omit the spec's 750 bucket
+
+**Severity:** low — data is still binned correctly relative to the SDK's own
+boundaries, but the default bucketing differs from the specification.
+
+**Specification** (metrics SDK, Explicit Bucket Histogram Aggregation):
+> Boundaries default: `[ 0, 5, 10, 25, 50, 75, 100, 250, 500, 750, 1000,
+> 2500, 5000, 7500, 10000 ]` — "SDKs SHOULD use the default value when
+> boundaries are not explicitly provided."
+
+**Observed behavior:** a histogram created without explicit boundaries
+exports `explicitBounds` of
+`[0, 5, 10, 25, 50, 75, 100, 250, 500, 1000, 2500, 5000, 7500, 10000]` —
+the `750` boundary is missing (everything else matches the spec list,
+including its truncation at `10000`).
+
+**Impact:** values in `(500, 1000]` land in a single bucket instead of two;
+downstream consumers expecting the spec's default buckets get different
+histograms from other SDKs for identical data.
+
+**Expected:** `[0, 5, 10, 25, 50, 75, 100, 250, 500, 750, 1000, 2500, 5000,
+7500, 10000]`.

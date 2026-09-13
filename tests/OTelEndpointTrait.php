@@ -38,6 +38,13 @@ use const PHP_BINARY;
 trait OTelEndpointTrait {
 
     private HttpServer $server;
+
+    /**
+     * Base URL of the plain HTTP collector endpoint (http://127.0.0.1:port),
+     * without a signal path.
+     */
+    public string $baseUrl = '';
+
     public array $traces = [];
     public array $metrics = [];
     public array $logs = [];
@@ -48,6 +55,11 @@ trait OTelEndpointTrait {
      * @var list<array<string, string>>
      */
     public array $requestHeaders = [];
+
+    /**
+     * Stderr output of the most recent child process run.
+     */
+    public string $lastStderr = '';
 
     /**
      * Number of requests received by the /v1/slow route.
@@ -88,6 +100,17 @@ trait OTelEndpointTrait {
         }));
 
         /*
+         * The root path: per the OTLP specification, a per-signal endpoint
+         * without a path part sends exports to the root, not to /v1/<signal>.
+         */
+        $router->addRoute('POST', '/', new ClosureRequestHandler(function (Request $request): Response {
+            $this->requestTimes[] = microtime(true);
+            $this->requestHeaders[] = $request->getHeaders();
+
+            return self::captureRequestBody($request, $this->traces[], ExportTraceServiceRequest::class, ExportTraceServiceResponse::class);
+        }));
+
+        /*
          * A route that always rejects the export with a non-retryable
          * status; used to test collector failure handling.
          */
@@ -115,6 +138,8 @@ trait OTelEndpointTrait {
 
         /** @noinspection HttpUrlsUsage */
         $address = 'http://' . $server->getServers()[0]->getAddress()->toString();
+
+        $this->baseUrl = $address;
 
         $this->env['OTEL_EXPORTER_OTLP_TRACES_PROTOCOL']  = 'http/json';
         $this->env['OTEL_EXPORTER_OTLP_TRACES_ENDPOINT']  = $address . '/v1/traces';
@@ -181,6 +206,8 @@ trait OTelEndpointTrait {
         // pipe($process->getStderr(), getStderr());
         $output = buffer($process->getStdout());
         $stderr = buffer($process->getStderr());
+
+        $this->lastStderr = $stderr;
 
         if ($exitCode = $process->join()) {
             throw new ProcessException(sprintf("Process exited with %d:\n%s", $exitCode, $stderr));

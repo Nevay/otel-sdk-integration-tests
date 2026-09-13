@@ -223,5 +223,22 @@ final class EnvResourceTest extends TestCase {
             'tbachert/otel-test',
             $this->resourceAttribute($this->traces[0], 'service.name'),
         );
+
+        /*
+         * The default resource also carries the SDK version and a unique,
+         * randomly generated instance id (spec: service detector).
+         */
+        self::assertNotSame(
+            '',
+            $this->resourceAttribute($this->traces[0], 'telemetry.sdk.version'),
+        );
+
+        self::assertTrue(
+            preg_match(
+                '/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/',
+                $this->resourceAttribute($this->traces[0], 'service.instance.id'),
+            ) === 1,
+            'Expected a randomly generated UUID service.instance.id',
+        );
     }
 }

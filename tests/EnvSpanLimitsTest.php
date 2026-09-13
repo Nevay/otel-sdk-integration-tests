@@ -45,6 +45,38 @@ final class EnvSpanLimitsTest extends TestCase {
         self::assertSame(['12345'], $value);
     }
 
+    public function testSpanAttributeValueLengthLimitOverridesGlobalLimit(): void
+    {
+        $this->runOTel(
+            static function (): void {
+                $span = Globals::tracerProvider()
+                    ->getTracer('environment-test')
+                    ->spanBuilder('environment.span.attribute.value.length')
+                    ->startSpan();
+
+                $span->setAttribute(
+                    'test.attribute',
+                    '1234567890',
+                );
+
+                $span->end();
+            },
+            'OTEL_ATTRIBUTE_VALUE_LENGTH_LIMIT=3',
+            'OTEL_SPAN_ATTRIBUTE_VALUE_LENGTH_LIMIT=5',
+        );
+
+        /*
+         * Per the specification, the signal-specific limit takes precedence
+         * over the global one: truncated at 5, not 3.
+         */
+        $value = $this->path(
+            $this->traces[0],
+            '$.resourceSpans[*].scopeSpans[*].spans[?(@.name == "environment.span.attribute.value.length")].attributes[?(@.key == "test.attribute")].value.stringValue',
+        );
+
+        self::assertSame(['12345'], $value);
+    }
+
     public function testAttributeCountLimitEnvironmentVariable(): void
     {
         $this->runOTel(

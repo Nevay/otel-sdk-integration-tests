@@ -171,4 +171,108 @@ final class EnvEdgeCasesTest extends TestCase {
          */
         self::assertSame([], $this->traces);
     }
+
+    #[Group('metrics'), Group('logs')]
+    public function testGenericOtlpEndpointIsUsedWithAppendedSignalPaths(): void
+    {
+        /*
+         * Blank the per-signal endpoints (empty behaves as unset) so that
+         * only the generic OTEL_EXPORTER_OTLP_ENDPOINT applies.
+         */
+        $this->runOTel(
+            static function (): void {
+                Globals::tracerProvider()
+                    ->getTracer('test')
+                    ->spanBuilder('generic-endpoint')
+                    ->startSpan()
+                    ->end();
+
+                Globals::meterProvider()
+                    ->getMeter('test')
+                    ->createCounter('generic.counter', 'requests')
+                    ->add(1);
+
+                Globals::loggerProvider()
+                    ->getLogger('test')
+                    ->logRecordBuilder()
+                    ->setBody('generic-log')
+                    ->emit();
+            },
+            'OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=',
+            'OTEL_EXPORTER_OTLP_METRICS_ENDPOINT=',
+            'OTEL_EXPORTER_OTLP_LOGS_ENDPOINT=',
+            'OTEL_EXPORTER_OTLP_ENDPOINT=' . $this->baseUrl,
+        );
+
+        /*
+         * Per the specification, the signal paths are appended to the
+         * generic endpoint: all three signals reach the same base URL.
+         */
+        self::assertContains(
+            'generic-endpoint',
+            $this->spanNames($this->traces[0]),
+        );
+        self::assertSame(
+            ['1'],
+            $this->path(
+                $this->metrics[0],
+                '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "generic.counter")].sum.dataPoints[*].asInt',
+            ),
+        );
+        self::assertSame(
+            ['generic-log'],
+            $this->path(
+                $this->logs[0],
+                '$.resourceLogs[*].scopeLogs[*].logRecords[*].body.stringValue',
+            ),
+        );
+    }
+
+    public function testPerSignalEndpointWithoutPathSendsToRoot(): void
+    {
+        /*
+         * Per the OTLP specification, a per-signal endpoint without a path
+         * part is used as-is (root path), unlike the generic endpoint which
+         * gets /v1/<signal> appended.
+         */
+        $this->runOTel(
+            static function (): void {
+                Globals::tracerProvider()
+                    ->getTracer('test')
+                    ->spanBuilder('per-signal-root')
+                    ->startSpan()
+                    ->end();
+            },
+            'OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=' . $this->baseUrl,
+        );
+
+        self::assertContains(
+            'per-signal-root',
+            $this->spanNames($this->traces[0]),
+        );
+    }
+
+    public function testSignalSpecificOtlpEndpointTakesPrecedenceOverGeneric(): void
+    {
+        /*
+         * The per-signal traces endpoint (set by the harness) must win over
+         * the generic one, even though the latter is set to an unroutable
+         * address.
+         */
+        $this->runOTel(
+            static function (): void {
+                Globals::tracerProvider()
+                    ->getTracer('test')
+                    ->spanBuilder('precedence')
+                    ->startSpan()
+                    ->end();
+            },
+            'OTEL_EXPORTER_OTLP_ENDPOINT=http://127.0.0.1:9',
+        );
+
+        self::assertContains(
+            'precedence',
+            $this->spanNames($this->traces[0]),
+        );
+    }
 }
