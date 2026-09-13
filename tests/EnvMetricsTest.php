@@ -4,11 +4,10 @@ namespace Nevay\OTelTest;
 use Amp\Http\Client\HttpClientBuilder;
 use Amp\Http\Client\Request;
 use OpenTelemetry\API\Globals;
-use Throwable;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 
-    #[Group('env'), Group('metrics')]
+#[Group('env'), Group('metrics')]
 final class EnvMetricsTest extends TestCase {
     use OTelEndpointTrait;
 
@@ -29,26 +28,16 @@ final class EnvMetricsTest extends TestCase {
                     ->add(42);
 
                 /*
-                 * The Prometheus exporter runs its own HTTP server inside
-                 * this process, so scrape it from here with the async client.
+                 * The Prometheus exporter starts its HTTP server during
+                 * SDK initialization, which completes before this closure
+                 * runs, so a single scrape is sufficient.
                  */
                 $client = HttpClientBuilder::buildDefault();
-                $body = '';
-                for ($i = 0; $i < 50 && $body === ''; $i++) {
-                    try {
-                        $request = new Request('http://127.0.0.1:' . $port . '/metrics');
-                        $request->setHeader('accept', 'text/plain;version=0.0.4');
-                        $response = $client->request($request);
-                        if ($response->getStatus() === 200) {
-                            $body = (string) $response->getBody();
-                        }
-                    } catch (Throwable) {
-                        // The server may not be listening yet.
-                    }
-                    \Amp\delay(0.1);
-                }
+                $request = new Request('http://127.0.0.1:' . $port . '/metrics');
+                $request->setHeader('accept', 'text/plain;version=0.0.4');
+                $response = $client->request($request);
 
-                echo $body;
+                echo (string) $response->getBody();
             },
             'OTEL_METRICS_EXPORTER=prometheus',
             'OTEL_EXPORTER_PROMETHEUS_HOST=127.0.0.1',
@@ -215,6 +204,7 @@ final class EnvMetricsTest extends TestCase {
         self::assertArrayHasKey('spanId', $exemplars[0]);
     }
 
+    #[Group('async')]
     public function testMetricsTemporalityPreferenceEnvVarUsesDelta(): void
     {
         $this->runOTel(

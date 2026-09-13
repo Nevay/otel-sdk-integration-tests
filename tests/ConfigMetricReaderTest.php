@@ -6,9 +6,8 @@ use Amp\Http\Client\Request;
 use OpenTelemetry\API\Globals;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
-use Throwable;
 
-    #[Group('config-file'), Group('metrics')]
+#[Group('config-file'), Group('metrics')]
 final class ConfigMetricReaderTest extends TestCase {
     use OTelEndpointTrait;
 
@@ -157,26 +156,16 @@ final class ConfigMetricReaderTest extends TestCase {
                     ->add(42);
 
                 /*
-                 * The Prometheus exporter runs its own HTTP server inside
-                 * this process, so scrape it from here with the async client.
+                 * The Prometheus exporter starts its HTTP server during
+                 * SDK initialization, which completes before this closure
+                 * runs, so a single scrape is sufficient.
                  */
                 $client = HttpClientBuilder::buildDefault();
-                $body = '';
-                for ($i = 0; $i < 50 && $body === ''; $i++) {
-                    try {
-                        $request = new Request('http://127.0.0.1:' . $port . '/metrics');
-                        $request->setHeader('accept', 'text/plain;version=0.0.4');
-                        $response = $client->request($request);
-                        if ($response->getStatus() === 200) {
-                            $body = (string) $response->getBody();
-                        }
-                    } catch (Throwable) {
-                        // The server may not be listening yet.
-                    }
-                    \Amp\delay(0.1);
-                }
+                $request = new Request('http://127.0.0.1:' . $port . '/metrics');
+                $request->setHeader('accept', 'text/plain;version=0.0.4');
+                $response = $client->request($request);
 
-                echo $body;
+                echo (string) $response->getBody();
             },
         );
 
@@ -223,25 +212,15 @@ final class ConfigMetricReaderTest extends TestCase {
                     ->add(7);
 
                 /*
-                 * The Prometheus exporter runs its own HTTP server inside
-                 * this process, so scrape it from here with the async client.
+                 * The Prometheus exporter starts its HTTP server during
+                 * SDK initialization, which completes before this closure
+                 * runs, so a single scrape is sufficient.
                  */
                 $client = HttpClientBuilder::buildDefault();
-                $body = '';
-                for ($i = 0; $i < 50 && $body === ''; $i++) {
-                    try {
-                        $request = new Request('http://127.0.0.1:' . $port . '/metrics');
-                        $response = $client->request($request);
-                        if ($response->getStatus() === 200) {
-                            $body = (string) $response->getBody();
-                        }
-                    } catch (Throwable) {
-                        // The server may not be listening yet.
-                    }
-                    \Amp\delay(0.1);
-                }
+                $request = new Request('http://127.0.0.1:' . $port . '/metrics');
+                $response = $client->request($request);
 
-                echo $body;
+                echo (string) $response->getBody();
             },
         );
 
@@ -283,22 +262,16 @@ final class ConfigMetricReaderTest extends TestCase {
                     ->createCounter('test.counter', 'requests')
                     ->add(42);
 
+                /*
+                 * The Prometheus exporter starts its HTTP server during
+                 * SDK initialization, which completes before this closure
+                 * runs, so a single scrape is sufficient.
+                 */
                 $client = HttpClientBuilder::buildDefault();
-                $body = '';
-                for ($i = 0; $i < 50 && $body === ''; $i++) {
-                    try {
-                        $request = new Request('http://127.0.0.1:' . $port . '/metrics');
-                        $response = $client->request($request);
-                        if ($response->getStatus() === 200) {
-                            $body = (string) $response->getBody();
-                        }
-                    } catch (Throwable) {
-                        // The server may not be listening yet.
-                    }
-                    \Amp\delay(0.1);
-                }
+                $request = new Request('http://127.0.0.1:' . $port . '/metrics');
+                $response = $client->request($request);
 
-                echo $body;
+                echo (string) $response->getBody();
             },
         );
 
@@ -335,22 +308,16 @@ final class ConfigMetricReaderTest extends TestCase {
                     ->createCounter('test.counter', 'requests')
                     ->add(42);
 
+                /*
+                 * The Prometheus exporter starts its HTTP server during
+                 * SDK initialization, which completes before this closure
+                 * runs, so a single scrape is sufficient.
+                 */
                 $client = HttpClientBuilder::buildDefault();
-                $body = '';
-                for ($i = 0; $i < 50 && $body === ''; $i++) {
-                    try {
-                        $request = new Request('http://127.0.0.1:' . $port . '/metrics');
-                        $response = $client->request($request);
-                        if ($response->getStatus() === 200) {
-                            $body = (string) $response->getBody();
-                        }
-                    } catch (Throwable) {
-                        // The server may not be listening yet.
-                    }
-                    \Amp\delay(0.1);
-                }
+                $request = new Request('http://127.0.0.1:' . $port . '/metrics');
+                $response = $client->request($request);
 
-                echo $body;
+                echo (string) $response->getBody();
             },
         );
 
