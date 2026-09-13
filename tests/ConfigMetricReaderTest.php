@@ -193,4 +193,69 @@ final class ConfigMetricReaderTest extends TestCase {
          */
         self::assertSame([], $this->metrics);
     }
+
+    public function testPrometheusReaderInfoMetricsCanBeDisabled(): void {
+        $port = 39467;
+
+        $exposition = $this->runOTelConfig(
+            str_replace('{PORT}', (string) $port, <<<'YAML'
+            file_format: "1.2"
+
+            resource:
+              attributes:
+                - name: service.name
+                  value: prom-options
+
+            meter_provider:
+              readers:
+                - pull:
+                    exporter:
+                      prometheus/development:
+                        host: 127.0.0.1
+                        port: {PORT}
+                        scope_info_enabled: false
+                        target_info_enabled/development: false
+            YAML),
+            static function () use ($port): void {
+                Globals::meterProvider()
+                    ->getMeter('prom-opt')
+                    ->createCounter('opt.counter', 'requests')
+                    ->add(7);
+
+                /*
+                 * The Prometheus exporter runs its own HTTP server inside
+                 * this process, so scrape it from here with the async client.
+                 */
+                $client = HttpClientBuilder::buildDefault();
+                $body = '';
+                for ($i = 0; $i < 50 && $body === ''; $i++) {
+                    try {
+                        $request = new Request('http://127.0.0.1:' . $port . '/metrics');
+                        $response = $client->request($request);
+                        if ($response->getStatus() === 200) {
+                            $body = (string) $response->getBody();
+                        }
+                    } catch (Throwable) {
+                        // The server may not be listening yet.
+                    }
+                    \Amp\delay(0.1);
+                }
+
+                echo $body;
+            },
+        );
+
+        self::assertStringContainsString('# TYPE opt_counter_requests_total counter', $exposition);
+        self::assertStringContainsString('opt_counter_requests_total 7', $exposition);
+
+        /*
+         * With scope_info_enabled: false the otel_scope_name label is absent,
+         * and with target_info disabled no target_info metric is exposed even
+         * though resource attributes are set.
+         */
+        self::assertStringNotContainsString('otel_scope_name', $exposition);
+        self::assertStringNotContainsString('target_info', $exposition);
+
+        self::assertSame([], $this->metrics);
+    }
 }

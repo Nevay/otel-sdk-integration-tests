@@ -122,4 +122,83 @@ final class ConfigBatchSpanProcessorTest extends TestCase {
 
         self::assertIsArray($this->traces);
     }
+
+    public function testSimpleSpanProcessorExportsOnSpanEnd(): void
+    {
+        $this->runOTelConfig(
+            <<<'YAML'
+            file_format: "1.2"
+
+            tracer_provider:
+              processors:
+                - simple:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${env:OTEL_EXPORTER_OTLP_TRACES_ENDPOINT}
+            YAML,
+            static function (): void {
+                Globals::tracerProvider()
+                    ->getTracer('config-test')
+                    ->spanBuilder('simple-processor')
+                    ->startSpan()
+                    ->end();
+
+                /*
+                 * Stay alive after ending the span: a batch processor would
+                 * only export during the shutdown flush, so an early arrival
+                 * proves the simple processor exported on end().
+                 */
+                \Amp\delay(0.5);
+            },
+        );
+
+        self::assertCount(1, $this->traces);
+        self::assertContains('simple-processor', $this->spanNames($this->traces[0]));
+
+        /*
+         * The export request arrived well before the process exited: it was
+         * sent when the span ended, not by the shutdown flush.
+         */
+        self::assertGreaterThan(
+            0.25,
+            microtime(true) - $this->requestTimes[0],
+        );
+    }
+
+    public function testMultipleProcessorsExportEachSpanToAllConfiguredExporters(): void
+    {
+        $this->runOTelConfig(
+            <<<'YAML'
+            file_format: "1.2"
+
+            tracer_provider:
+              processors:
+                - batch:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${env:OTEL_EXPORTER_OTLP_TRACES_ENDPOINT}
+                - batch:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${env:OTEL_EXPORTER_OTLP_TRACES_ENDPOINT}
+            YAML,
+            static function (): void {
+                Globals::tracerProvider()
+                    ->getTracer('config-test')
+                    ->spanBuilder('dual-export')
+                    ->startSpan()
+                    ->end();
+            },
+        );
+
+        /*
+         * Each processor has its own exporter: the span is exported once per
+         * configured processor.
+         */
+        self::assertCount(2, $this->traces);
+
+        foreach ($this->traces as $payload) {
+            self::assertContains('dual-export', $this->spanNames($payload));
+        }
+    }
 }

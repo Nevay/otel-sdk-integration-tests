@@ -146,4 +146,50 @@ final class ConfigLogRecordTest extends TestCase {
             )[0],
         );
     }
+
+    public function testSimpleLogRecordProcessorExportsOnEmit(): void
+    {
+        $this->runOTelConfig(
+            <<<'YAML'
+            file_format: "1.2"
+
+            logger_provider:
+              processors:
+                - simple:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${env:OTEL_EXPORTER_OTLP_LOGS_ENDPOINT}
+            YAML,
+            static function (): void {
+                Globals::loggerProvider()
+                    ->getLogger('config-test')
+                    ->emit(new LogRecord('simple-processor'));
+
+                /*
+                 * Stay alive after emitting: a batch processor would only
+                 * export during the shutdown flush, so an early arrival
+                 * proves the simple processor exported on emit.
+                 */
+                \Amp\delay(0.5);
+            },
+        );
+
+        self::assertCount(1, $this->logs);
+        self::assertSame(
+            ['simple-processor'],
+            $this->path(
+                $this->logs[0],
+                '$.resourceLogs[*].scopeLogs[*].logRecords[*].body.stringValue',
+            ),
+        );
+
+        /*
+         * The export request arrived well before the process exited: it was
+         * sent when the record was emitted, not by the shutdown flush.
+         */
+        self::assertGreaterThan(
+            0.25,
+            microtime(true) - $this->requestTimes[0],
+        );
+    }
 }

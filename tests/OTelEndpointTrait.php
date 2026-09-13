@@ -54,25 +54,34 @@ trait OTelEndpointTrait {
      */
     public int $slowRequests = 0;
 
+    /**
+     * Arrival times (microtime) of the captured export requests, in order.
+     */
+    public array $requestTimes = [];
+
     public array $env = [];
 
     protected function setUp(): void {
         $this->requestHeaders = [];
+        $this->requestTimes = [];
 
         $server = SocketHttpServer::createForDirectAccess(new NullLogger());
 
         $router = new Router($server, new NullLogger(), new DefaultErrorHandler());
         $router->addRoute('POST', 'v1/traces', new ClosureRequestHandler(function (Request $request): Response {
+            $this->requestTimes[] = microtime(true);
             $this->requestHeaders[] = $request->getHeaders();
 
             return self::captureRequestBody($request, $this->traces[], ExportTraceServiceRequest::class, ExportTraceServiceResponse::class);
         }));
         $router->addRoute('POST', 'v1/metrics', new ClosureRequestHandler(function (Request $request): Response {
+            $this->requestTimes[] = microtime(true);
             $this->requestHeaders[] = $request->getHeaders();
 
             return self::captureRequestBody($request, $this->metrics[], ExportMetricsServiceRequest::class, ExportMetricsServiceResponse::class);
         }));
         $router->addRoute('POST', 'v1/logs', new ClosureRequestHandler(function (Request $request): Response {
+            $this->requestTimes[] = microtime(true);
             $this->requestHeaders[] = $request->getHeaders();
 
             return self::captureRequestBody($request, $this->logs[], ExportLogsServiceRequest::class, ExportLogsServiceResponse::class);
