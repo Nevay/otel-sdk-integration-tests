@@ -1,8 +1,18 @@
 # otel-test
 
-Integration tests for the configuration of [`tbachert/otel-sdk`](https://github.com/tbachert/otel-sdk):
-every test verifies behavior driven exclusively by standard OpenTelemetry environment
-variables or the SDK's configuration file — no programmatic configuration.
+Integration tests for OpenTelemetry SDK configuration: every test verifies
+behavior driven exclusively by standard OpenTelemetry environment variables or
+a configuration file — no programmatic configuration.
+
+The suite is SDK-independent: it interacts with the SDK under test only through
+its documented configuration surface (environment variables, configuration
+file) and the OTLP wire protocol, so it can be pointed at any SDK to verify
+compliance. The env-based tests check specification behavior as-is; the
+file-based tests check the configured SDK's documented schema (here:
+[`tbachert/otel-sdk`](https://github.com/tbachert/otel-sdk)). The only
+SDK-specific glue is the child-process bootstrap that loads the SDK
+(`OTEL_PHP_AUTOLOAD_ENABLED`) and the initialization error message used as a
+failure guard.
 
 ## Running the tests
 
