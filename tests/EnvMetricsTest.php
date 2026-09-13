@@ -214,4 +214,47 @@ final class EnvMetricsTest extends TestCase {
         self::assertArrayHasKey('traceId', $exemplars[0]);
         self::assertArrayHasKey('spanId', $exemplars[0]);
     }
+
+    public function testMetricsTemporalityPreferenceEnvVarUsesDelta(): void
+    {
+        $this->runOTel(
+            static function (): void {
+                $counter = Globals::meterProvider()
+                    ->getMeter('temporality-test')
+                    ->createCounter('test.requests', 'requests');
+
+                $counter->add(5);
+                \Amp\delay(0.4);
+                $counter->add(3);
+                \Amp\delay(0.4);
+            },
+            'OTEL_METRIC_EXPORT_INTERVAL=250',
+            'OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE=delta',
+        );
+
+        self::assertGreaterThanOrEqual(
+            2,
+            count($this->metrics),
+            'Expected multiple periodic metric exports.',
+        );
+
+        $exports = [];
+
+        foreach ($this->metrics as $payload) {
+            $dataPoints = $this->dataPoints($payload, 'test.requests');
+
+            if ($dataPoints !== []) {
+                $exports[] = $dataPoints[0];
+            }
+        }
+
+        $exports = $this->sortByCollectionTime($exports);
+
+        /*
+         * Delta temporality: each collection cycle exports only the values
+         * recorded since the previous cycle.
+         */
+        self::assertSame('5', $exports[0]['asInt']);
+        self::assertSame('3', $exports[1]['asInt']);
+    }
 }

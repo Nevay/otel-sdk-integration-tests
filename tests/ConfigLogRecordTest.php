@@ -192,4 +192,76 @@ final class ConfigLogRecordTest extends TestCase {
             microtime(true) - $this->requestTimes[0],
         );
     }
+
+    #[Group('traces')]
+    public function testLogRecordWithEventNameIsBridgedToSpanEvent(): void
+    {
+        $this->runOTelConfig(
+            <<<'YAML'
+            file_format: "1.2"
+
+            tracer_provider:
+              processors:
+                - batch:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${env:OTEL_EXPORTER_OTLP_TRACES_ENDPOINT}
+
+            logger_provider:
+              processors:
+                - event_to_span_event_bridge/development:
+                - batch:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${env:OTEL_EXPORTER_OTLP_LOGS_ENDPOINT}
+            YAML,
+            static function (): void {
+                $span = Globals::tracerProvider()
+                    ->getTracer('config-test')
+                    ->spanBuilder('bridge-parent')
+                    ->startSpan();
+
+                $scope = $span->activate();
+
+                /*
+                 * A log record with an event name, emitted while the span is
+                 * active in the current context, is bridged to a span event.
+                 */
+                Globals::loggerProvider()
+                    ->getLogger('config-test')
+                    ->logRecordBuilder()
+                    ->setBody('a log with an event name')
+                    ->setEventName('bridge.event')
+                    ->setAttribute('k', 'v')
+                    ->emit();
+
+                $scope->detach();
+                $span->end();
+            },
+        );
+
+        /*
+         * The span carries the log record as an event, including its
+         * attributes.
+         */
+        $events = $this->path(
+            $this->traces[0],
+            '$.resourceSpans[*].scopeSpans[*].spans[?(@.name == "bridge-parent")].events[?(@.name == "bridge.event")]',
+        );
+
+        self::assertCount(1, $events);
+        self::assertSame(
+            [['key' => 'k', 'value' => ['stringValue' => 'v']]],
+            $events[0]['attributes'],
+        );
+
+        /*
+         * The bridge is additive: the log record is still exported through
+         * the regular log pipeline, carrying its event name.
+         */
+        $logRecords = $this->logsInExport($this->logs[0]);
+
+        self::assertCount(1, $logRecords);
+        self::assertSame('bridge.event', $logRecords[0]['eventName']);
+    }
 }
