@@ -1,0 +1,28 @@
+{
+  "name": "tbachert/otel-test-tbachert",
+  "description": "Run the otel-test suite against tbachert/otel-sdk",
+  "repositories": [
+    {
+      "type": "path",
+      "url": "../../tests",
+      "options": {
+        "symlink": true
+      }
+    }
+  ],
+  "require": {
+    "tbachert/otel-test-harness": "*"
+  },
+  "require-dev": {
+    "tbachert/otel-sdk": "^0.1.0@dev"
+  },
+  "minimum-stability": "dev",
+  "prefer-stable": true,
+  "config": {
+    "sort-packages": true,
+    "allow-plugins": {
+      "php-http/discovery": false,
+      "tbachert/spi": true
+    }
+  }
+}

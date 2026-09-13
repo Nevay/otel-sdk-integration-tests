@@ -1,6 +1,7 @@
 <?php declare(strict_types=1);
 namespace Nevay\OTelTest;
 
+use Composer\InstalledVersions;
 use OpenTelemetry\API\Globals;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
@@ -211,16 +212,24 @@ final class EnvResourceTest extends TestCase {
             $this->resourceAttribute($this->traces[0], 'telemetry.sdk.language'),
         );
 
-        self::assertSame(
-            'tbachert/otel-sdk',
-            $this->resourceAttribute($this->traces[0], 'telemetry.sdk.name'),
-        );
+        /*
+         * ...with a required, stable identifier: the reference implementation
+         * MUST use the reserved name "opentelemetry", vendor SDKs MUST use a
+         * custom identifier instead.
+         */
+        $sdkName = $this->resourceAttribute($this->traces[0], 'telemetry.sdk.name');
+
+        if (InstalledVersions::isInstalled('tbachert/otel-sdk')) {
+            self::assertSame('tbachert/otel-sdk', $sdkName);
+        } else {
+            self::assertSame('opentelemetry', $sdkName);
+        }
 
         /*
          * ...and derives the service name from the root composer package.
          */
         self::assertSame(
-            'tbachert/otel-test',
+            InstalledVersions::getRootPackage()['name'],
             $this->resourceAttribute($this->traces[0], 'service.name'),
         );
 

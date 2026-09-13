@@ -5,6 +5,7 @@ CURRENT_GID := $(shell id -g)
 
 COMPOSE = UID=$(CURRENT_UID) GID=$(CURRENT_GID) docker compose
 PHP = $(COMPOSE) run --rm --no-deps php
+SDKS = tbachert official
 
 php:
 	$(PHP) sh
@@ -12,6 +13,17 @@ build:
 	$(COMPOSE) build
 
 dependencies-install:
-	$(PHP) composer install
+	@for sdk in $(SDKS); do \
+		echo "==> $$sdk"; \
+		$(PHP) sh -c "cd sdks/$$sdk && composer install" || exit 1; \
+	done
+
 dependencies-update:
-	$(PHP) composer update
+	@for sdk in $(SDKS); do \
+		echo "==> $$sdk"; \
+		$(PHP) sh -c "cd sdks/$$sdk && composer update" || exit 1; \
+	done
+
+test:
+	@test -n "$(SDK)" || { echo "Usage: make test SDK=<tbachert|official> [ARGS=...]"; exit 1; }
+	$(PHP) sh -c "cd sdks/$(SDK) && vendor/bin/phpunit $(ARGS)"

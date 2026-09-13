@@ -1,3 +1,5 @@
 /vendor/
 /.phpunit.cache/
 /.idea/
+sdks/*/vendor/
+sdks/*/.phpunit.cache/
