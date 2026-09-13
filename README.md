@@ -18,15 +18,26 @@ failure guard.
 
 ## Running the tests
 
+Each SDK is a separate Composer project under `sdks/`, pulling in the shared
+suite (`tests/`) through a local path repository, so both SDKs can be installed
+side by side:
+
 ```sh
-docker compose run --rm --no-deps php vendor/bin/phpunit
+make dependencies-install   # or: make dependencies-update
+make test SDK=tbachert      # run the suite against tbachert/otel-sdk
+make test SDK=official      # run the suite against open-telemetry/sdk
 ```
 
-Tests can be selected with PHPUnit groups (`--group` / `--exclude-group`):
+Tests can be selected with PHPUnit groups (`--group` / `--exclude-group`,
+passable via `ARGS='--group env'`):
 
 - configuration mode: `env`, `config-file`
 - signal: `traces`, `metrics`, `logs`
 - `async`: tests whose server handlers use `Amp\delay`
+- `vendor-specific`: tests that pin behavior outside the scope of the official
+  specification (tbachert/otel-sdk options, non-spec environment variables,
+  implementation-dependent timing). The official SDK run excludes this group;
+  the tbachert run includes it.
 
 ## Tested SDKs
 
@@ -58,3 +69,45 @@ tested end-to-end in this environment because no available gRPC server
 implementation interoperates with this SDK's amphp-based HTTP/2 client; the
 suite verifies the plaintext dial itself (the HTTP/2 connection preface on the
 wire) instead.
+
+### [`open-telemetry/sdk`](https://github.com/open-telemetry/opentelemetry-php)
+
+Exact package versions pinned in `sdks/official/composer.lock`.
+
+**Status.** The env-based suite is green except for the groups below; all
+file-based tests are currently blocked. Tests tagged `vendor-specific`
+(tbachert-only options, non-spec environment variables, implementation-dependent
+timing) are excluded from this run, so every remaining failure pins behavior
+that is in scope of the official specification.
+
+**Currently failing groups:**
+
+- **File-based configuration (all `config-file` tests).** The official
+  `sdk-configuration` package only accepts `file_format: '1.0-rc.2'`, while the
+  suite uses data model version 1.2. Expected to be resolved by
+  [open-telemetry/opentelemetry-php#2050](https://github.com/open-telemetry/opentelemetry-php/pull/2050).
+- **OTLP/gRPC.** No gRPC transport is registered ("transport factory not
+defined for protocol: grpc"), although `grpc` is a known value of
+  `OTEL_EXPORTER_OTLP_PROTOCOL`.
+- **Entity propagation (`OTEL_ENTITIES`).** The spec-mandated env entity
+detector is not implemented (upstream PR in progress).
+- **Exemplar filter values.** The SDK's known values for
+  `OTEL_METRICS_EXEMPLAR_FILTER` are `with_sampled_trace`, `all`, and `none`
+  instead of the spec's `trace_based`, `always_on`, and `always_off`; spec
+  values fall back to no exemplars.
+- **Global attribute limits.** `OTEL_ATTRIBUTE_COUNT_LIMIT` and
+  `OTEL_ATTRIBUTE_VALUE_LENGTH_LIMIT` are declared but not applied (the
+  signal-specific `OTEL_SPAN_*` limits work).
+- **Lenient handling of invalid configuration.** An unknown
+  `OTEL_TRACES_SAMPLER` value or malformed `OTEL_RESOURCE_ATTRIBUTES`
+  aborts SDK initialization instead of logging a warning and falling back to
+  the default.
+- **TLS environment variables.** `OTEL_EXPORTER_OTLP_TRACES_CERTIFICATE` (and
+  the client certificate/key variables) are declared but not wired into the
+  exporter's TLS context.
+- **Prometheus exporter.** `prometheus` is a known value of
+  `OTEL_METRICS_EXPORTER` and `OTEL_EXPORTER_PROMETHEUS_HOST/PORT` are spec
+  (in-development) variables, but no exporter factory is registered for the
+  protocol.
+- **Metric export interval.** `OTEL_METRIC_EXPORT_INTERVAL` is declared but
+  not applied; the periodic reader only exports at shutdown.

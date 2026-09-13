@@ -3,3 +3,4 @@
 /.idea/
 sdks/*/vendor/
 sdks/*/.phpunit.cache/
+.junit-*.xml
