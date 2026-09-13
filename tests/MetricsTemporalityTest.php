@@ -25,7 +25,7 @@ final class MetricsTemporalityTest extends TestCase {
             meter_provider:
               readers:
                 - periodic:
-                    interval: 250
+                    interval: 300
                     exporter:
                       otlp_http:
                         endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
@@ -44,11 +44,11 @@ final class MetricsTemporalityTest extends TestCase {
 
                 $counter->add(5);
 
-                delay(0.4);
+                delay(0.5);
 
                 $counter->add(3);
 
-                delay(0.4);
+                delay(0.5);
 
                 echo 'done';
             },
@@ -122,7 +122,7 @@ final class MetricsTemporalityTest extends TestCase {
             meter_provider:
               readers:
                 - periodic:
-                    interval: 250
+                    interval: 300
                     exporter:
                       otlp_http:
                         endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
@@ -141,11 +141,11 @@ final class MetricsTemporalityTest extends TestCase {
 
                 $counter->add(5);
 
-                delay(0.4);
+                delay(0.5);
 
                 $counter->add(3);
 
-                delay(0.4);
+                delay(0.5);
 
                 echo 'done';
             },
@@ -214,7 +214,7 @@ final class MetricsTemporalityTest extends TestCase {
             meter_provider:
               readers:
                 - periodic:
-                    interval: 250
+                    interval: 300
                     exporter:
                       otlp_http:
                         endpoint: ${env:OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
@@ -233,11 +233,11 @@ final class MetricsTemporalityTest extends TestCase {
 
                 $counter->add(5);
 
-                delay(0.4);
+                delay(0.5);
 
                 $counter->add(3);
 
-                delay(0.4);
+                delay(0.5);
 
                 echo 'done';
             },
