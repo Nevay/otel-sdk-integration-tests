@@ -53,7 +53,8 @@ final class EnvCorrelationTest extends TestCase {
          * captured via OTLP/JSON (hex ids, per the OTLP specification),
          * while logs default to OTLP/protobuf and are re-serialized by the
          * harness with the canonical proto3 JSON mapping (base64 ids); see
-         * tbachert-sdk-issues.md.
+         * the note on id encoding in
+         * OTelEndpointTrait::captureRequestBody().
          */
         self::assertSame(
             $spans[0]['traceId'],
@@ -248,7 +249,8 @@ final class EnvCorrelationTest extends TestCase {
          * captured via OTLP/JSON (hex ids, per the OTLP specification),
          * while exemplars and log records default to OTLP/protobuf and are
          * re-serialized by the harness with the canonical proto3 JSON
-         * mapping (base64 ids); see tbachert-sdk-issues.md.
+         * mapping (base64 ids); see the note on id encoding in
+         * OTelEndpointTrait::captureRequestBody().
          */
         self::assertSame(
             bin2hex(base64_decode($exemplars[0]['traceId'])),

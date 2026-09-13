@@ -147,6 +147,20 @@ trait OTelEndpointTrait {
         $this->env['OTEL_EXPORTER_OTLP_LOGS_ENDPOINT']    = $address . '/v1/logs';
     }
 
+    /**
+     * Captures the request body into the given slot as a JSON string.
+     *
+     * Note on id encoding: OTLP/JSON messages carry trace and span ids as
+     * lowercase hex strings, an explicit deviation from the canonical
+     * proto3 JSON mapping (which would use base64 for bytes fields). The
+     * captures in this suite are always produced with the canonical proto3
+     * mapping, because protobuf exports are re-serialized through the
+     * protobuf library and native OTLP/JSON exports are round-tripped
+     * through it as well. Hex ids survive that round trip unchanged (hex
+     * is a subset of the base64 alphabet), so a capture may show either
+     * representation depending on the exporter's encoding; normalize with
+     * bin2hex(base64_decode(...)) when comparing across signals.
+     */
     private static function captureRequestBody(Request $request, mixed &$slot, string $messageType, string $responseType): Response {
         $payload = $request->getBody()->buffer();
 

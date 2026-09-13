@@ -566,4 +566,81 @@ final class ConfigBasicTest extends TestCase {
 
         self::assertStringNotContainsString('Export failure', $this->lastStderr);
     }
+
+    #[Group('traces')]
+    public function testOtlpHttpMaxResponseSizeRejectsLargeResponses(): void {
+        /*
+         * Unlike max_request_size, the request is sent; the exporter only
+         * rejects the collector's response body once it exceeds the
+         * configured limit. (JSON encoding is used so that the empty
+         * response body is larger than one byte.)
+         */
+        $this->runOTelConfig(<<<'YAML'
+            file_format: "1.2"
+
+            tracer_provider:
+              processors:
+                - batch:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${env:OTEL_EXPORTER_OTLP_TRACES_ENDPOINT}
+                        encoding: json
+                        max_response_size: 1
+        YAML, static function (): void {
+            Globals::tracerProvider()->getTracer('config-test')
+                ->spanBuilder('oversized-response')
+                ->startSpan()
+                ->end();
+        });
+
+        self::assertStringContainsString(
+            'buffer length limit',
+            strtolower($this->lastStderr),
+        );
+    }
+
+    #[Group('traces')]
+    public function testOtlpFileExporterWritesNewlineDelimitedJson(): void {
+        $file = tempnam(sys_get_temp_dir(), 'otlp-file');
+
+        try {
+            $this->runOTelConfig(<<<YAML
+                file_format: "1.2"
+
+                tracer_provider:
+                  processors:
+                    - batch:
+                        exporter:
+                          otlp_file/development:
+                            output_stream: {$file}
+            YAML, static function (): void {
+                Globals::tracerProvider()->getTracer('config-test')
+                    ->spanBuilder('file-export')
+                    ->startSpan()
+                    ->end();
+            });
+
+            $payloads = array_values(array_filter(
+                explode("\n", (string) file_get_contents($file)),
+            ));
+
+            self::assertCount(1, $payloads);
+
+            /*
+             * Each line is a standalone OTLP/JSON export; json_decode
+             * doubles as the well-formedness check.
+             */
+            json_decode($payloads[0], true, 512, JSON_THROW_ON_ERROR);
+
+            self::assertSame(
+                ['file-export'],
+                $this->path(
+                    $payloads[0],
+                    '$.resourceSpans[*].scopeSpans[*].spans[*].name',
+                ),
+            );
+        } finally {
+            @unlink($file);
+        }
+    }
 }

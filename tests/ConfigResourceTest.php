@@ -416,4 +416,44 @@ final class ConfigResourceTest extends TestCase {
         self::assertNotContains('process.pid', $keys);
         self::assertContains('process.runtime.name', $keys);
     }
+
+    #[Group('resource')]
+    public function testContainerDetectorReportsContainerId(): void {
+        /*
+         * The suite runs inside a Docker container, so the container
+         * detector finds the 64-character container id in /proc/self/
+         * mountinfo.
+         */
+        $this->runOTelConfig(
+            <<<'YAML'
+            file_format: "1.2"
+
+            resource:
+              detection/development:
+                detectors:
+                  - container:
+
+            tracer_provider:
+              processors:
+                - batch:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${env:OTEL_EXPORTER_OTLP_TRACES_ENDPOINT}
+            YAML,
+            static function (): void {
+                $span = Globals::tracerProvider()
+                    ->getTracer('test')
+                    ->spanBuilder('detector-container')
+                    ->startSpan();
+
+                $span->end();
+            },
+        );
+
+        self::assertNotEmpty($this->traces);
+
+        $containerId = $this->resourceAttribute($this->traces[0], 'container.id');
+
+        self::assertMatchesRegularExpression('/^[0-9a-f]{64}$/', $containerId);
+    }
 }
