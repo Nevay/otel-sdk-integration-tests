@@ -1540,6 +1540,38 @@ final class OTelEnvironmentTest extends TestCase {
         $this->assertSpanNames(['scheduled']);
     }
 
+    public function testBspDropsSpansWhenQueueIsFull(): void {
+        $this->runOTel(
+            static function (): void {
+                $tracer = Globals::tracerProvider()->getTracer('test');
+
+                /*
+                 * Four spans are produced before the first export; with a
+                 * queue size of two, the last two must be dropped.
+                 */
+                for ($i = 0; $i < 4; $i++) {
+                    $span = $tracer->spanBuilder("overflow-$i")->startSpan();
+                    $span->end();
+                }
+            },
+            'OTEL_BSP_MAX_QUEUE_SIZE=2',
+            'OTEL_BSP_MAX_EXPORT_BATCH_SIZE=1',
+        );
+
+        self::assertNotEmpty($this->traces);
+
+        /*
+         * Only the first two spans fit into the queue; the rest are lost.
+         */
+        $names = [];
+
+        foreach ($this->traces as $payload) {
+            $names = [...$names, ...$this->spanNames($payload)];
+        }
+
+        self::assertSame(['overflow-0', 'overflow-1'], $names);
+    }
+
     /*
      * =========================================================================
      * LogRecord limits
@@ -2025,6 +2057,83 @@ final class OTelEnvironmentTest extends TestCase {
         );
     }
 
+    public function testAllSignalsCorrelateWithinOneTrace(): void {
+        $this->runOTel(
+            static function (): void {
+                $span = Globals::tracerProvider()
+                    ->getTracer('test')
+                    ->spanBuilder('kitchen-sink')
+                    ->startSpan();
+
+                $scope = $span->activate();
+
+                /*
+                 * A measurement and a log record inside the same active
+                 * span.
+                 */
+                Globals::meterProvider()
+                    ->getMeter('test')
+                    ->createCounter('sink.counter')
+                    ->add(1);
+
+                Globals::loggerProvider()
+                    ->getLogger('test')
+                    ->logRecordBuilder()
+                    ->setBody('inside-sink-span')
+                    ->emit();
+
+                $scope->detach();
+                $span->end();
+            },
+            'OTEL_METRICS_EXEMPLAR_FILTER=always_on',
+        );
+
+        self::assertNotEmpty($this->traces);
+        self::assertNotEmpty($this->metrics);
+        self::assertNotEmpty($this->logs);
+
+        $spans = $this->path(
+            $this->traces[0],
+            '$.resourceSpans[*].scopeSpans[*].spans[?(@.name == "kitchen-sink")]',
+        );
+
+        self::assertCount(1, $spans);
+
+        $exemplars = $this->path(
+            $this->metrics[0],
+            '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "sink.counter")]..exemplars[*]',
+        );
+
+        $logRecords = $this->logsInExport($this->logs[0]);
+
+        self::assertCount(1, $exemplars);
+        self::assertCount(1, $logRecords);
+
+        /*
+         * All three signals reference the same span context. (Exemplars
+         * and log records encode ids as base64; spans use hex.)
+         */
+        self::assertSame(
+            bin2hex(base64_decode($exemplars[0]['traceId'])),
+            $spans[0]['traceId'],
+        );
+
+        self::assertSame(
+            bin2hex(base64_decode($exemplars[0]['spanId'])),
+            $spans[0]['spanId'],
+        );
+
+        self::assertSame(
+            $exemplars[0]['traceId'],
+            $logRecords[0]['traceId'],
+        );
+
+        self::assertSame(
+            $exemplars[0]['spanId'],
+            $logRecords[0]['spanId'],
+        );
+    }
+
     /*
      * =========================================================================
      * End-to-end
@@ -2442,6 +2551,32 @@ final class OTelEnvironmentTest extends TestCase {
             [],
             json_decode($output, true, 512, JSON_THROW_ON_ERROR),
         );
+    }
+
+    public function testCollectorRejectingExportDoesNotBreakShutdown(): void {
+        $this->runOTel(
+            static function (): void {
+                $span = Globals::tracerProvider()
+                    ->getTracer('test')
+                    ->spanBuilder('rejected')
+                    ->startSpan();
+
+                $span->end();
+            },
+            'OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=' . str_replace(
+                '/v1/traces',
+                '/v1/fail',
+                $this->env['OTEL_EXPORTER_OTLP_TRACES_ENDPOINT'],
+            ),
+        );
+
+        /*
+         * The collector rejects the export with a non-retryable status.
+         * The failure is logged and swallowed: the process exits cleanly
+         * (runOTel would throw on a non-zero exit code) and nothing was
+         * captured by the real endpoint.
+         */
+        self::assertSame([], $this->traces);
     }
 
     private function spanIdByName(string $name): string {

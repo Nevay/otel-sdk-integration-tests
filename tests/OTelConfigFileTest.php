@@ -64,6 +64,46 @@ final class OTelConfigFileTest extends TestCase {
         );
     }
 
+    public function testOtlpHttpExporterHeadersAreSentToCollector(): void
+    {
+        $this->runOTelConfig(
+            <<<'YAML'
+            file_format: "1.2"
+
+            tracer_provider:
+              processors:
+                - batch:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${env:OTEL_EXPORTER_OTLP_TRACES_ENDPOINT}
+                        headers:
+                          - name: auth
+                            value: config-token
+                          - name: x-custom
+                            value: v2
+            YAML,
+            static function (): void {
+                $span = Globals::tracerProvider()
+                    ->getTracer('config-test')
+                    ->spanBuilder('config-headers')
+                    ->startSpan();
+
+                $span->end();
+            },
+        );
+
+        self::assertNotEmpty($this->traces);
+
+        /*
+         * The headers configured on the otlp_http exporter are sent with
+         * the export request.
+         */
+        $headers = array_change_key_case($this->requestHeaders[0]);
+
+        self::assertSame(['config-token'], $headers['auth']);
+        self::assertSame(['v2'], $headers['x-custom']);
+    }
+
     public function testSignalsCanBeConfiguredIndependently(): void
     {
         $this->runOTelConfig(
@@ -774,6 +814,56 @@ final class OTelConfigFileTest extends TestCase {
                 'X-B3-TraceId' => '0123456789abcdef0123456789abcdef',
                 'X-B3-SpanId' => '0123456789abcdef',
                 'X-B3-Sampled' => '1',
+            ],
+            json_decode($output, true, 512, JSON_THROW_ON_ERROR),
+        );
+    }
+
+    public function testConfigFileCompositeListConfiguresPropagators(): void
+    {
+        /*
+         * composite_list is the scalar alternative to the composite list;
+         * it configures the same propagators from a comma-separated string.
+         */
+        $output = $this->runOTelConfig(
+            <<<'YAML'
+            file_format: "1.2"
+
+            propagator:
+              composite_list: tracecontext,baggage
+            YAML,
+            static function (): void {
+                $spanContext = SpanContext::create(
+                    '0123456789abcdef0123456789abcdef',
+                    '0123456789abcdef',
+                    TraceFlags::SAMPLED,
+                );
+
+                $context = Context::getCurrent()
+                    ->withContextValue(Span::wrap($spanContext));
+
+                $context = Baggage::fromContext($context)
+                    ->toBuilder()
+                    ->set('test-key', 'test-value')
+                    ->build()
+                    ->storeInContext($context);
+
+                $carrier = [];
+
+                Globals::propagator()->inject(
+                    $carrier,
+                    null,
+                    $context,
+                );
+
+                echo json_encode($carrier, JSON_THROW_ON_ERROR);
+            },
+        );
+
+        self::assertSame(
+            [
+                'traceparent' => '00-0123456789abcdef0123456789abcdef-0123456789abcdef-01',
+                'baggage' => 'test-key=test-value',
             ],
             json_decode($output, true, 512, JSON_THROW_ON_ERROR),
         );

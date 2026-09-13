@@ -71,6 +71,12 @@ trait OTelEndpointTrait {
 
             return self::captureRequestBody($request, $this->logs[], ExportLogsServiceRequest::class, ExportLogsServiceResponse::class);
         }));
+
+        /*
+         * A route that always rejects the export with a non-retryable
+         * status; used to test collector failure handling.
+         */
+        $router->addRoute('POST', 'v1/fail', new ClosureRequestHandler(fn(Request $request): Response => new Response(HttpStatus::INTERNAL_SERVER_ERROR)));
         $server->expose(new InternetAddress('127.0.0.1', 0));
         $server->start($router, new DefaultErrorHandler());
 
