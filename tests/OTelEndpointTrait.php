@@ -105,10 +105,23 @@ trait OTelEndpointTrait {
 
         // pipe($process->getStderr(), getStderr());
         $output = buffer($process->getStdout());
+        $stderr = buffer($process->getStderr());
 
         if ($exitCode = $process->join()) {
-            throw new ProcessException(sprintf("Process exited with %d:\n%s", $exitCode, buffer($process->getStderr())));
+            throw new ProcessException(sprintf("Process exited with %d:\n%s", $exitCode, $stderr));
         }
+
+        /*
+         * A zero exit code is not sufficient: the SDK catches exceptions
+         * during initialization (e.g. an invalid config file), logs them
+         * to stderr and continues with a no-op SDK, which would make all
+         * subsequent assertions vacuous.
+         */
+        self::assertStringNotContainsString(
+            'Error during OpenTelemetry initialization',
+            $stderr,
+            'The OTel SDK failed to initialize in the child process.',
+        );
 
         return $output;
     }

@@ -650,14 +650,17 @@ final class OTelConfigFileTest extends TestCase {
         );
     }
 
-    public function testConfigFilePropagatorNoneInjectsNothing(): void
+    public function testConfigFileWithoutPropagatorInjectsNothing(): void
     {
+        /*
+         * The config file schema only supports 'propagator.composite' (or
+         * 'propagator.composite_list'); there is no 'none' propagator
+         * component. Omitting the propagator section entirely leaves the
+         * default, which injects nothing.
+         */
         $output = $this->runOTelConfig(
             <<<'YAML'
             file_format: "1.2"
-
-            propagator:
-              none:
             YAML,
             static function (): void {
                 $spanContext = SpanContext::create(
