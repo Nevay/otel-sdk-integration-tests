@@ -300,6 +300,143 @@ final class OTelConfigFileTest extends TestCase {
         );
     }
 
+    public function testResourceAttributesSupportNonStringValues(): void
+    {
+        $this->runOTelConfig(
+            <<<'YAML'
+            file_format: "1.2"
+
+            resource:
+              attributes:
+                - name: service.name
+                  value: non-string-test
+                - name: limits.concurrency
+                  value: 42
+                - name: feature.enabled
+                  value: true
+                - name: ratio.keepalive
+                  value: 0.5
+
+            tracer_provider:
+              processors:
+                - batch:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT}
+            YAML,
+            static function (): void {
+                $span = Globals::tracerProvider()
+                    ->getTracer('non-string-test')
+                    ->spanBuilder('non-string-values')
+                    ->startSpan();
+
+                $span->end();
+            },
+        );
+
+        $payload = $this->traces[0];
+
+        /*
+         * OTLP JSON encodes int64 values as strings.
+         */
+        self::assertSame(
+            '42',
+            $this->resourceAttribute($payload, 'limits.concurrency'),
+        );
+
+        self::assertTrue(
+            $this->resourceAttribute($payload, 'feature.enabled'),
+        );
+
+        self::assertSame(
+            0.5,
+            $this->resourceAttribute($payload, 'ratio.keepalive'),
+        );
+    }
+
+    public function testResourceSchemaUrlMatchingDetectedResourcesIsExported(): void
+    {
+        $this->runOTelConfig(
+            <<<'YAML'
+            file_format: "1.2"
+
+            resource:
+              schema_url: https://opentelemetry.io/schemas/1.43.0
+              attributes:
+                - name: service.name
+                  value: schema-url-test
+
+            tracer_provider:
+              processors:
+                - batch:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT}
+            YAML,
+            static function (): void {
+                $span = Globals::tracerProvider()
+                    ->getTracer('schema-url-test')
+                    ->spanBuilder('schema-url-match')
+                    ->startSpan();
+
+                $span->end();
+            },
+        );
+
+        self::assertNotEmpty($this->traces);
+
+        /*
+         * The configured schema URL matches the one used by the detected
+         * resources, so the merged resource keeps it in the export.
+         */
+        self::assertSame(
+            ['https://opentelemetry.io/schemas/1.43.0'],
+            $this->path($this->traces[0], '$.resourceSpans[*].schemaUrl'),
+        );
+    }
+
+    public function testResourceSchemaUrlConflictingWithDetectedResourcesIsDropped(): void
+    {
+        $this->runOTelConfig(
+            <<<'YAML'
+            file_format: "1.2"
+
+            resource:
+              schema_url: https://example.com/schemas/custom-1.0
+              attributes:
+                - name: service.name
+                  value: schema-url-test
+
+            tracer_provider:
+              processors:
+                - batch:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT}
+            YAML,
+            static function (): void {
+                $span = Globals::tracerProvider()
+                    ->getTracer('schema-url-test')
+                    ->spanBuilder('schema-url-conflict')
+                    ->startSpan();
+
+                $span->end();
+            },
+        );
+
+        self::assertNotEmpty($this->traces);
+
+        /*
+         * The configured schema URL conflicts with the one used by the
+         * detected resources; merging resources with different schema
+         * URLs drops the schema URL from the export.
+         */
+        self::assertSame(
+            [],
+            $this->path($this->traces[0], '$.resourceSpans[*].schemaUrl'),
+        );
+    }
+
     /*
      * =========================================================================
      * SDK disabled
@@ -2001,6 +2138,46 @@ final class OTelConfigFileTest extends TestCase {
                 '$.resourceMetrics[*].scopeMetrics[*].metrics[*]..exemplars[*]',
             ),
         );
+    }
+
+    public function testMetricsExemplarFilterAlwaysOn(): void
+    {
+        $this->runOTelConfig(
+            <<<'YAML'
+            file_format: "1.2"
+
+            meter_provider:
+              exemplar_filter: always_on
+
+              readers:
+                - periodic:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
+            YAML,
+            static function (): void {
+                Globals::meterProvider()
+                    ->getMeter('config-test')
+                    ->createCounter('no-span.counter')
+                    ->add(1);
+            },
+        );
+
+        self::assertNotEmpty($this->metrics);
+
+        $exemplars = $this->path(
+            $this->metrics[0],
+            '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "no-span.counter")]..exemplars[*]',
+        );
+
+        /*
+         * always_on captures measurements even without an active span;
+         * the exemplar then carries no trace context.
+         */
+        self::assertCount(1, $exemplars);
+        self::assertSame('1', $exemplars[0]['asInt']);
+        self::assertArrayNotHasKey('traceId', $exemplars[0]);
+        self::assertArrayNotHasKey('spanId', $exemplars[0]);
     }
 
     /*
