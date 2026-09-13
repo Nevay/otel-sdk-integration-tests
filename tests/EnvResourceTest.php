@@ -321,6 +321,38 @@ final class EnvResourceTest extends TestCase {
     }
 
     #[Group('resource')]
+    public function testEntityConflictingIdentityPreservesOnlyLast(): void {
+        $this->runOTel(
+            static function (): void {
+                Globals::tracerProvider()
+                    ->getTracer('test')
+                    ->spanBuilder('entities-conflict')
+                    ->startSpan()
+                    ->end();
+            },
+            'OTEL_ENTITIES=myapp{custom.id=first};myapp{custom.id=second}',
+            'OTEL_TRACES_SAMPLER=always_on',
+        );
+
+        self::assertNotEmpty($this->traces);
+
+        $payload = $this->traces[0];
+
+        /*
+         * Entities of the same type with conflicting values for an
+         * identifying attribute: only the last entity is preserved.
+         */
+        self::assertSame('second', $this->resourceAttribute($payload, 'custom.id'));
+
+        $refs = array_values(array_filter(
+            $this->resourceEntityRefs($payload),
+            static fn(array $ref): bool => ($ref['type'] ?? null) === 'myapp',
+        ));
+
+        self::assertCount(1, $refs);
+    }
+
+    #[Group('resource')]
     public function testEntityMalformedDefinitionIsSkipped(): void {
         $this->runOTel(
             static function (): void {
