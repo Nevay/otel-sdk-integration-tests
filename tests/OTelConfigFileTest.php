@@ -104,6 +104,41 @@ final class OTelConfigFileTest extends TestCase {
         self::assertSame(['v2'], $headers['x-custom']);
     }
 
+    public function testOtlpHttpGzipCompressionIsApplied(): void {
+        $this->runOTelConfig(
+            <<<'YAML'
+            file_format: "1.2"
+
+            tracer_provider:
+              processors:
+                - batch:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${env:OTEL_EXPORTER_OTLP_TRACES_ENDPOINT}
+                        compression: gzip
+            YAML,
+            static function (): void {
+                $span = Globals::tracerProvider()
+                    ->getTracer('config-test')
+                    ->spanBuilder('gzip-span')
+                    ->startSpan();
+
+                $span->end();
+            },
+        );
+
+        self::assertNotEmpty($this->traces);
+
+        /*
+         * The request body is gzip-compressed and marked as such; the fake
+         * collector decodes it before parsing.
+         */
+        $headers = array_change_key_case($this->requestHeaders[0]);
+        self::assertSame(['gzip'], $headers['content-encoding']);
+
+        self::assertContains('gzip-span', $this->spanNames($this->traces[0]));
+    }
+
     public function testSignalsCanBeConfiguredIndependently(): void
     {
         $this->runOTelConfig(

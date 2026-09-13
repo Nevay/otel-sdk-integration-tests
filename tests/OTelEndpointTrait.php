@@ -93,6 +93,11 @@ trait OTelEndpointTrait {
 
     private static function captureRequestBody(Request $request, mixed &$slot, string $messageType, string $responseType): Response {
         $payload = $request->getBody()->buffer();
+
+        if ($request->getHeader('content-encoding') === 'gzip' && extension_loaded('zlib')) {
+            $payload = \gzdecode($payload) ?? throw new RuntimeException('Failed to gunzip request body');
+        }
+
         $message = new $messageType();
         match ($request->getHeader('content-type')) {
             'application/x-protobuf' => $message->mergeFromString($payload),

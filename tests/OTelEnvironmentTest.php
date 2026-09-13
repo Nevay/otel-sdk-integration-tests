@@ -1,6 +1,8 @@
 <?php declare(strict_types=1);
 namespace Nevay\OTelTest;
 
+use Amp\Http\Client\HttpClientBuilder;
+use Amp\Http\Client\Request;
 use OpenTelemetry\API\Baggage\Baggage;
 use OpenTelemetry\API\Globals;
 use OpenTelemetry\API\Logs\LogRecord;
@@ -11,6 +13,7 @@ use OpenTelemetry\API\Trace\StatusCode;
 use OpenTelemetry\API\Trace\TraceFlags;
 use OpenTelemetry\Context\Context;
 use PHPUnit\Framework\TestCase;
+use Throwable;
 
 final class OTelEnvironmentTest extends TestCase {
     use OTelEndpointTrait;
@@ -1437,6 +1440,58 @@ final class OTelEnvironmentTest extends TestCase {
         );
     }
 
+    public function testSpanLinksAreExportedWithAttributes(): void {
+        $this->runOTel(
+            static function (): void {
+                $span = Globals::tracerProvider()
+                    ->getTracer('test')
+                    ->spanBuilder('linked-span')
+                    ->addLink(SpanContext::create(
+                        '11111111111111111111111111111111',
+                        '1111111111111111',
+                        TraceFlags::SAMPLED,
+                    ), ['link.attr' => 'one'])
+                    ->addLink(SpanContext::create(
+                        '22222222222222222222222222222222',
+                        '2222222222222222',
+                        TraceFlags::SAMPLED,
+                    ))
+                    ->startSpan();
+
+                $span->end();
+            },
+        );
+
+        self::assertNotEmpty($this->traces);
+
+        $links = $this->path(
+            $this->traces[0],
+            '$.resourceSpans[*].scopeSpans[*].spans[?(@.name == "linked-span")].links',
+        );
+
+        self::assertCount(1, $links);
+        $links = $links[0];
+        self::assertCount(2, $links);
+
+        /*
+         * Links are exported in the order they were added, with the
+         * referenced trace/span ids and their attributes.
+         */
+        self::assertSame('11111111111111111111111111111111', $links[0]['traceId']);
+        self::assertSame('1111111111111111', $links[0]['spanId']);
+        self::assertSame(
+            [['key' => 'link.attr', 'value' => ['stringValue' => 'one']]],
+            $links[0]['attributes'],
+        );
+
+        /*
+         * A link without attributes omits the attributes key entirely.
+         */
+        self::assertSame('22222222222222222222222222222222', $links[1]['traceId']);
+        self::assertSame('2222222222222222', $links[1]['spanId']);
+        self::assertArrayNotHasKey('attributes', $links[1]);
+    }
+
     /*
      * =========================================================================
      * Batch Span Processor
@@ -1738,9 +1793,133 @@ final class OTelEnvironmentTest extends TestCase {
 
     /*
      * =========================================================================
+     * Log details
+     * =========================================================================
+     */
+
+    public function testLogSeverityNumberAndTextAreExported(): void {
+        $this->runOTel(
+            static function (): void {
+                $logger = Globals::loggerProvider()->getLogger('test');
+
+                $logger->emit((new LogRecord('debug-message'))->setSeverityNumber(5));
+                $logger->emit((new LogRecord('warn-message'))
+                    ->setSeverityNumber(13)
+                    ->setSeverityText('Warning'));
+            },
+        );
+
+        self::assertNotEmpty($this->logs);
+
+        $records = $this->path(
+            $this->logs[0],
+            '$.resourceLogs[*].scopeLogs[*].logRecords',
+        );
+
+        $byBody = [];
+        foreach ($records[0] as $record) {
+            $byBody[$record['body']['stringValue']] = $record;
+        }
+
+        self::assertSame(5, $byBody['debug-message']['severityNumber']);
+        self::assertArrayNotHasKey('severityText', $byBody['debug-message']);
+
+        /*
+         * The severity text is only exported when explicitly set.
+         */
+        self::assertSame(13, $byBody['warn-message']['severityNumber']);
+        self::assertSame('Warning', $byBody['warn-message']['severityText']);
+    }
+
+    public function testLogBodySupportsNonStringTypes(): void {
+        $this->runOTel(
+            static function (): void {
+                $logger = Globals::loggerProvider()->getLogger('test');
+
+                $logger->emit(new LogRecord(true));
+                $logger->emit(new LogRecord(3.5));
+                $logger->emit(new LogRecord(1234567890123));
+            },
+        );
+
+        self::assertNotEmpty($this->logs);
+
+        $bodies = $this->path(
+            $this->logs[0],
+            '$.resourceLogs[*].scopeLogs[*].logRecords[*].body',
+        );
+
+        /*
+         * Log bodies are exported as OTLP any values: booleans, doubles,
+         * and int64 (encoded as a string in JSON).
+         */
+        self::assertContains(['boolValue' => true], $bodies);
+        self::assertContains(['doubleValue' => 3.5], $bodies);
+        self::assertContains(['intValue' => '1234567890123'], $bodies);
+    }
+
+    /*
+     * =========================================================================
      * Metrics
      * =========================================================================
      */
+
+    public function testPrometheusExporterServesMetricsOnConfiguredPort(): void {
+        $port = 39464;
+
+        $exposition = $this->runOTel(
+            static function () use ($port): void {
+                Globals::meterProvider()
+                    ->getMeter('prom-test')
+                    ->createCounter('test.counter', 'requests', 'a probe counter')
+                    ->add(42);
+
+                /*
+                 * The Prometheus exporter runs its own HTTP server inside
+                 * this process, so scrape it from here with the async client.
+                 */
+                $client = HttpClientBuilder::buildDefault();
+                $body = '';
+                for ($i = 0; $i < 50 && $body === ''; $i++) {
+                    try {
+                        $request = new Request('http://127.0.0.1:' . $port . '/metrics');
+                        $request->setHeader('accept', 'text/plain;version=0.0.4');
+                        $response = $client->request($request);
+                        if ($response->getStatus() === 200) {
+                            $body = (string) $response->getBody();
+                        }
+                    } catch (Throwable) {
+                        // The server may not be listening yet.
+                    }
+                    \Amp\delay(0.1);
+                }
+
+                echo $body;
+            },
+            'OTEL_METRICS_EXPORTER=prometheus',
+            'OTEL_EXPORTER_PROMETHEUS_HOST=127.0.0.1',
+            'OTEL_EXPORTER_PROMETHEUS_PORT=' . $port,
+        );
+
+        /*
+         * The counter is exposed in the Prometheus text format: dots are
+         * translated to underscores, the unit is inserted before the _total
+         * suffix, and the meter name becomes a scope label.
+         */
+        self::assertStringContainsString('# TYPE test_counter_requests_total counter', $exposition);
+        self::assertStringContainsString('# HELP test_counter_requests_total a probe counter', $exposition);
+        self::assertStringContainsString('test_counter_requests_total{otel_scope_name="prom-test"} 42', $exposition);
+
+        /*
+         * Resource attributes are exposed as the target_info metric.
+         */
+        self::assertMatchesRegularExpression('/^target_info\{.*\} 1$/m', $exposition);
+
+        /*
+         * Metrics no longer go through the OTLP metrics endpoint.
+         */
+        self::assertSame([], $this->metrics);
+    }
 
     public function testMetricExportInterval(): void {
         $this->runOTel(
@@ -2405,6 +2584,31 @@ final class OTelEnvironmentTest extends TestCase {
          */
         self::assertSame(['secret-token'], $headers['auth']);
         self::assertSame(['v1'], $headers['x-custom']);
+    }
+
+    public function testOtlpHttpGzipCompressionIsApplied(): void {
+        $this->runOTel(
+            static function (): void {
+                $span = Globals::tracerProvider()
+                    ->getTracer('test')
+                    ->spanBuilder('gzip-span')
+                    ->startSpan();
+
+                $span->end();
+            },
+            'OTEL_EXPORTER_OTLP_COMPRESSION=gzip',
+        );
+
+        self::assertNotEmpty($this->traces);
+
+        /*
+         * The request body is gzip-compressed and marked as such; the fake
+         * collector decodes it before parsing.
+         */
+        $headers = array_change_key_case($this->requestHeaders[0]);
+        self::assertSame(['gzip'], $headers['content-encoding']);
+
+        self::assertContains('gzip-span', $this->spanNames($this->traces[0]));
     }
 
     /*
