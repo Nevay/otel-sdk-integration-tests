@@ -2043,6 +2043,81 @@ final class OTelEnvironmentTest extends TestCase {
         self::assertSame($expected, $actual);
     }
 
+    public function testMalformedResourceAttributesAreIgnored(): void {
+        $this->runOTel(
+            static function (): void {
+                $span = Globals::tracerProvider()
+                    ->getTracer('test')
+                    ->spanBuilder('malformed-attrs')
+                    ->startSpan();
+
+                $span->end();
+            },
+            'OTEL_RESOURCE_ATTRIBUTES=not-a-pair,good.key=good-value',
+        );
+
+        self::assertNotEmpty($this->traces);
+
+        /*
+         * The entry without a "=" separator is dropped...
+         */
+        $keys = $this->path(
+            $this->combinedTracePayload(),
+            '$.resourceSpans[*].resource.attributes[*].key',
+        );
+
+        self::assertNotContains('not-a-pair', $keys);
+
+        /*
+         * ...while the valid entry in the same list is applied.
+         */
+        self::assertSame(
+            'good-value',
+            $this->resourceAttribute($this->combinedTracePayload(), 'good.key'),
+        );
+    }
+
+    public function testUnknownPropagatorDisablesPropagationWithoutBreakingStartup(): void {
+        $output = $this->runOTel(
+            static function (): void {
+                $span = Globals::tracerProvider()
+                    ->getTracer('test')
+                    ->spanBuilder('unknown-propagator')
+                    ->startSpan();
+
+                $span->end();
+
+                $spanContext = SpanContext::create(
+                    '0123456789abcdef0123456789abcdef',
+                    '0123456789abcdef',
+                    TraceFlags::SAMPLED,
+                );
+
+                $context = Context::getCurrent()
+                    ->withContextValue(Span::wrap($spanContext));
+
+                $carrier = [];
+                Globals::propagator()->inject($carrier, null, $context);
+
+                echo json_encode($carrier, JSON_THROW_ON_ERROR);
+            },
+            'OTEL_PROPAGATORS=doesnotexist',
+        );
+
+        /*
+         * The SDK still starts and exports spans...
+         */
+        self::assertNotEmpty($this->traces);
+
+        /*
+         * ...but the unknown propagator results in no propagation at all.
+         */
+        self::assertSame(
+            [],
+            json_decode($output, true, 512, JSON_THROW_ON_ERROR),
+        );
+    }
+
     private function spanIdByName(string $name): string {
         $values = $this->path(
             $this->combinedTracePayload(),
