@@ -1384,6 +1384,59 @@ final class OTelEnvironmentTest extends TestCase {
         self::assertSame(5, $kinds['kind-consumer']);
     }
 
+    public function testSpanAttributesPreserveValueTypes(): void {
+        $this->runOTel(
+            static function (): void {
+                $span = Globals::tracerProvider()
+                    ->getTracer('test')
+                    ->spanBuilder('typed-attributes')
+                    ->startSpan();
+
+                $span->setAttribute('string.value', 'text');
+                $span->setAttribute('int.value', 42);
+                $span->setAttribute('bool.value', true);
+                $span->setAttribute('float.value', 0.5);
+                $span->setAttribute('string.list.value', ['a', 'b']);
+
+                $span->end();
+            },
+        );
+
+        self::assertNotEmpty($this->traces);
+
+        $attributes = $this->path(
+            $this->traces[0],
+            '$.resourceSpans[*].scopeSpans[*].spans[?(@.name == "typed-attributes")].attributes[*]',
+        );
+
+        $byKey = array_column($attributes, 'value', 'key');
+
+        self::assertSame(['stringValue' => 'text'], $byKey['string.value']);
+
+        /*
+         * OTLP JSON encodes int64 values as strings.
+         */
+        self::assertSame(['intValue' => '42'], $byKey['int.value']);
+
+        self::assertSame(['boolValue' => true], $byKey['bool.value']);
+        self::assertSame(['doubleValue' => 0.5], $byKey['float.value']);
+
+        /*
+         * String arrays are exported as array values...
+         */
+        self::assertSame(
+            [
+                'arrayValue' => [
+                    'values' => [
+                        ['stringValue' => 'a'],
+                        ['stringValue' => 'b'],
+                    ],
+                ],
+            ],
+            $byKey['string.list.value'],
+        );
+    }
+
     /*
      * =========================================================================
      * Batch Span Processor
