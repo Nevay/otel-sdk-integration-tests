@@ -36,20 +36,6 @@ top-level `distribution:` node), not the official
 spec format, which is still experimental; conformance here means conformance to
 the SDK's documented schema.
 
-**Deviations found while building this suite — all resolved:**
-
-1. **TLS CA file was ineffective** (`OTEL_EXPORTER_OTLP_*_CERTIFICATE`,
-   `tls.ca_file`): the loaders passed a PEM *file* to amphp's `withCaPath()`,
-   which expects a directory of hashed certificates, instead of `withCaFile()`.
-   Fixed in the SDK; covered by `TlsTest` (including mTLS).
-2. **Default histogram boundaries omitted the spec's `750` bucket.** Fixed in
-   the SDK; defaults now match `[0, 5, 10, 25, 50, 75, 100, 250, 500, 750,
-   1000, 2500, 5000, 7500, 10000]` exactly.
-3. **OTLP/JSON ID encoding** — initially reported as a deviation (hex vs
-   base64), but re-verification showed it is spec-compliant: OTLP 1.11.0
-   explicitly deviates from the proto3 JSON mapping and mandates hex for
-   trace/span IDs in all OTLP messages.
-
 **Spec features not implemented by the SDK (gaps, not deviations):**
 
 - **Zipkin exporter** (`OTEL_EXPORTER_ZIPKIN_ENDPOINT`,
