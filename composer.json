@@ -1,15 +1,24 @@
 {
   "name": "tbachert/otel-test",
   "require": {
+    "amphp/amp": "^3.0",
+    "amphp/byte-stream": "^2.0",
     "amphp/file": "^4.0",
+    "amphp/http": "^2.0",
+    "amphp/http-client": "^5.0",
+    "amphp/http-server": "^3.0",
     "amphp/http-server-router": "^2.0",
     "amphp/process": "^2.1",
+    "amphp/socket": "^2.0",
     "galbar/jsonpath": "^3.0",
+    "google/protobuf": "^5.0",
     "open-telemetry/api": "^1.10",
+    "open-telemetry/context": "^1.5",
     "open-telemetry/extension-propagator-b3": "^1.2",
     "open-telemetry/gen-otlp-protobuf": "^1.10",
     "opis/closure": "^4.5",
     "phpunit/phpunit": "^13.3",
+    "psr/log": "^3.0",
     "symfony/filesystem": "^8.1"
   },
   "autoload": {
