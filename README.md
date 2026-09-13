@@ -43,7 +43,7 @@ passable via `ARGS='--group env'`):
 
 ### [`tbachert/otel-sdk`](https://github.com/tbachert/otel-sdk)
 
-Exact package versions pinned in `composer.lock`.
+Exact package versions pinned in `sdks/tbachert/composer.lock`.
 
 **Scope.** All stable environment variables from the specification's SDK
 configuration section, plus file-based configuration using the official
