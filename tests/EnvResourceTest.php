@@ -386,4 +386,62 @@ final class EnvResourceTest extends TestCase {
         self::assertSame(['custom.desc'], $refs[0]['descriptionKeys']);
         self::assertArrayNotHasKey('schemaUrl', $refs[0]);
     }
+
+    #[Group('resource')]
+    public function testEntityInvalidSchemaUrlIsIgnored(): void {
+        $this->runOTel(
+            static function (): void {
+                Globals::tracerProvider()
+                    ->getTracer('test')
+                    ->spanBuilder('entities-invalid-url')
+                    ->startSpan()
+                    ->end();
+            },
+            'OTEL_ENTITIES=myapp{custom.id=abc}@not-a-valid-url',
+            'OTEL_TRACES_SAMPLER=always_on',
+        );
+
+        self::assertNotEmpty($this->traces);
+
+        $payload = $this->traces[0];
+
+        /*
+         * An invalid schema URL is ignored while the entity itself is still
+         * processed.
+         */
+        self::assertSame('abc', $this->resourceAttribute($payload, 'custom.id'));
+
+        $refs = array_values(array_filter(
+            $this->resourceEntityRefs($payload),
+            static fn(array $ref): bool => ($ref['type'] ?? null) === 'myapp',
+        ));
+
+        self::assertCount(1, $refs);
+        self::assertArrayNotHasKey('schemaUrl', $refs[0]);
+    }
+
+    #[Group('resource')]
+    public function testEntityAttributeValuesArePercentDecoded(): void {
+        $this->runOTel(
+            static function (): void {
+                Globals::tracerProvider()
+                    ->getTracer('test')
+                    ->spanBuilder('entities-percent-decoded')
+                    ->startSpan()
+                    ->end();
+            },
+            'OTEL_ENTITIES=myapp{custom.id=my%20value,custom.other=x%2Cy}[custom.desc=a%3Db%5Bc%5D]',
+            'OTEL_TRACES_SAMPLER=always_on',
+        );
+
+        self::assertNotEmpty($this->traces);
+
+        /*
+         * Attribute values are percent-decoded per the W3C Baggage
+         * specification.
+         */
+        self::assertSame('my value', $this->resourceAttribute($this->traces[0], 'custom.id'));
+        self::assertSame('x,y', $this->resourceAttribute($this->traces[0], 'custom.other'));
+        self::assertSame('a=b[c]', $this->resourceAttribute($this->traces[0], 'custom.desc'));
+    }
 }

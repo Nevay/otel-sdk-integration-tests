@@ -1053,4 +1053,51 @@ final class MetricsPipelineTest extends TestCase {
             self::assertSame('42', $export['asInt']);
         }
     }
+
+    public function testDefaultHistogramUsesSpecBoundaries(): void
+    {
+        $this->runOTelConfig(
+            <<<'YAML'
+            file_format: "1.2"
+
+            meter_provider:
+              readers:
+                - periodic:
+                    interval: 200
+                    exporter:
+                      otlp_http:
+                        endpoint: ${env:OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
+            YAML,
+            static function (): void {
+                $histogram = Globals::meterProvider()
+                    ->getMeter('test')
+                    ->createHistogram('duration');
+
+                $histogram->record(7);
+            },
+        );
+
+        self::assertNotEmpty($this->metrics);
+
+        $dataPoint = $this->dataPoint(
+            $this->lastMetricExport(),
+            'duration',
+            [],
+            'histogram',
+        );
+
+        /*
+         * Without explicit boundaries, the SDK uses the specification's
+         * default explicit bucket histogram boundaries.
+         */
+        self::assertEquals(
+            [0, 5, 10, 25, 50, 75, 100, 250, 500, 750, 1000, 2500, 5000, 7500, 10000],
+            $dataPoint['explicitBounds'],
+        );
+
+        /*
+         * The recorded value falls into the (5.0, 10.0] bucket.
+         */
+        self::assertSame('1', $dataPoint['bucketCounts'][2]);
+    }
 }
