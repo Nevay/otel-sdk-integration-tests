@@ -2072,4 +2072,53 @@ final class ConfigViewsTest extends TestCase {
             ),
         );
     }
+
+    public function testViewUsesBase2ExponentialBucketHistogramAggregation(): void {
+        $this->runOTelConfig(<<<'YAML'
+            file_format: "1.2"
+
+            meter_provider:
+              readers:
+                - periodic:
+                    interval: 60000
+                    timeout: 1000
+                    exporter:
+                      otlp_http:
+                        endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
+
+              views:
+                - selector:
+                    instrument_name: b2.view.histogram
+                  stream:
+                    aggregation:
+                      base2_exponential_bucket_histogram:
+                        max_scale: 5
+                        max_size: 32
+                        record_min_max: false
+        YAML, static function (): void {
+            $histogram = Globals::meterProvider()->getMeter('config-test')
+                ->createHistogram('b2.view.histogram');
+
+            foreach ([1, 2, 4] as $value) {
+                $histogram->record($value);
+            }
+        });
+
+        /*
+         * The view switches the instrument to base-2 exponential
+         * aggregation; with record_min_max disabled no min/max are
+         * reported.
+         */
+        $dataPoint = $this->path(
+            $this->metrics[0],
+            '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "b2.view.histogram")].exponentialHistogram.dataPoints[0]',
+        )[0];
+
+        self::assertArrayNotHasKey('min', $dataPoint);
+        self::assertArrayNotHasKey('max', $dataPoint);
+        self::assertSame(
+            3,
+            array_sum(array_map('intval', $dataPoint['positive']['bucketCounts'])),
+        );
+    }
 }

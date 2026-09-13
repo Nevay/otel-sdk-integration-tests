@@ -460,4 +460,106 @@ final class ConfigSamplingTest extends TestCase {
         self::assertNotSame(0, $count);
         self::assertNotSame(100, $count);
     }
+
+    #[Group('sampler')]
+    public function testRuleBasedSamplerMatchesAttributePatterns(): void {
+        $this->runOTelConfig(
+            <<<'YAML'
+            file_format: "1.2"
+
+            tracer_provider:
+              sampler:
+                composite/development:
+                  rule_based:
+                    rules:
+                      - attribute_patterns:
+                          key: component
+                          included: [http-*]
+                        sampler:
+                          always_on:
+              processors:
+                - batch:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${env:OTEL_EXPORTER_OTLP_TRACES_ENDPOINT}
+            YAML,
+            static function (): void {
+                $tracer = Globals::tracerProvider()->getTracer('config-test');
+
+                /* Matches the wildcard pattern -> sampled. */
+                $http = $tracer->spanBuilder('rule-http')
+                    ->setAttribute('component', 'http-client')
+                    ->startSpan();
+                $http->end();
+
+                /* Does not match the pattern -> dropped. */
+                $grpc = $tracer->spanBuilder('rule-grpc')
+                    ->setAttribute('component', 'grpc-client')
+                    ->startSpan();
+                $grpc->end();
+            },
+        );
+
+        self::assertCount(1, $this->traces);
+        self::assertSame(
+            ['rule-http'],
+            $this->spanNames($this->traces[0]),
+        );
+    }
+
+    #[Group('sampler')]
+    public function testComposableProbabilitySampler(): void {
+        $emitSpan = static function (): void {
+            $tracer = Globals::tracerProvider()->getTracer('config-test');
+
+            $span = $tracer->spanBuilder('probability')->startSpan();
+            $span->end();
+        };
+
+        /* A ratio of zero drops every span... */
+        $this->runOTelConfig(
+            <<<'YAML'
+            file_format: "1.2"
+
+            tracer_provider:
+              sampler:
+                composite/development:
+                  probability:
+                    ratio: 0
+              processors:
+                - batch:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${env:OTEL_EXPORTER_OTLP_TRACES_ENDPOINT}
+            YAML,
+            $emitSpan,
+        );
+
+        self::assertSame([], $this->traces);
+
+        /* ...while a ratio of one keeps every span. */
+        $this->runOTelConfig(
+            <<<'YAML'
+            file_format: "1.2"
+
+            tracer_provider:
+              sampler:
+                composite/development:
+                  probability:
+                    ratio: 1
+              processors:
+                - batch:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${env:OTEL_EXPORTER_OTLP_TRACES_ENDPOINT}
+            YAML,
+            $emitSpan,
+        );
+
+        self::assertCount(1, $this->traces);
+        self::assertSame(
+            ['probability'],
+            $this->spanNames($this->traces[0]),
+        );
+    }
 }

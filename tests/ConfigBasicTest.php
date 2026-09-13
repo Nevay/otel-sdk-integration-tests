@@ -491,4 +491,79 @@ final class ConfigBasicTest extends TestCase {
         self::assertIsArray($attributeValue($attributes, 'code.file.path'));
         self::assertNull($attributeValue($attributes, 'code.stacktrace'));
     }
+
+    #[Group('traces')]
+    public function testOtlpHttpMaxRequestSizeBlocksOversizedExports(): void {
+        $this->runOTelConfig(<<<'YAML'
+            file_format: "1.2"
+
+            tracer_provider:
+              processors:
+                - batch:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${env:OTEL_EXPORTER_OTLP_TRACES_ENDPOINT}
+                        max_request_size: 1
+        YAML, static function (): void {
+            Globals::tracerProvider()->getTracer('config-test')
+                ->spanBuilder('oversized')
+                ->startSpan()
+                ->end();
+        });
+
+        /*
+         * The payload is rejected by the exporter before it reaches the
+         * collector; the failure is reported as a warning.
+         */
+        self::assertSame([], $this->traces);
+        self::assertStringContainsString(
+            'maximum request size',
+            strtolower($this->lastStderr),
+        );
+    }
+
+    #[Group('traces')]
+    public function testLogLevelErrorSuppressesSdkWarnings(): void {
+        $failEndpoint = str_replace('/v1/traces', '/v1/fail', $this->baseUrl . '/v1/traces');
+
+        $emitSpan = static function (): void {
+            Globals::tracerProvider()->getTracer('config-test')
+                ->spanBuilder('log-level')
+                ->startSpan()
+                ->end();
+        };
+
+        /*
+         * The default level (info) reports the export failure as a warning.
+         */
+        $this->runOTelConfig(<<<YAML
+            file_format: "1.2"
+
+            tracer_provider:
+              processors:
+                - batch:
+                    exporter:
+                      otlp_http:
+                        endpoint: {$failEndpoint}
+        YAML, $emitSpan);
+
+        self::assertStringContainsString('Export failure', $this->lastStderr);
+
+        /*
+         * At level error the warning is suppressed.
+         */
+        $this->runOTelConfig(<<<YAML
+            file_format: "1.2"
+            log_level: error
+
+            tracer_provider:
+              processors:
+                - batch:
+                    exporter:
+                      otlp_http:
+                        endpoint: {$failEndpoint}
+        YAML, $emitSpan);
+
+        self::assertStringNotContainsString('Export failure', $this->lastStderr);
+    }
 }

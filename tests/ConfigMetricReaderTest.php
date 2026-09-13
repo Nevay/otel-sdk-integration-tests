@@ -258,4 +258,194 @@ final class ConfigMetricReaderTest extends TestCase {
 
         self::assertSame([], $this->metrics);
     }
+
+    #[Group('metrics')]
+    public function testPrometheusResourceConstantLabelsAreIncluded(): void {
+        $port = 39468;
+
+        $exposition = $this->runOTelConfig(
+            str_replace('{PORT}', (string) $port, <<<'YAML'
+            file_format: "1.2"
+
+            meter_provider:
+              readers:
+                - pull:
+                    exporter:
+                      prometheus/development:
+                        host: 127.0.0.1
+                        port: {PORT}
+                        resource_constant_labels:
+                          included: [service.name]
+            YAML),
+            static function () use ($port): void {
+                Globals::meterProvider()
+                    ->getMeter('prom-test')
+                    ->createCounter('test.counter', 'requests')
+                    ->add(42);
+
+                $client = HttpClientBuilder::buildDefault();
+                $body = '';
+                for ($i = 0; $i < 50 && $body === ''; $i++) {
+                    try {
+                        $request = new Request('http://127.0.0.1:' . $port . '/metrics');
+                        $response = $client->request($request);
+                        if ($response->getStatus() === 200) {
+                            $body = (string) $response->getBody();
+                        }
+                    } catch (Throwable) {
+                        // The server may not be listening yet.
+                    }
+                    \Amp\delay(0.1);
+                }
+
+                echo $body;
+            },
+        );
+
+        /*
+         * The listed resource attribute is added as a constant label to
+         * every metric series, next to the scope label.
+         */
+        self::assertMatchesRegularExpression(
+            '/test_counter_requests_total\{[^}]*service_name="unknown_service:php"[^}]*\} 42/',
+            $exposition,
+        );
+    }
+
+    #[Group('metrics')]
+    public function testPrometheusTranslationStrategyWithoutSuffixes(): void {
+        $port = 39469;
+
+        $exposition = $this->runOTelConfig(
+            str_replace('{PORT}', (string) $port, <<<'YAML'
+            file_format: "1.2"
+
+            meter_provider:
+              readers:
+                - pull:
+                    exporter:
+                      prometheus/development:
+                        host: 127.0.0.1
+                        port: {PORT}
+                        translation_strategy: no_translation/development
+            YAML),
+            static function () use ($port): void {
+                Globals::meterProvider()
+                    ->getMeter('prom-test')
+                    ->createCounter('test.counter', 'requests')
+                    ->add(42);
+
+                $client = HttpClientBuilder::buildDefault();
+                $body = '';
+                for ($i = 0; $i < 50 && $body === ''; $i++) {
+                    try {
+                        $request = new Request('http://127.0.0.1:' . $port . '/metrics');
+                        $response = $client->request($request);
+                        if ($response->getStatus() === 200) {
+                            $body = (string) $response->getBody();
+                        }
+                    } catch (Throwable) {
+                        // The server may not be listening yet.
+                    }
+                    \Amp\delay(0.1);
+                }
+
+                echo $body;
+            },
+        );
+
+        /*
+         * Without suffixes the metric keeps its plain translated name:
+         * no unit segment, no _total suffix.
+         */
+        self::assertStringContainsString('# TYPE test_counter counter', $exposition);
+        self::assertStringNotContainsString('_requests_total', $exposition);
+    }
+
+    #[Group('metrics')]
+    public function testExporterDefaultBase2ExponentialHistogramAggregation(): void {
+        $this->runOTelConfig(<<<'YAML'
+            file_format: "1.2"
+
+            meter_provider:
+              readers:
+                - periodic:
+                    interval: 60000
+                    timeout: 1000
+                    exporter:
+                      otlp_http:
+                        endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
+                        default_histogram_aggregation: base2_exponential_bucket_histogram
+        YAML, static function (): void {
+            $histogram = Globals::meterProvider()->getMeter('config-test')
+                ->createHistogram('b2.histogram');
+
+            foreach ([0.5, 1, 2, 4, 8, 16] as $value) {
+                $histogram->record($value);
+            }
+        });
+
+        /*
+         * The exporter-level default switches the histogram to base-2
+         * exponential aggregation: data points carry a scale and an
+         * offset/bucket-count pair instead of explicit bounds.
+         */
+        $dataPoint = $this->path(
+            $this->metrics[0],
+            '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "b2.histogram")].exponentialHistogram.dataPoints[0]',
+        )[0];
+
+        self::assertArrayNotHasKey('explicitBounds', $dataPoint);
+        self::assertIsInt($dataPoint['scale']);
+        self::assertSame(
+            6,
+            array_sum(array_map('intval', $dataPoint['positive']['bucketCounts'])),
+        );
+        self::assertEqualsWithDelta(0.5, $dataPoint['min'], 0.001);
+        self::assertEqualsWithDelta(16.0, $dataPoint['max'], 0.001);
+    }
+
+    #[Group('metrics')]
+    public function testReaderCardinalityLimitBucketsOverflowSeries(): void {
+        $this->runOTelConfig(<<<'YAML'
+            file_format: "1.2"
+
+            meter_provider:
+              readers:
+                - periodic:
+                    interval: 60000
+                    timeout: 1000
+                    exporter:
+                      otlp_http:
+                        endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
+                    cardinality_limits:
+                      default: 2
+        YAML, static function (): void {
+            $counter = Globals::meterProvider()->getMeter('config-test')
+                ->createCounter('cardinality.counter');
+
+            foreach (['a', 'b', 'c', 'd'] as $key) {
+                $counter->add(1, ['k' => $key]);
+            }
+        });
+
+        /*
+         * The reader limits the number of attribute sets per instrument:
+         * the first two are kept, the rest land in an overflow data point.
+         */
+        $base = '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "cardinality.counter")].sum';
+
+        self::assertCount(
+            3,
+            $this->path($this->metrics[0], $base . '.dataPoints[*].asInt'),
+        );
+        self::assertSame(
+            ['k', 'k', 'otel.metric.overflow'],
+            $this->path($this->metrics[0], $base . '.dataPoints[*].attributes[*].key'),
+        );
+        self::assertSame(
+            '2',
+            (string) $this->path($this->metrics[0], $base . '.dataPoints[2].asInt')[0],
+        );
+    }
 }
