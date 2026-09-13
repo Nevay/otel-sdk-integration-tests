@@ -6,6 +6,8 @@ use OpenTelemetry\API\Globals;
 use OpenTelemetry\API\Logs\LogRecord;
 use OpenTelemetry\API\Trace\Span;
 use OpenTelemetry\API\Trace\SpanContext;
+use OpenTelemetry\API\Trace\SpanKind;
+use OpenTelemetry\API\Trace\StatusCode;
 use OpenTelemetry\API\Trace\TraceFlags;
 use OpenTelemetry\Context\Context;
 use PHPUnit\Framework\TestCase;
@@ -1262,6 +1264,124 @@ final class OTelEnvironmentTest extends TestCase {
                 '$.resourceSpans[*].scopeSpans[*].spans[?(@.name == "link-attributes")].links[0].attributes[*]',
             ),
         );
+    }
+
+    /*
+     * =========================================================================
+     * Span details
+     * =========================================================================
+     *
+     * Export fidelity of span status, events and kinds.
+     */
+
+    public function testSpanStatusIsExported(): void {
+        $this->runOTel(
+            static function (): void {
+                $tracer = Globals::tracerProvider()->getTracer('test');
+
+                $error = $tracer->spanBuilder('status-error')->startSpan();
+                $error->setStatus(StatusCode::STATUS_ERROR, 'boom');
+                $error->end();
+
+                $ok = $tracer->spanBuilder('status-ok')->startSpan();
+                $ok->setStatus(StatusCode::STATUS_OK);
+                $ok->end();
+            },
+        );
+
+        self::assertNotEmpty($this->traces);
+
+        /*
+         * OTLP status codes: 0 = unset, 1 = ok, 2 = error.
+         */
+        $spans = $this->path(
+            $this->traces[0],
+            '$.resourceSpans[*].scopeSpans[*].spans[*]',
+        );
+
+        $statuses = array_column($spans, 'status', 'name');
+
+        self::assertSame(['message' => 'boom', 'code' => 2], $statuses['status-error']);
+        self::assertSame(['code' => 1], $statuses['status-ok']);
+    }
+
+    public function testSpanEventsAreExportedWithAttributes(): void {
+        $this->runOTel(
+            static function (): void {
+                $span = Globals::tracerProvider()
+                    ->getTracer('test')
+                    ->spanBuilder('events-span')
+                    ->startSpan();
+
+                $span->addEvent('first-event', ['event.attr' => 'ev']);
+                $span->addEvent('second-event');
+
+                $span->end();
+            },
+        );
+
+        self::assertNotEmpty($this->traces);
+
+        $events = $this->path(
+            $this->traces[0],
+            '$.resourceSpans[*].scopeSpans[*].spans[?(@.name == "events-span")].events',
+        );
+
+        self::assertCount(2, $events[0]);
+
+        self::assertSame('first-event', $events[0][0]['name']);
+        self::assertSame(
+            [
+                ['key' => 'event.attr', 'value' => ['stringValue' => 'ev']],
+            ],
+            $events[0][0]['attributes'],
+        );
+
+        /*
+         * Events without attributes are exported without an attributes key.
+         */
+        self::assertSame('second-event', $events[0][1]['name']);
+        self::assertArrayNotHasKey('attributes', $events[0][1]);
+    }
+
+    public function testSpanKindsAreExported(): void {
+        $this->runOTel(
+            static function (): void {
+                $tracer = Globals::tracerProvider()->getTracer('test');
+
+                foreach (
+                    [
+                        'kind-internal' => SpanKind::KIND_INTERNAL,
+                        'kind-server' => SpanKind::KIND_SERVER,
+                        'kind-client' => SpanKind::KIND_CLIENT,
+                        'kind-producer' => SpanKind::KIND_PRODUCER,
+                        'kind-consumer' => SpanKind::KIND_CONSUMER,
+                    ] as $name => $kind
+                ) {
+                    $span = $tracer->spanBuilder($name)->setSpanKind($kind)->startSpan();
+                    $span->end();
+                }
+            },
+        );
+
+        self::assertNotEmpty($this->traces);
+
+        /*
+         * OTLP span kinds: 1 = internal, 2 = server, 3 = client,
+         * 4 = producer, 5 = consumer.
+         */
+        $spans = $this->path(
+            $this->traces[0],
+            '$.resourceSpans[*].scopeSpans[*].spans[*]',
+        );
+
+        $kinds = array_column($spans, 'kind', 'name');
+
+        self::assertSame(1, $kinds['kind-internal']);
+        self::assertSame(2, $kinds['kind-server']);
+        self::assertSame(3, $kinds['kind-client']);
+        self::assertSame(4, $kinds['kind-producer']);
+        self::assertSame(5, $kinds['kind-consumer']);
     }
 
     /*
