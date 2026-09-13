@@ -113,6 +113,15 @@ final class EnvBatchSpanProcessorTest extends TestCase {
         $this->assertSpanNames(['scheduled']);
     }
 
+    /*
+     * Vendor-specific: the specification mandates that spans are dropped once
+     * the queue is full, but not when a batch-full export runs. This scenario
+     * relies on tbachert/otel-sdk deferring exports to its timer, so the queue
+     * can fill up; the official SDK flushes synchronously after every span
+     * (autoFlush hardcoded to true), so the queue never fills and the drop
+     * path is unobservable there.
+     */
+    #[Group('vendor-specific')]
     public function testBspDropsSpansWhenQueueIsFull(): void {
         $this->runOTel(
             static function (): void {

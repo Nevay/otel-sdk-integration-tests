@@ -226,28 +226,30 @@ final class EnvResourceTest extends TestCase {
         }
 
         /*
-         * ...and derives the service name from the root composer package.
+         * ...and sets a reasonable service name. The specification only says
+         * that OTEL_SERVICE_NAME SHOULD default to a reasonable application or
+         * system name, leaving the exact derivation to the SDK: deriving it
+         * from the root composer package (tbachert/otel-sdk) and falling back
+         * to "unknown_service:<language>" (open-telemetry/sdk, per semantic
+         * conventions) are both acceptable.
          */
-        self::assertSame(
-            InstalledVersions::getRootPackage()['name'],
+        self::assertContains(
             $this->resourceAttribute($this->traces[0], 'service.name'),
+            [
+                InstalledVersions::getRootPackage()['name'],
+                'unknown_service:php',
+            ],
         );
 
         /*
-         * The default resource also carries the SDK version and a unique,
-         * randomly generated instance id (spec: service detector).
+         * The default resource also carries the SDK version. (Per semantic
+         * conventions, only service.name and the telemetry.sdk group are
+         * mandatory defaults; for example service.instance.id is set by the
+         * service detector at SHOULD level and is not asserted here.)
          */
         self::assertNotSame(
             '',
             $this->resourceAttribute($this->traces[0], 'telemetry.sdk.version'),
-        );
-
-        self::assertTrue(
-            preg_match(
-                '/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/',
-                $this->resourceAttribute($this->traces[0], 'service.instance.id'),
-            ) === 1,
-            'Expected a randomly generated UUID service.instance.id',
         );
     }
 

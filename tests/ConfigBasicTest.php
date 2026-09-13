@@ -411,6 +411,12 @@ final class ConfigBasicTest extends TestCase {
     }
 
     #[Group('traces')]
+    /*
+     * Vendor-specific: capture_code_attributes/development is not part of the
+     * official opentelemetry-configuration data model; it is an experimental
+     * processor of tbachert/otel-sdk.
+     */
+    #[Group('vendor-specific')]
     public function testCaptureCodeAttributesProcessorAddsSourceLocation(): void
     {
         $run = function (string $config): array {

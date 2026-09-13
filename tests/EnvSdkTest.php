@@ -3,7 +3,6 @@ namespace Nevay\OTelTest;
 
 use OpenTelemetry\API\Globals;
 use OpenTelemetry\API\Logs\LogRecord;
-use Opentelemetry\Proto\Collector\Trace\V1\ExportTraceServiceRequest;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 
@@ -158,6 +157,14 @@ final class EnvSdkTest extends TestCase {
      */
 
     #[Group('traces')]
+    /*
+     * Vendor-specific: the specification defines OTEL_LOG_LEVEL but not the
+     * log level of individual self-diagnostic messages. This test pins down
+     * tbachert/otel-sdk's classification (export failures are logged at
+     * warning level, initialization errors at error level), which other SDKs
+     * may legitimately classify differently.
+     */
+    #[Group('vendor-specific')]
     public function testLogLevelControlsSdkLogging(): void {
         $failEndpoint = 'OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=' . str_replace(
             '/v1/traces',
@@ -224,7 +231,7 @@ final class EnvSdkTest extends TestCase {
     }
 
     #[Group('traces')]
-    public function testConsoleExporterWritesOtlpToStdout(): void
+    public function testConsoleExporterWritesSpansToStdout(): void
     {
         $output = $this->runOTel(
             static function (): void {
@@ -240,29 +247,13 @@ final class EnvSdkTest extends TestCase {
         );
 
         /*
-         * The console exporter appends newline-terminated OTLP/JSON
-         * messages to the process' stdout.
+         * The specification leaves the console exporter's output format
+         * unspecified ("can vary between implementations"), so we only pin
+         * down that the span reaches stdout and does not go to the OTLP
+         * HTTP collector.
          */
-        $marker = "MARKER-STDOUT\n";
-
-        self::assertStringStartsWith($marker, $output);
-
-        $names = [];
-
-        foreach (array_filter(explode("\n", substr($output, strlen($marker)))) as $json) {
-            $request = new ExportTraceServiceRequest();
-            $request->mergeFromJsonString($json, true);
-
-            foreach ($request->getResourceSpans() as $resourceSpans) {
-                foreach ($resourceSpans->getScopeSpans() as $scopeSpans) {
-                    foreach ($scopeSpans->getSpans() as $span) {
-                        $names[] = $span->getName();
-                    }
-                }
-            }
-        }
-
-        self::assertContains('console-span', $names);
+        self::assertStringContainsString("MARKER-STDOUT\n", $output);
+        self::assertStringContainsString('console-span', $output);
 
         /*
          * The span went to the console, not to the HTTP collector.

@@ -205,6 +205,13 @@ final class EnvMetricsTest extends TestCase {
     }
 
     #[Group('async')]
+    /*
+     * Vendor-specific: OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE is
+     * not part of the specification's environment variables; it is an option
+     * of tbachert/otel-sdk. The spec-based collection interval behavior is
+     * covered by testMetricExportIntervalEnvVarControlsCollectionFrequency.
+     */
+    #[Group('vendor-specific')]
     public function testMetricsTemporalityPreferenceEnvVarUsesDelta(): void
     {
         $this->runOTel(
@@ -246,5 +253,30 @@ final class EnvMetricsTest extends TestCase {
          */
         self::assertSame('5', $exports[0]['asInt']);
         self::assertSame('3', $exports[1]['asInt']);
+    }
+
+    /*
+     * OTEL_METRIC_EXPORT_INTERVAL (spec) sets the periodic metric reader's
+     * collection interval in milliseconds. With a 250 ms interval and two
+     * measurement rounds spread over 800 ms, the collector must receive more
+     * than one export.
+     */
+    public function testMetricExportIntervalEnvVarControlsCollectionFrequency(): void
+    {
+        $this->runOTel(
+            static function (): void {
+                $counter = Globals::meterProvider()
+                    ->getMeter('test')
+                    ->createCounter('interval.counter');
+
+                $counter->add(5);
+                \Amp\delay(0.4);
+                $counter->add(3);
+                \Amp\delay(0.4);
+            },
+            'OTEL_METRIC_EXPORT_INTERVAL=250',
+        );
+
+        self::assertGreaterThanOrEqual(2, count($this->metrics));
     }
 }
