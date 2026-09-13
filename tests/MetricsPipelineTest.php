@@ -4,8 +4,10 @@ namespace Nevay\OTelTest;
 use OpenTelemetry\API\Globals;
 use OpenTelemetry\API\Metrics\ObserverInterface;
 use function Amp\delay;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 
+    #[Group('config-file'), Group('metrics')]
 final class MetricsPipelineTest extends TestCase {
     use OTelEndpointTrait;
 

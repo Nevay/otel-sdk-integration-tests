@@ -7,8 +7,10 @@ use OpenTelemetry\API\Trace\Span;
 use OpenTelemetry\API\Trace\SpanContext;
 use OpenTelemetry\API\Trace\TraceFlags;
 use OpenTelemetry\Context\Context;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 
+    #[Group('config-file'), Group('logs')]
 final class ConfigLoggerConfiguratorTest extends TestCase {
     use OTelEndpointTrait;
 

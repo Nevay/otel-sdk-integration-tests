@@ -5,8 +5,10 @@ use Amp\Http\Client\HttpClientBuilder;
 use Amp\Http\Client\Request;
 use OpenTelemetry\API\Globals;
 use Throwable;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 
+    #[Group('env'), Group('metrics')]
 final class EnvMetricsTest extends TestCase {
     use OTelEndpointTrait;
 

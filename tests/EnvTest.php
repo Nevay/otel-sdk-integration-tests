@@ -3,11 +3,14 @@ namespace Nevay\OTelTest;
 
 use Nevay\OTelTest\OTelEndpointTrait;
 use OpenTelemetry\API\Globals;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 
+    #[Group('env')]
 final class EnvTest extends TestCase {
     use OTelEndpointTrait;
 
+    #[Group('traces'), Group('metrics'), Group('logs')]
     public function testEnvGeneratesTelemetryData(): void {
         $this->runOTel(
             static function(): void {
@@ -63,6 +66,7 @@ final class EnvTest extends TestCase {
         );
     }
 
+    #[Group('traces'), Group('metrics'), Group('logs')]
     public function testSdkCanBeDisabled(): void {
         $this->runOTel(
             static function(): void {

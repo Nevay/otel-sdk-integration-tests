@@ -2,8 +2,10 @@
 namespace Nevay\OTelTest;
 
 use OpenTelemetry\API\Globals;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 
+    #[Group('config-file'), Group('metrics')]
 final class ConfigMeterConfiguratorTest extends TestCase {
     use OTelEndpointTrait;
 

@@ -2,8 +2,10 @@
 namespace Nevay\OTelTest;
 
 use OpenTelemetry\API\Globals;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 
+    #[Group('env')]
 final class EnvCorrelationTest extends TestCase {
     use OTelEndpointTrait;
 
@@ -13,6 +15,7 @@ final class EnvCorrelationTest extends TestCase {
      * =========================================================================
      */
 
+    #[Group('traces'), Group('logs')]
     public function testLogRecordEmittedInSpanCarriesTraceContext(): void {
         $this->runOTel(
             static function (): void {
@@ -60,6 +63,7 @@ final class EnvCorrelationTest extends TestCase {
         );
     }
 
+    #[Group('traces'), Group('logs')]
     public function testLogRecordInNestedSpanReferencesInnerSpan(): void {
         $this->runOTel(
             static function (): void {
@@ -131,6 +135,7 @@ final class EnvCorrelationTest extends TestCase {
         );
     }
 
+    #[Group('traces'), Group('metrics')]
     public function testMetricsExemplarCarriesActiveSpanContext(): void {
         $this->runOTel(
             static function (): void {
@@ -182,6 +187,7 @@ final class EnvCorrelationTest extends TestCase {
         );
     }
 
+    #[Group('traces'), Group('metrics'), Group('logs')]
     public function testAllSignalsCorrelateWithinOneTrace(): void {
         $this->runOTel(
             static function (): void {

@@ -5,8 +5,10 @@ use OpenTelemetry\API\Globals;
 use OpenTelemetry\API\Trace\Span;
 use OpenTelemetry\API\Trace\SpanContext;
 use OpenTelemetry\API\Trace\TraceFlags;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 
+    #[Group('env'), Group('traces')]
 final class EnvSpanLimitsTest extends TestCase {
     use OTelEndpointTrait;
 

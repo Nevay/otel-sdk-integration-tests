@@ -3,8 +3,10 @@ namespace Nevay\OTelTest;
 
 use OpenTelemetry\API\Globals;
 use OpenTelemetry\API\Logs\LogRecord;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 
+    #[Group('env')]
 final class EnvSdkTest extends TestCase {
     use OTelEndpointTrait;
 
@@ -14,6 +16,7 @@ final class EnvSdkTest extends TestCase {
      * =========================================================================
      */
 
+    #[Group('traces'), Group('metrics'), Group('logs')]
     public function testSdkDisabled(): void {
         $this->runOTel(
             static function (): void {
@@ -41,6 +44,7 @@ final class EnvSdkTest extends TestCase {
         self::assertSame([], $this->logs);
     }
 
+    #[Group('traces')]
     public function testSdkEnabled(): void {
         $this->runOTel(
             static function (): void {
@@ -65,6 +69,7 @@ final class EnvSdkTest extends TestCase {
      * =========================================================================
      */
 
+    #[Group('traces')]
     public function testTracesExporterNoneDisablesOnlyTraceExport(): void {
         $this->runOTel(
             static function (): void {
@@ -91,6 +96,7 @@ final class EnvSdkTest extends TestCase {
         self::assertNotEmpty($this->logs);
     }
 
+    #[Group('metrics')]
     public function testMetricsExporterNoneDisablesOnlyMetricExport(): void {
         $this->runOTel(
             static function (): void {
@@ -117,6 +123,7 @@ final class EnvSdkTest extends TestCase {
         self::assertNotEmpty($this->logs);
     }
 
+    #[Group('logs')]
     public function testLogsExporterNoneDisablesOnlyLogExport(): void {
         $this->runOTel(
             static function (): void {

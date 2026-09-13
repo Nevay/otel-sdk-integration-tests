@@ -2,8 +2,10 @@
 namespace Nevay\OTelTest;
 
 use OpenTelemetry\API\Globals;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 
+    #[Group('env'), Group('traces')]
 final class EnvResourceTest extends TestCase {
     use OTelEndpointTrait;
 

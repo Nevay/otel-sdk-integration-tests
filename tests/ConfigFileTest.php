@@ -7,9 +7,11 @@ use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 use function Amp\delay;
 
+    #[Group('config-file')]
 final class ConfigFileTest extends TestCase {
     use OTelEndpointTrait;
 
+    #[Group('traces'), Group('metrics'), Group('logs')]
     public function testConfigFileGeneratesTelemetryData(): void {
         $this->runOTelConfig(
             /* @lang yaml */ <<<'YAML'
@@ -76,6 +78,7 @@ final class ConfigFileTest extends TestCase {
         );
     }
 
+    #[Group('traces'), Group('metrics'), Group('logs')]
     public function testSdkCanBeDisabled(): void {
         $this->runOTelConfig(
             /* @lang yaml */ <<<'YAML'
@@ -125,6 +128,7 @@ final class ConfigFileTest extends TestCase {
         $this->assertEmpty($this->logs);
     }
 
+    #[Group('traces'), Group('metrics'), Group('logs')]
     #[Group('configurator')]
     public function testConfiguratorsCanDisableInstrumentationScopes(): void {
         $this->runOTelConfig(
@@ -215,6 +219,7 @@ final class ConfigFileTest extends TestCase {
         $this->assertEmpty($logs->get(/* @lang JSONPath */"$.resourceLogs[*].scopeLogs[?(@.scope.name == 'disabled')].logRecords"));
     }
 
+    #[Group('traces')]
     #[Group('resource')]
     public function testResourceDetectorAttributesCanFilterAttributesExcluded(): void {
         $this->runOTelConfig(
@@ -259,6 +264,7 @@ final class ConfigFileTest extends TestCase {
         );
     }
 
+    #[Group('traces')]
     #[Group('resource')]
     public function testResourceDetectorAttributesCanFilterAttributesIncluded(): void {
         $this->runOTelConfig(
@@ -303,6 +309,7 @@ final class ConfigFileTest extends TestCase {
         );
     }
 
+    #[Group('metrics')]
     #[Group('view')]
     public function testViewsCanFilterAttributes(): void {
         $this->runOTelConfig(
@@ -354,6 +361,7 @@ final class ConfigFileTest extends TestCase {
         );
     }
 
+    #[Group('metrics')]
     #[Group('view'), Group('aggregation')]
     public function testViewsCanSpecifyBucketBoundaries(): void {
         $this->runOTelConfig(
@@ -400,6 +408,7 @@ final class ConfigFileTest extends TestCase {
         );
     }
 
+    #[Group('metrics')]
     #[Group('view'), Group('aggregation')]
     public function testViewCanDropMetric(): void {
         $this->runOTelConfig(
@@ -432,6 +441,7 @@ final class ConfigFileTest extends TestCase {
         $this->assertEmpty($metrics->get(/* @lang JSONPath */"$.resourceMetrics[*].scopeMetrics[?(@.scope.name == 'test')].metrics[?(@.name == 'h')].histogram.dataPoints"));
     }
 
+    #[Group('metrics')]
     #[Group('view'), Group('aggregation')]
     public function testViewDoesNotApplyIncompatibleAggregation(): void {
         $this->runOTelConfig(
@@ -469,6 +479,7 @@ final class ConfigFileTest extends TestCase {
         );
     }
 
+    #[Group('metrics')]
     #[Group('async'), Group('temporality')]
     public function testCumulativeTemporality(): void {
         $this->runOTelConfig(
@@ -510,6 +521,7 @@ final class ConfigFileTest extends TestCase {
         );
     }
 
+    #[Group('metrics')]
     #[Group('async')]
     public function testDeltaTemporality(): void {
         $this->runOTelConfig(

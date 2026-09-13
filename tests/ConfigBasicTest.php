@@ -3,8 +3,10 @@ namespace Nevay\OTelTest;
 
 use OpenTelemetry\API\Globals;
 use OpenTelemetry\API\Logs\LogRecord;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 
+    #[Group('config-file')]
 final class ConfigBasicTest extends TestCase {
     use OTelEndpointTrait;
 
@@ -14,6 +16,7 @@ final class ConfigBasicTest extends TestCase {
      * =========================================================================
      */
 
+    #[Group('traces')]
     public function testConfigFileConfiguresTracerProvider(): void
     {
         $this->runOTelConfig(
@@ -58,6 +61,7 @@ final class ConfigBasicTest extends TestCase {
         );
     }
 
+    #[Group('traces')]
     public function testOtlpHttpExporterHeadersAreSentToCollector(): void
     {
         $this->runOTelConfig(
@@ -98,6 +102,7 @@ final class ConfigBasicTest extends TestCase {
         self::assertSame(['v2'], $headers['x-custom']);
     }
 
+    #[Group('traces')]
     public function testOtlpHttpGzipCompressionIsApplied(): void {
         $this->runOTelConfig(
             <<<'YAML'
@@ -133,6 +138,7 @@ final class ConfigBasicTest extends TestCase {
         self::assertContains('gzip-span', $this->spanNames($this->traces[0]));
     }
 
+    #[Group('traces'), Group('metrics'), Group('logs')]
     public function testSignalsCanBeConfiguredIndependently(): void
     {
         $this->runOTelConfig(
@@ -223,6 +229,7 @@ final class ConfigBasicTest extends TestCase {
      * =========================================================================
      */
 
+    #[Group('traces'), Group('metrics'), Group('logs')]
     public function testDisabledConfigurationDisablesAllSignals(): void
     {
         $this->runOTelConfig(

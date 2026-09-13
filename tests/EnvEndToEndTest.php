@@ -4,8 +4,10 @@ namespace Nevay\OTelTest;
 use OpenTelemetry\API\Baggage\Baggage;
 use OpenTelemetry\API\Globals;
 use OpenTelemetry\Context\Context;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 
+    #[Group('env')]
 final class EnvEndToEndTest extends TestCase {
     use OTelEndpointTrait;
 
@@ -18,6 +20,7 @@ final class EnvEndToEndTest extends TestCase {
      * mirroring how the SDK is used in production.
      */
 
+    #[Group('traces')]
     public function testTraceContextPropagatesAcrossServices(): void {
         /*
          * Service A creates a root span, then injects the trace context
@@ -102,6 +105,7 @@ final class EnvEndToEndTest extends TestCase {
         );
     }
 
+    #[Group('traces'), Group('config-file')]
     public function testTraceContextPropagatesBetweenEnvAndConfigFileModes(): void {
         /*
          * Service A is configured via environment variables (the default
@@ -183,6 +187,7 @@ final class EnvEndToEndTest extends TestCase {
         );
     }
 
+    #[Group('traces'), Group('metrics'), Group('logs')]
     public function testOtlpHttpProtobufProtocolExportsAllSignals(): void {
         /*
          * http/protobuf is the SDK's default wire format; the test harness
@@ -258,6 +263,7 @@ final class EnvEndToEndTest extends TestCase {
         );
     }
 
+    #[Group('traces')]
     public function testOtlpRequestHeadersAreSentToCollector(): void {
         $this->runOTel(
             static function (): void {
@@ -282,6 +288,7 @@ final class EnvEndToEndTest extends TestCase {
         self::assertSame(['v1'], $headers['x-custom']);
     }
 
+    #[Group('traces')]
     public function testOtlpHttpGzipCompressionIsApplied(): void {
         $this->runOTel(
             static function (): void {

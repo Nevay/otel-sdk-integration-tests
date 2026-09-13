@@ -8,8 +8,10 @@ use OpenTelemetry\API\Trace\SpanContext;
 use OpenTelemetry\API\Trace\TraceFlags;
 use OpenTelemetry\Context\Context;
 use function sprintf;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 
+    #[Group('config-file'), Group('traces')]
 final class ConfigPropagatorTest extends TestCase {
     use OTelEndpointTrait;
 

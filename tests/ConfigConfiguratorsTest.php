@@ -3,8 +3,10 @@ namespace Nevay\OTelTest;
 
 use OpenTelemetry\API\Globals;
 use OpenTelemetry\API\Logs\LogRecord;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 
+    #[Group('config-file')]
 final class ConfigConfiguratorsTest extends TestCase {
     use OTelEndpointTrait;
 
@@ -14,6 +16,7 @@ final class ConfigConfiguratorsTest extends TestCase {
      * =========================================================================
      */
 
+    #[Group('traces'), Group('metrics')]
     public function testConfiguratorDefaultsAreEnabledWhenDefaultConfigIsOmitted(): void
     {
         $this->runOTelConfig(
@@ -112,6 +115,7 @@ final class ConfigConfiguratorsTest extends TestCase {
         self::assertNotContains('disabled', $metricNames);
     }
 
+    #[Group('traces'), Group('metrics'), Group('logs')]
     public function testConfiguratorsSupportAsteriskWildcard(): void
     {
         $this->runOTelConfig(
@@ -251,6 +255,7 @@ final class ConfigConfiguratorsTest extends TestCase {
         self::assertNotContains('wildcard.logger.other', $logBodies);
     }
 
+    #[Group('traces'), Group('metrics'), Group('logs')]
     public function testConfiguratorConfigurationIsIsolatedBetweenSignals(): void
     {
         $this->runOTelConfig(

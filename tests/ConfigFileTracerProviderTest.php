@@ -8,6 +8,7 @@ use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Retry;
 use PHPUnit\Framework\TestCase;
 
+    #[Group('config-file'), Group('traces')]
 final class ConfigFileTracerProviderTest extends TestCase {
     use OTelEndpointTrait;
 

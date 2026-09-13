@@ -3,8 +3,10 @@ namespace Nevay\OTelTest;
 
 use OpenTelemetry\API\Globals;
 use OpenTelemetry\API\Trace\Span;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 
+    #[Group('env'), Group('traces')]
 final class EnvBatchSpanProcessorTest extends TestCase {
     use OTelEndpointTrait;
 
