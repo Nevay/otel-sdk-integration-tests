@@ -733,6 +733,35 @@ final class OTelEnvironmentTest extends TestCase {
         $this->assertSpanNames(['parent-based-ratio']);
     }
 
+    public function testParentBasedTraceIdRatioZeroDropsRootButKeepsSampledRemoteChild(): void {
+        $this->runOTel(
+            static function (): void {
+                $tracer = Globals::tracerProvider()->getTracer('test');
+
+                // Root span: ratio 0 -> dropped.
+                $root = $tracer->spanBuilder('dropped-root')->startSpan();
+                $root->end();
+
+                // Child of a sampled remote parent: parent decision wins.
+                $remoteParent = SpanContext::create(
+                    '4193e569320548f7b71d4c5a750d504c',
+                    '6e0c63258deeeff4',
+                    TraceFlags::SAMPLED,
+                );
+
+                $child = $tracer
+                    ->spanBuilder('kept-child')
+                    ->setParent(Context::getCurrent()->withContextValue(Span::wrap($remoteParent)))
+                    ->startSpan();
+                $child->end();
+            },
+            'OTEL_TRACES_SAMPLER=parentbased_traceidratio',
+            'OTEL_TRACES_SAMPLER_ARG=0',
+        );
+
+        self::assertSpanNames(['kept-child']);
+    }
+
     /*
      * =========================================================================
      * Attribute limits

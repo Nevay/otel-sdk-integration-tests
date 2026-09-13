@@ -1265,6 +1265,70 @@ final class OTelConfigFileTest extends TestCase {
         self::assertSame([], $this->traces);
     }
 
+    public function testParentBasedSamplerRootRatioZeroStillSamplesRemoteChild(): void
+    {
+        $this->runOTelConfig(
+            <<<'YAML'
+            file_format: "1.2"
+
+            tracer_provider:
+              sampler:
+                parent_based:
+                  root:
+                    trace_id_ratio_based:
+                      ratio: 0
+              processors:
+                - batch:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT}
+            YAML,
+            static function (): void {
+                $tracer = Globals::tracerProvider()->getTracer('config-test');
+
+                // Root span: ratio 0 -> dropped.
+                $root = $tracer->spanBuilder('dropped-root')->startSpan();
+                $root->end();
+
+                // Child of a sampled remote parent: parent decision wins.
+                $remoteParent = SpanContext::create(
+                    '4193e569320548f7b71d4c5a750d504c',
+                    '6e0c63258deeeff4',
+                    TraceFlags::SAMPLED,
+                );
+
+                $child = $tracer
+                    ->spanBuilder('kept-child')
+                    ->setParent(Context::getCurrent()->withContextValue(Span::wrap($remoteParent)))
+                    ->startSpan();
+                $child->end();
+            },
+        );
+
+        self::assertSame(
+            ['kept-child'],
+            $this->spanNames($this->traces[0]),
+        );
+
+        /*
+         * The child inherits the remote parent's trace id. Depending on how
+         * the span context was constructed, the payload carries it as a hex
+         * string or as OTLP-JSON base64.
+         */
+        $childTraceId = $this->path(
+            $this->traces[0],
+            '$.resourceSpans[*].scopeSpans[*].spans[?(@.name == "kept-child")].traceId',
+        )[0];
+
+        self::assertContainsEquals(
+            '4193e569320548f7b71d4c5a750d504c',
+            [
+                $childTraceId,
+                bin2hex(base64_decode($childTraceId, true) ?? ''),
+            ],
+        );
+    }
+
     /*
      * =========================================================================
      * General attribute limits
