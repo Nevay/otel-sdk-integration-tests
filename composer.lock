@@ -5389,12 +5389,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/Nevay/otel-sdk-otlpexporter.git",
-                "reference": "d642d9a191143370c885c1c78a1345485cce91f5"
+                "reference": "fa5726a5e874750df558c692aeeebddd4b72ad51"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/Nevay/otel-sdk-otlpexporter/zipball/d642d9a191143370c885c1c78a1345485cce91f5",
-                "reference": "d642d9a191143370c885c1c78a1345485cce91f5",
+                "url": "https://api.github.com/repos/Nevay/otel-sdk-otlpexporter/zipball/fa5726a5e874750df558c692aeeebddd4b72ad51",
+                "reference": "fa5726a5e874750df558c692aeeebddd4b72ad51",
                 "shasum": ""
             },
             "require": {
@@ -5440,7 +5440,7 @@
                 "issues": "https://github.com/Nevay/otel-sdk-otlpexporter/issues",
                 "source": "https://github.com/Nevay/otel-sdk-otlpexporter/tree/main"
             },
-            "time": "2026-09-12T09:52:45+00:00"
+            "time": "2026-09-13T20:36:26+00:00"
         },
         {
             "name": "tbachert/otel-sdk-prometheusexporter",
