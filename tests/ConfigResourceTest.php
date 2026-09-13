@@ -297,4 +297,123 @@ final class ConfigResourceTest extends TestCase {
             $this->path($this->traces[0], '$.resourceSpans[*].schemaUrl'),
         );
     }
+
+    #[Group('resource')]
+    public function testServiceNameFallsBackToSpecDefaultWhenUnset(): void {
+        $this->runOTelConfig(
+            <<<'YAML'
+            file_format: "1.2"
+
+            tracer_provider:
+              processors:
+                - batch:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${env:OTEL_EXPORTER_OTLP_TRACES_ENDPOINT}
+            YAML,
+            static function (): void {
+                $span = Globals::tracerProvider()
+                    ->getTracer('test')
+                    ->spanBuilder('default-service-name')
+                    ->startSpan();
+
+                $span->end();
+            },
+        );
+
+        self::assertNotEmpty($this->traces);
+
+        /*
+         * Without an explicit service name, the config-file based resource
+         * falls back to the spec default.
+         */
+        self::assertSame(
+            'unknown_service:php',
+            $this->resourceAttribute($this->traces[0], 'service.name'),
+        );
+    }
+
+    #[Group('resource')]
+    public function testResourceDetectorExcludesSelectedAttributes(): void {
+        $this->runOTelConfig(
+            <<<'YAML'
+            file_format: "1.2"
+
+            resource:
+              detection/development:
+                attributes:
+                  excluded:
+                    - process.pid
+                detectors:
+                  - process:
+
+            tracer_provider:
+              processors:
+                - batch:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${env:OTEL_EXPORTER_OTLP_TRACES_ENDPOINT}
+            YAML,
+            static function (): void {
+                $span = Globals::tracerProvider()
+                    ->getTracer('test')
+                    ->spanBuilder('detector-exclude')
+                    ->startSpan();
+
+                $span->end();
+            },
+        );
+
+        self::assertNotEmpty($this->traces);
+
+        $keys = $this->path(
+            $this->traces[0],
+            '$.resourceSpans[*].resource.attributes[*].key',
+        );
+
+        self::assertNotContains('process.pid', $keys);
+        self::assertContains('process.runtime.name', $keys);
+    }
+
+    #[Group('resource')]
+    public function testResourceDetectorIncludesOnlySelectedAttributes(): void {
+        $this->runOTelConfig(
+            <<<'YAML'
+            file_format: "1.2"
+
+            resource:
+              detection/development:
+                attributes:
+                  included:
+                    - process.runtime.*
+                detectors:
+                  - process:
+
+            tracer_provider:
+              processors:
+                - batch:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${env:OTEL_EXPORTER_OTLP_TRACES_ENDPOINT}
+            YAML,
+            static function (): void {
+                $span = Globals::tracerProvider()
+                    ->getTracer('test')
+                    ->spanBuilder('detector-include')
+                    ->startSpan();
+
+                $span->end();
+            },
+        );
+
+        self::assertNotEmpty($this->traces);
+
+        $keys = $this->path(
+            $this->traces[0],
+            '$.resourceSpans[*].resource.attributes[*].key',
+        );
+
+        self::assertNotContains('process.pid', $keys);
+        self::assertContains('process.runtime.name', $keys);
+    }
 }

@@ -187,4 +187,41 @@ final class EnvResourceTest extends TestCase {
             ),
         );
     }
+
+    #[Group('resource')]
+    public function testDefaultResourceAttributesIdentifySdkAndComposerPackage(): void {
+        $this->runOTel(
+            static function (): void {
+                $span = Globals::tracerProvider()
+                    ->getTracer('test')
+                    ->spanBuilder('default-resource')
+                    ->startSpan();
+
+                $span->end();
+            },
+        );
+
+        self::assertNotEmpty($this->traces);
+
+        /*
+         * The default resource identifies the SDK...
+         */
+        self::assertSame(
+            'php',
+            $this->resourceAttribute($this->traces[0], 'telemetry.sdk.language'),
+        );
+
+        self::assertSame(
+            'tbachert/otel-sdk',
+            $this->resourceAttribute($this->traces[0], 'telemetry.sdk.name'),
+        );
+
+        /*
+         * ...and derives the service name from the root composer package.
+         */
+        self::assertSame(
+            'tbachert/otel-test',
+            $this->resourceAttribute($this->traces[0], 'service.name'),
+        );
+    }
 }

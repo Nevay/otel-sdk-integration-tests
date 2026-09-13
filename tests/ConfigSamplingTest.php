@@ -271,4 +271,44 @@ final class ConfigSamplingTest extends TestCase {
             ],
         );
     }
+
+    #[Group('sampler')]
+    public function testTraceIdRatioBasedSamplerSamplesOnlyAFractionOfSpans(): void {
+        $this->runOTelConfig(
+            <<<'YAML'
+            file_format: "1.2"
+
+            tracer_provider:
+              sampler:
+                trace_id_ratio_based:
+                  ratio: 0.5
+
+              processors:
+                - batch:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${env:OTEL_EXPORTER_OTLP_TRACES_ENDPOINT}
+            YAML,
+            static function (): void {
+                $tracer = Globals::tracerProvider()->getTracer('test');
+
+                for ($i = 0; $i < 100; $i++) {
+                    $tracer
+                        ->spanBuilder('fraction')
+                        ->startSpan()
+                        ->end();
+                }
+            },
+        );
+
+        self::assertNotEmpty($this->traces);
+
+        /*
+         * A ratio between the boundaries samples some, but not all, spans.
+         */
+        $count = count($this->spanNames($this->traces[0]));
+
+        self::assertNotSame(0, $count);
+        self::assertNotSame(100, $count);
+    }
 }

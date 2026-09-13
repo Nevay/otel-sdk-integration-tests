@@ -2027,4 +2027,49 @@ final class ConfigViewsTest extends TestCase {
             );
         }
     }
+
+    #[Group('view'), Group('aggregation')]
+    public function testViewIgnoresAggregationIncompatibleWithInstrumentKind(): void {
+        $this->runOTelConfig(
+            <<<'YAML'
+            file_format: "1.2"
+
+            meter_provider:
+              readers:
+                - periodic:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${env:OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
+
+              views:
+                - selector:
+                    instrument_name: gauge
+                  stream:
+                    aggregation:
+                      sum:
+            YAML,
+            static function (): void {
+                $gauge = Globals::meterProvider()
+                    ->getMeter('test')
+                    ->createGauge('gauge');
+
+                $gauge->record(5);
+                $gauge->record(7);
+            },
+        );
+
+        self::assertNotEmpty($this->metrics);
+
+        /*
+         * A sum aggregation is incompatible with a gauge and is ignored:
+         * the instrument keeps its native last-value aggregation.
+         */
+        self::assertSame(
+            ['7'],
+            $this->path(
+                $this->metrics[0],
+                '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "gauge")].gauge.dataPoints[*].asInt',
+            ),
+        );
+    }
 }
