@@ -351,4 +351,39 @@ final class EnvResourceTest extends TestCase {
 
         self::assertCount(1, $refs);
     }
+
+    #[Group('resource')]
+    public function testEntityWithoutSchemaUrlIsExported(): void {
+        $this->runOTel(
+            static function (): void {
+                Globals::tracerProvider()
+                    ->getTracer('test')
+                    ->spanBuilder('entities-no-url')
+                    ->startSpan()
+                    ->end();
+            },
+            'OTEL_ENTITIES=myapp{custom.id=abc}[custom.desc=v1]',
+            'OTEL_TRACES_SAMPLER=always_on',
+        );
+
+        self::assertNotEmpty($this->traces);
+
+        $payload = $this->traces[0];
+
+        /*
+         * Entities without a schema URL (the common case) are exported as
+         * references with the default (omitted) schema URL.
+         */
+        self::assertSame('abc', $this->resourceAttribute($payload, 'custom.id'));
+
+        $refs = array_values(array_filter(
+            $this->resourceEntityRefs($payload),
+            static fn(array $ref): bool => ($ref['type'] ?? null) === 'myapp',
+        ));
+
+        self::assertCount(1, $refs);
+        self::assertSame(['custom.id'], $refs[0]['idKeys']);
+        self::assertSame(['custom.desc'], $refs[0]['descriptionKeys']);
+        self::assertArrayNotHasKey('schemaUrl', $refs[0]);
+    }
 }
