@@ -143,10 +143,14 @@ trait OTelEndpointTrait {
          * during initialization (e.g. an invalid config file), logs them
          * to stderr and continues with a no-op SDK, which would make all
          * subsequent assertions vacuous.
+         *
+         * The message casing differs between SDKs ('Error during OpenTelemetry
+         * initialization' vs 'Error during opentelemetry initialization'), so
+         * compare case-insensitively.
          */
         self::assertStringNotContainsString(
-            'Error during OpenTelemetry initialization',
-            $stderr,
+            strtolower('Error during opentelemetry initialization'),
+            strtolower($stderr),
             'The OTel SDK failed to initialize in the child process.',
         );
 
