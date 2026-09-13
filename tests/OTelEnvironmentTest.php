@@ -1411,6 +1411,110 @@ final class OTelEnvironmentTest extends TestCase {
 
     /*
      * =========================================================================
+     * Cross-signal correlation
+     * =========================================================================
+     */
+
+    public function testLogRecordEmittedInSpanCarriesTraceContext(): void {
+        $this->runOTel(
+            static function (): void {
+                $span = Globals::tracerProvider()
+                    ->getTracer('test')
+                    ->spanBuilder('log-parent')
+                    ->startSpan();
+
+                $scope = $span->activate();
+
+                Globals::loggerProvider()
+                    ->getLogger('test')
+                    ->logRecordBuilder()
+                    ->setBody('inside-span')
+                    ->emit();
+
+                $scope->detach();
+                $span->end();
+            },
+        );
+
+        $spans = $this->path(
+            $this->traces[0],
+            '$.resourceSpans[*].scopeSpans[*].spans[?(@.name == "log-parent")]',
+        );
+
+        self::assertCount(1, $spans);
+
+        $logRecords = $this->logsInExport($this->logs[0]);
+
+        self::assertCount(1, $logRecords);
+
+        /*
+         * The log record is correlated with the active span. (OTLP JSON
+         * encodes byte fields as base64, while span payloads use hex.)
+         */
+        self::assertSame(
+            $spans[0]['traceId'],
+            bin2hex(base64_decode($logRecords[0]['traceId'])),
+        );
+
+        self::assertSame(
+            $spans[0]['spanId'],
+            bin2hex(base64_decode($logRecords[0]['spanId'])),
+        );
+    }
+
+    public function testMetricsExemplarCarriesActiveSpanContext(): void {
+        $this->runOTel(
+            static function (): void {
+                $span = Globals::tracerProvider()
+                    ->getTracer('test')
+                    ->spanBuilder('exemplar-parent')
+                    ->startSpan();
+
+                $scope = $span->activate();
+
+                Globals::meterProvider()
+                    ->getMeter('test')
+                    ->createCounter('exemplar.counter')
+                    ->add(1);
+
+                $scope->detach();
+                $span->end();
+            },
+            'OTEL_METRICS_EXEMPLAR_FILTER=always_on',
+        );
+
+        $spans = $this->path(
+            $this->traces[0],
+            '$.resourceSpans[*].scopeSpans[*].spans[?(@.name == "exemplar-parent")]',
+        );
+
+        self::assertCount(1, $spans);
+
+        $exemplars = $this->path(
+            $this->metrics[0],
+            '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "exemplar.counter")]..exemplars[*]',
+        );
+
+        self::assertCount(1, $exemplars);
+
+        self::assertSame('1', $exemplars[0]['asInt']);
+
+        /*
+         * The exemplar references the active span at measurement time.
+         */
+        self::assertSame(
+            $spans[0]['traceId'],
+            bin2hex(base64_decode($exemplars[0]['traceId'])),
+        );
+
+        self::assertSame(
+            $spans[0]['spanId'],
+            bin2hex(base64_decode($exemplars[0]['spanId'])),
+        );
+    }
+
+    /*
+     * =========================================================================
      * Edge cases
      * =========================================================================
      */
