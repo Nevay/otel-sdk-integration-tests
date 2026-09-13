@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "289322746d0a13ce4e8965205f0e5e6b",
+    "content-hash": "1b4b71ef9cff0d2b1916ad3eb82e2769",
     "packages": [
         {
             "name": "amphp/amp",
@@ -1973,6 +1973,67 @@
                 "Context",
                 "opentelemetry",
                 "otel"
+            ],
+            "support": {
+                "chat": "https://app.slack.com/client/T08PSQ7BQ/C01NFPCV44V",
+                "docs": "https://opentelemetry.io/docs/languages/php",
+                "issues": "https://github.com/open-telemetry/opentelemetry-php/issues",
+                "source": "https://github.com/open-telemetry/opentelemetry-php"
+            },
+            "time": "2025-10-19T06:44:33+00:00"
+        },
+        {
+            "name": "open-telemetry/extension-propagator-b3",
+            "version": "1.2.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/opentelemetry-php/extension-propagator-b3.git",
+                "reference": "740d2768e04c4f8499db31072d39bebdddbae61a"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/opentelemetry-php/extension-propagator-b3/zipball/740d2768e04c4f8499db31072d39bebdddbae61a",
+                "reference": "740d2768e04c4f8499db31072d39bebdddbae61a",
+                "shasum": ""
+            },
+            "require": {
+                "open-telemetry/api": "^1.0",
+                "open-telemetry/context": "^1.0",
+                "php": "^8.1"
+            },
+            "type": "library",
+            "extra": {
+                "branch-alias": {
+                    "dev-main": "1.0.x-dev"
+                }
+            },
+            "autoload": {
+                "files": [
+                    "_register.php"
+                ],
+                "psr-4": {
+                    "OpenTelemetry\\Extension\\Propagator\\B3\\": "."
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "Apache-2.0"
+            ],
+            "authors": [
+                {
+                    "name": "opentelemetry-php contributors",
+                    "homepage": "https://github.com/open-telemetry/opentelemetry-php/graphs/contributors"
+                }
+            ],
+            "description": "B3 propagator extension for OpenTelemetry PHP.",
+            "keywords": [
+                "apm",
+                "b3",
+                "extension",
+                "opentelemetry",
+                "otel",
+                "propagator",
+                "tracing"
             ],
             "support": {
                 "chat": "https://app.slack.com/client/T08PSQ7BQ/C01NFPCV44V",

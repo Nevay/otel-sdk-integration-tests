@@ -6,6 +6,7 @@
     "amphp/process": "^2.1",
     "galbar/jsonpath": "^3.0",
     "open-telemetry/api": "^1.10",
+    "open-telemetry/extension-propagator-b3": "^1.2",
     "open-telemetry/gen-otlp-protobuf": "^1.10",
     "opis/closure": "^4.5",
     "phpunit/phpunit": "^13.3",

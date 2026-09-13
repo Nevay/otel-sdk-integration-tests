@@ -557,6 +557,88 @@ final class OTelConfigFileTest extends TestCase {
         );
     }
 
+    public function testConfigFilePropagatorB3CompositeInjectsSingleHeader(): void
+    {
+        $output = $this->runOTelConfig(
+            <<<'YAML'
+            file_format: "1.2"
+
+            propagator:
+              composite:
+                - b3:
+            YAML,
+            static function (): void {
+                $spanContext = SpanContext::create(
+                    '0123456789abcdef0123456789abcdef',
+                    '0123456789abcdef',
+                    TraceFlags::SAMPLED,
+                );
+
+                $context = Context::getCurrent()
+                    ->withContextValue(Span::wrap($spanContext));
+
+                $carrier = [];
+
+                Globals::propagator()->inject(
+                    $carrier,
+                    null,
+                    $context,
+                );
+
+                echo json_encode($carrier, JSON_THROW_ON_ERROR);
+            },
+        );
+
+        self::assertSame(
+            [
+                'b3' => '0123456789abcdef0123456789abcdef-0123456789abcdef-1',
+            ],
+            json_decode($output, true, 512, JSON_THROW_ON_ERROR),
+        );
+    }
+
+    public function testConfigFilePropagatorB3MultiCompositeInjectsHeaders(): void
+    {
+        $output = $this->runOTelConfig(
+            <<<'YAML'
+            file_format: "1.2"
+
+            propagator:
+              composite:
+                - b3multi:
+            YAML,
+            static function (): void {
+                $spanContext = SpanContext::create(
+                    '0123456789abcdef0123456789abcdef',
+                    '0123456789abcdef',
+                    TraceFlags::SAMPLED,
+                );
+
+                $context = Context::getCurrent()
+                    ->withContextValue(Span::wrap($spanContext));
+
+                $carrier = [];
+
+                Globals::propagator()->inject(
+                    $carrier,
+                    null,
+                    $context,
+                );
+
+                echo json_encode($carrier, JSON_THROW_ON_ERROR);
+            },
+        );
+
+        self::assertSame(
+            [
+                'X-B3-TraceId' => '0123456789abcdef0123456789abcdef',
+                'X-B3-SpanId' => '0123456789abcdef',
+                'X-B3-Sampled' => '1',
+            ],
+            json_decode($output, true, 512, JSON_THROW_ON_ERROR),
+        );
+    }
+
     /*
      * =========================================================================
      * Configuration file vs environment variables

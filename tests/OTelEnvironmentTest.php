@@ -612,6 +612,173 @@ final class OTelEnvironmentTest extends TestCase {
         );
     }
 
+    public function testB3PropagatorInjectsSingleHeader(): void {
+        $output = $this->runOTel(
+            static function (): void {
+                $spanContext = SpanContext::create(
+                    '0123456789abcdef0123456789abcdef',
+                    '0123456789abcdef',
+                    TraceFlags::SAMPLED,
+                );
+
+                $context = Context::getCurrent()
+                    ->withContextValue(Span::wrap($spanContext));
+
+                $carrier = [];
+                Globals::propagator()->inject($carrier, null, $context);
+
+                echo json_encode($carrier, JSON_THROW_ON_ERROR);
+            },
+            'OTEL_PROPAGATORS=b3',
+        );
+
+        /*
+         * The B3 single header is {traceId}-{spanId}-{samplingState}.
+         */
+        self::assertSame(
+            [
+                'b3' => '0123456789abcdef0123456789abcdef-0123456789abcdef-1',
+            ],
+            json_decode($output, true, 512, JSON_THROW_ON_ERROR),
+        );
+    }
+
+    public function testB3MultiPropagatorInjectsHeaders(): void {
+        $output = $this->runOTel(
+            static function (): void {
+                $spanContext = SpanContext::create(
+                    '0123456789abcdef0123456789abcdef',
+                    '0123456789abcdef',
+                    TraceFlags::SAMPLED,
+                );
+
+                $context = Context::getCurrent()
+                    ->withContextValue(Span::wrap($spanContext));
+
+                $carrier = [];
+                Globals::propagator()->inject($carrier, null, $context);
+
+                echo json_encode($carrier, JSON_THROW_ON_ERROR);
+            },
+            'OTEL_PROPAGATORS=b3multi',
+        );
+
+        self::assertSame(
+            [
+                'X-B3-TraceId' => '0123456789abcdef0123456789abcdef',
+                'X-B3-SpanId' => '0123456789abcdef',
+                'X-B3-Sampled' => '1',
+            ],
+            json_decode($output, true, 512, JSON_THROW_ON_ERROR),
+        );
+    }
+
+    public function testB3PropagatorExtractsParentContext(): void {
+        $this->runOTel(
+            static function (): void {
+                $carrier = [
+                    'b3' => '4193e569320548f7b71d4c5a750d504c-6e0c63258deeeff4-1',
+                ];
+
+                $context = Globals::propagator()->extract($carrier);
+                $scope = $context->activate();
+
+                $child = Globals::tracerProvider()
+                    ->getTracer('test')
+                    ->spanBuilder('b3-child')
+                    ->startSpan();
+                $child->end();
+
+                $scope->detach();
+            },
+            'OTEL_PROPAGATORS=b3',
+        );
+
+        self::assertNotEmpty($this->traces);
+
+        /*
+         * The child span continues the extracted remote trace.
+         */
+        self::assertSame(
+            ['6e0c63258deeeff4'],
+            $this->path(
+                $this->traces[0],
+                '$.resourceSpans[*].scopeSpans[*].spans[?(@.name == "b3-child")].parentSpanId',
+            ),
+        );
+
+        self::assertSame(
+            ['4193e569320548f7b71d4c5a750d504c'],
+            $this->path(
+                $this->traces[0],
+                '$.resourceSpans[*].scopeSpans[*].spans[?(@.name == "b3-child")].traceId',
+            ),
+        );
+    }
+
+    public function testB3MultiPropagatorExtractsParentContext(): void {
+        $this->runOTel(
+            static function (): void {
+                $carrier = [
+                    'X-B3-TraceId' => '4193e569320548f7b71d4c5a750d504c',
+                    'X-B3-SpanId' => '6e0c63258deeeff4',
+                    'X-B3-Sampled' => '1',
+                ];
+
+                $context = Globals::propagator()->extract($carrier);
+                $scope = $context->activate();
+
+                $child = Globals::tracerProvider()
+                    ->getTracer('test')
+                    ->spanBuilder('b3multi-child')
+                    ->startSpan();
+                $child->end();
+
+                $scope->detach();
+            },
+            'OTEL_PROPAGATORS=b3multi',
+        );
+
+        self::assertNotEmpty($this->traces);
+
+        self::assertSame(
+            ['6e0c63258deeeff4'],
+            $this->path(
+                $this->traces[0],
+                '$.resourceSpans[*].scopeSpans[*].spans[?(@.name == "b3multi-child")].parentSpanId',
+            ),
+        );
+    }
+
+    public function testB3NotSampledRemoteParentIsDropped(): void {
+        $this->runOTel(
+            static function (): void {
+                /*
+                 * Sampling state 0 in the B3 header: a parent-based sampler
+                 * must not sample the resulting child span.
+                 */
+                $carrier = [
+                    'b3' => '4193e569320548f7b71d4c5a750d504c-6e0c63258deeeff4-0',
+                ];
+
+                $context = Globals::propagator()->extract($carrier);
+                $scope = $context->activate();
+
+                $child = Globals::tracerProvider()
+                    ->getTracer('test')
+                    ->spanBuilder('b3-dropped-child')
+                    ->startSpan();
+                $child->end();
+
+                $scope->detach();
+            },
+            'OTEL_PROPAGATORS=b3',
+            'OTEL_TRACES_SAMPLER=parentbased_always_on',
+        );
+
+        self::assertSame([], $this->traces);
+    }
+
     /*
      * =========================================================================
      * Sampling
