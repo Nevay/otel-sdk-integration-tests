@@ -41,15 +41,36 @@ trait OTelEndpointTrait {
     public array $metrics = [];
     public array $logs = [];
 
+    /**
+     * Request headers of every captured OTLP export request, in order.
+     *
+     * @var list<array<string, string>>
+     */
+    public array $requestHeaders = [];
+
     public array $env = [];
 
     protected function setUp(): void {
+        $this->requestHeaders = [];
+
         $server = SocketHttpServer::createForDirectAccess(new NullLogger());
 
         $router = new Router($server, new NullLogger(), new DefaultErrorHandler());
-        $router->addRoute('POST', 'v1/traces', new ClosureRequestHandler(fn(Request $request): Response => self::captureRequestBody($request, $this->traces[], ExportTraceServiceRequest::class, ExportTraceServiceResponse::class)));
-        $router->addRoute('POST', 'v1/metrics', new ClosureRequestHandler(fn(Request $request): Response => self::captureRequestBody($request, $this->metrics[], ExportMetricsServiceRequest::class, ExportMetricsServiceResponse::class)));
-        $router->addRoute('POST', 'v1/logs', new ClosureRequestHandler(fn(Request $request): Response => self::captureRequestBody($request, $this->logs[], ExportLogsServiceRequest::class, ExportLogsServiceResponse::class)));
+        $router->addRoute('POST', 'v1/traces', new ClosureRequestHandler(function (Request $request): Response {
+            $this->requestHeaders[] = $request->getHeaders();
+
+            return self::captureRequestBody($request, $this->traces[], ExportTraceServiceRequest::class, ExportTraceServiceResponse::class);
+        }));
+        $router->addRoute('POST', 'v1/metrics', new ClosureRequestHandler(function (Request $request): Response {
+            $this->requestHeaders[] = $request->getHeaders();
+
+            return self::captureRequestBody($request, $this->metrics[], ExportMetricsServiceRequest::class, ExportMetricsServiceResponse::class);
+        }));
+        $router->addRoute('POST', 'v1/logs', new ClosureRequestHandler(function (Request $request): Response {
+            $this->requestHeaders[] = $request->getHeaders();
+
+            return self::captureRequestBody($request, $this->logs[], ExportLogsServiceRequest::class, ExportLogsServiceResponse::class);
+        }));
         $server->expose(new InternetAddress('127.0.0.1', 0));
         $server->start($router, new DefaultErrorHandler());
 
