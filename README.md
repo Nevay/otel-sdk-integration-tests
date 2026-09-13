@@ -39,18 +39,16 @@ configuration section, plus file-based configuration using the official
 [opentelemetry-configuration](https://github.com/open-telemetry/opentelemetry-configuration)
 data model — this SDK accepts schema versions 1.0 through 1.2 (its `file_format`
 check) and uses the schema's `distribution:` extension point for vendor-specific
-options.
+options. The specification's experimental entity propagation (`OTEL_ENTITIES`)
+is implemented as a built-in `env` resource detector (active in env mode,
+selectable under `resource.detection/development` in config-file mode); entities
+are exported with OTLP as references into the resource attributes.
 
 **Spec features not implemented by this SDK (gaps, not deviations):**
 
 - **Zipkin exporter** (`OTEL_EXPORTER_ZIPKIN_ENDPOINT`,
   `OTEL_EXPORTER_ZIPKIN_TIMEOUT`, the `zipkin` exporter value) — deprecated in
   the specification, so no action is required.
-- **`OTEL_ENTITIES`** (experimental) — the specification requires an
-  `EnvEntityDetector` that associates entities from the environment variable
-  with the resource; this SDK does not read the variable. A userland
-  `ResourceDetector` can fill the gap (register it with the SPI
-  `ServiceLoader` before the SDK's autoload-time configuration runs).
 - **`OTEL_EXPERIMENTAL_CONFIG_FILE`** — deprecated in the specification; this
   SDK reads its stable replacement, `OTEL_CONFIG_FILE`, instead (used by all
   config-file tests).
