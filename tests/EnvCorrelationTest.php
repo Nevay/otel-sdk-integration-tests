@@ -49,9 +49,11 @@ final class EnvCorrelationTest extends TestCase {
         self::assertCount(1, $logRecords);
 
         /*
-         * The log record is correlated with the active span. (OTLP JSON
-         * encodes byte fields as base64, while this SDK's env-mode span
-         * payloads use hex; see tbachert-sdk-issues.md.)
+         * The log record is correlated with the active span. Spans are
+         * captured via OTLP/JSON (hex ids, per the OTLP specification),
+         * while logs default to OTLP/protobuf and are re-serialized by the
+         * harness with the canonical proto3 JSON mapping (base64 ids); see
+         * tbachert-sdk-issues.md.
          */
         self::assertSame(
             $spans[0]['traceId'],
@@ -242,8 +244,11 @@ final class EnvCorrelationTest extends TestCase {
         self::assertCount(1, $logRecords);
 
         /*
-         * All three signals reference the same span context. (Exemplars
-         * and log records encode ids as base64; spans use hex.)
+         * All three signals reference the same span context. Spans are
+         * captured via OTLP/JSON (hex ids, per the OTLP specification),
+         * while exemplars and log records default to OTLP/protobuf and are
+         * re-serialized by the harness with the canonical proto3 JSON
+         * mapping (base64 ids); see tbachert-sdk-issues.md.
          */
         self::assertSame(
             bin2hex(base64_decode($exemplars[0]['traceId'])),

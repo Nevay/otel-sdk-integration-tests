@@ -255,9 +255,11 @@ final class ConfigSamplingTest extends TestCase {
         );
 
         /*
-         * The child inherits the remote parent's trace id. Depending on how
-         * the span context was constructed, the payload carries it as a hex
-         * string or as OTLP-JSON base64.
+         * The child inherits the remote parent's trace id. The captured
+         * payload carries it as a hex string (native OTLP/JSON, per the
+         * OTLP specification) or as base64 (OTLP/protobuf re-serialized by
+         * the harness with the canonical proto3 JSON mapping); see
+         * tbachert-sdk-issues.md.
          */
         $childTraceId = $this->path(
             $this->traces[0],

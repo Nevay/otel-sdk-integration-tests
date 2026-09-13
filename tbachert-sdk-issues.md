@@ -4,11 +4,18 @@ Verified against the versions installed via composer in this project (see
 `composer.lock`). Each entry includes a reproduction sketch so it can be
 re-checked after an SDK upgrade.
 
-## 1. OTLP TLS CA certificate env vars are ineffective (`OTEL_EXPORTER_OTLP_*_CERTIFICATE`)
+## 1. [Fixed] OTLP TLS CA certificate env vars were ineffective (`OTEL_EXPORTER_OTLP_*_CERTIFICATE`)
 
-**Severity:** high — any export over HTTPS to a server with a non-public (e.g.
-self-signed or private-CA) certificate fails verification, and the documented
-way to trust that CA does nothing.
+**Status:** fixed — verified 2026-09-13 against the updated vendor: both the
+env-mode loaders (`ConfigEnv/*/{Trace,Metrics,Logs}ExporterLoaderOtlp.php`) and
+the config-file exporters now call `ClientTlsContext::withCaFile()` (PHP stream
+option `cafile`) instead of `withCaPath()`. Covered by `tests/TlsTest.php`,
+which exports over HTTPS to a self-signed collector in both configuration
+modes.
+
+**Severity (was):** high — any export over HTTPS to a server with a non-public
+(e.g. self-signed or private-CA) certificate failed verification, and the
+documented way to trust that CA did nothing.
 
 **Affected configuration surface (all call `ClientTlsContext::withCaPath()`):**
 
@@ -52,50 +59,54 @@ private CAs work.
 
 **Note:** the client-certificate variables
 (`OTEL_EXPORTER_OTLP_*_CLIENT_CERTIFICATE` / `_CLIENT_KEY`) map to
-`withCertificate()` and are not affected by this specific mismatch, but they
-could not be verified end-to-end either (see below).
+`withCertificate()` and are not affected by this specific mismatch; they are
+still not covered end-to-end (would require a collector that demands client
+certificates).
 
-### Follow-up: TLS test coverage in this suite is blocked
+## 2. [Not a bug] OTLP/JSON ID encoding: hex is spec-compliant; base64 in this suite's captures is a harness artifact
 
-Because of the bug above, no positive TLS test can be written for the exporter
-(the only trust anchor the SDK accepts is the system CA bundle). The test
-harness *server* side was verified to work (Amp `SocketHttpServer` +
-`ServerTlsContext` with a self-signed cert serves HTTPS correctly), so once
-the SDK bug is fixed, a TLS test can be added quickly.
+An earlier revision of this file reported span IDs as "hex in env mode,
+base64 in config-file mode" and claimed the specification required base64.
+That was wrong on both counts; re-verified 2026-09-13 against the current
+vendor with raw wire captures (no proto round-trip).
 
-## 2. OTLP/JSON trace and span IDs are hex in env mode, base64 in config-file mode
+**Specification** (OTLP 1.11.0, "JSON Protobuf Encoding"): OTLP/JSON uses the
+proto3 JSON mapping *with an explicit deviation*:
+> The `traceId` and `spanId` byte arrays are represented as case-insensitive
+> **hex-encoded strings**; they are not base64-encoded as is defined in the
+> standard Protobuf JSON Mapping. Hex encoding is used for traceId and spanId
+> fields in all OTLP Protobuf messages, e.g., the Span, Link, LogRecord,
+> etc. messages.
 
-**Severity:** medium — the two configuration modes of the same SDK produce
-different wire formats for the same bytes fields; one of them deviates from
-the specification.
+**Verified behavior of the SDK's native OTLP/JSON exports** (raw request
+bodies):
 
-**Specification:** OTLP over HTTP with JSON encoding uses the canonical
-proto3 JSON mapping, where `bytes` fields (including `trace_id` and
-`span_id`) are encoded as **base64** strings.
+| message | `traceId` / `spanId` |
+|---|---|
+| Span | hex, e.g. `d1616dad1223703553e92dff6a4bebaa` ✓ |
+| LogRecord (emitted in span context) | hex, identical to the span's ✓ |
+| Exemplar | hex ✓ |
 
-**Observed behavior** (verified by exporting spans/logs in both modes to the
-same collector):
+All spec-compliant and consistent with each other. No SDK action needed.
 
-| mode | span `traceId`/`spanId` | log `traceId`/`spanId` |
-|---|---|---|
-| env (`OTEL_EXPORTER_OTLP_*_ENDPOINT`) | hex, e.g. `ab0f5ec184a547f3d7dede62581573b6` | base64, e.g. `mum6JhpK4zxCeVVIbsoeoQ==` |
-| config file (`file_format: "1.2"`) | base64 | base64 |
+**Why this suite still sees base64 IDs:** the harness captures every export
+as a protobuf message and re-serializes it to JSON with the *canonical*
+proto3 mapping (which has no knowledge of the OTLP hex deviation). Exports
+sent as OTLP/protobuf therefore appear with base64 `traceId`/`spanId`, while
+exports sent as native OTLP/JSON appear with hex. Tests that compare IDs
+across signals normalize with `bin2hex(base64_decode(...))` or accept either
+representation for exactly this reason.
 
-So in env mode even the span IDs and log IDs of *the same trace* use
-different encodings within a single export, and both modes disagree with
-each other.
+## 3. [Fixed] Default histogram boundaries omitted the spec's 750 bucket
 
-**Impact:** consumers that strictly follow the OTLP/JSON spec (base64) fail
-to parse span IDs from env-mode exports; tests in this suite therefore
-normalize with `bin2hex(base64_decode(...))` / accept-either assertions.
+**Status:** fixed — verified 2026-09-13 against the updated vendor: a
+histogram without explicit boundaries now exports `explicitBounds` of
+`[0, 5, 10, 25, 50, 75, 100, 250, 500, 750, 1000, 2500, 5000, 7500, 10000]`,
+matching the specification exactly.
 
-**Expected:** both modes emit base64 for all bytes fields, per the proto3
-JSON mapping.
-
-## 3. Default histogram boundaries omit the spec's 750 bucket
-
-**Severity:** low — data is still binned correctly relative to the SDK's own
-boundaries, but the default bucketing differs from the specification.
+**Severity (was):** low — data was still binned correctly relative to the
+SDK's own boundaries, but the default bucketing differed from the
+specification.
 
 **Specification** (metrics SDK, Explicit Bucket Histogram Aggregation):
 > Boundaries default: `[ 0, 5, 10, 25, 50, 75, 100, 250, 500, 750, 1000,
