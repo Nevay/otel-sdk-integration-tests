@@ -580,6 +580,38 @@ final class OTelEnvironmentTest extends TestCase {
         );
     }
 
+    public function testDefaultPropagatorInjectsTraceParent(): void {
+        /*
+         * Without OTEL_PROPAGATORS, the default propagator still injects a
+         * traceparent header. (In contrast, config-file mode without an
+         * explicit propagator section does not inject anything.)
+         */
+        $output = $this->runOTel(
+            static function (): void {
+                $spanContext = SpanContext::create(
+                    '0123456789abcdef0123456789abcdef',
+                    '0123456789abcdef',
+                    TraceFlags::SAMPLED,
+                );
+
+                $context = Context::getCurrent()
+                    ->withContextValue(Span::wrap($spanContext));
+
+                $carrier = [];
+                Globals::propagator()->inject($carrier, null, $context);
+
+                echo json_encode($carrier, JSON_THROW_ON_ERROR);
+            },
+        );
+
+        self::assertSame(
+            [
+                'traceparent' => '00-0123456789abcdef0123456789abcdef-0123456789abcdef-01',
+            ],
+            json_decode($output, true, 512, JSON_THROW_ON_ERROR),
+        );
+    }
+
     /*
      * =========================================================================
      * Sampling
