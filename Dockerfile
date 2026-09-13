@@ -3,23 +3,14 @@ FROM php:8.5-alpine
 RUN --mount=from=mlocati/php-extension-installer,dst=/build/extension-installer,src=/usr/bin/install-php-extensions \
     set -eux; \
     /build/extension-installer \
-      # eio \
-      # uv \
+      ffi \
       gmp \
-      # igbinary \
+      inotify \
       opcache \
       opentelemetry \
       pcntl \
-      yaml \
       protobuf \
-      # xdebug \
-      inotify \
-    ;
-
-RUN --mount=from=mlocati/php-extension-installer,dst=/build/extension-installer,src=/usr/bin/install-php-extensions \
-    set -eux; \
-    /build/extension-installer \
-      ffi \
+      yaml \
     ;
 
 RUN ln -f "$PHP_INI_DIR/php.ini-development" "$PHP_INI_DIR/php.ini"

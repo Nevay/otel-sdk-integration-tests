@@ -10,10 +10,17 @@ use Amp\Http\Server\Router;
 use Amp\Http\Server\SocketHttpServer;
 use Amp\Http\Server\Trailers;
 use Amp\Http\HttpStatus;
+use Amp\DeferredFuture;
+use Amp\Process\Process;
 use Amp\Socket\BindContext;
 use Amp\Socket\Certificate;
 use Amp\Socket\InternetAddress;
+use Amp\Socket\ResourceServerSocketFactory;
 use Amp\Socket\ServerTlsContext;
+use Amp\TimeoutCancellation;
+use Amp\TimeoutException;
+use Closure;
+use Composer\InstalledVersions;
 use Opentelemetry\Proto\Collector\Logs\V1\ExportLogsServiceRequest;
 use Opentelemetry\Proto\Collector\Logs\V1\ExportLogsServiceResponse;
 use Opentelemetry\Proto\Collector\Metrics\V1\ExportMetricsServiceRequest;
@@ -25,13 +32,24 @@ use OpenTelemetry\API\Logs\LogRecord;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
+use RuntimeException;
+use Symfony\Component\Filesystem\Path;
+use Throwable;
+use function Amp\async;
 
 /**
  * Exports over gRPC. The SDK's gRPC exporters do not use the PHP grpc
  * extension; they speak length-prefixed protobuf frames (gRPC over HTTP/2)
  * with the amphp HTTP client, so this class serves them from a TLS capture
- * server with the HTTP/2 driver enabled (plaintext h2c prior knowledge is
- * not supported by the server).
+ * server with the HTTP/2 driver enabled.
+ *
+ * Plaintext endpoints (http:// and tls.insecure) use h2c prior knowledge,
+ * which no gRPC server in this environment can serve: the amphp HTTP server
+ * only speaks HTTP/2 over TLS (ALPN) or via the opt-in h2c UPGRADE
+ * mechanism, and a C-core based server (PHP grpc extension) resets streams
+ * from the SDK's amphp HTTP/2 client. The plaintext tests therefore verify
+ * the dial itself — that the exporter connects in plaintext and speaks the
+ * HTTP/2 preface — against a raw TCP listener.
  */
 final class GrpcTest extends TestCase {
     use OTelEndpointTrait;
@@ -200,6 +218,110 @@ final class GrpcTest extends TestCase {
             ['grpc-config-span'],
             $this->spanNames($this->traces[0]),
         );
+    }
+
+    #[Group('env'), Group('traces')]
+    public function testEnvGrpcWithoutTls(): void {
+        $this->assertPlaintextGrpcDial(static fn (int $port): array => [
+            'OTEL_EXPORTER_OTLP_TRACES_PROTOCOL' => 'grpc',
+            'OTEL_EXPORTER_OTLP_TRACES_ENDPOINT' => "http://127.0.0.1:$port",
+        ]);
+    }
+
+    #[Group('config-file'), Group('traces')]
+    public function testConfigFileInsecureGrpcExporter(): void {
+        $configFile = null;
+
+        $this->assertPlaintextGrpcDial(static function (int $port) use (&$configFile): array {
+            $configFile = sys_get_temp_dir() . '/otel-test-grpc-insecure-' . uniqid() . '.yaml';
+            file_put_contents($configFile, <<<YAML
+                file_format: "1.2"
+
+                tracer_provider:
+                  processors:
+                    - batch:
+                        exporter:
+                          otlp_grpc:
+                            endpoint: 127.0.0.1:$port
+                            tls:
+                              insecure: true
+            YAML);
+
+            return ['OTEL_CONFIG_FILE' => $configFile];
+        });
+
+        @unlink($configFile ?? '');
+    }
+
+    /**
+     * Runs the SDK in a child process against a raw TCP listener and asserts
+     * that the first bytes on the wire are the HTTP/2 connection preface —
+     * i.e. the gRPC exporter dialed the endpoint in plaintext (h2c prior
+     * knowledge, no TLS handshake).
+     *
+     * A full export cannot be verified for plaintext endpoints in this
+     * environment (see the class docblock); the child process is killed as
+     * soon as the dial has been captured, because without a working h2c peer
+     * it would only retry the export for ~30 seconds.
+     */
+    private function assertPlaintextGrpcDial(Closure $configure): void {
+        $server = (new ResourceServerSocketFactory())->listen(new InternetAddress('127.0.0.1', 0));
+        $port = $server->getAddress()->getPort();
+
+        $captured = new DeferredFuture();
+        async(static function () use ($server, $captured): void {
+            try {
+                $connection = $server->accept();
+
+                $bytes = '';
+                while (strlen($bytes) < 24 && null !== ($chunk = $connection->read())) {
+                    $bytes .= $chunk;
+                }
+
+                $captured->complete($bytes);
+            } catch (Throwable $exception) {
+                $captured->error($exception);
+            }
+        });
+
+        $autoloadPath = Path::makeAbsolute('vendor/autoload.php', InstalledVersions::getRootPackage()['install_path']);
+        $process = Process::start(
+            command: [
+                PHP_BINARY,
+                __DIR__ . '/../executeSerializedClosure.php',
+                $autoloadPath,
+                \Opis\Closure\serialize(static function (): void {
+                    Globals::tracerProvider()->getTracer('grpc-test')
+                        ->spanBuilder('grpc-plaintext-span')
+                        ->startSpan()
+                        ->end();
+                }),
+            ],
+            environment: ['OTEL_PHP_AUTOLOAD_ENABLED' => 'true', ...$this->env, ...$configure($port)],
+        );
+
+        try {
+            /*
+             * The first bytes on a plaintext h2c connection are the HTTP/2
+             * connection preface; a TLS client would send a ClientHello
+             * record instead. (Only the preface is compared: read() may
+             * return a larger chunk that also contains the SETTINGS frame.)
+             */
+            self::assertSame(
+                "PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n",
+                substr((string)$captured->getFuture()->await(new TimeoutCancellation(15)), 0, 24),
+            );
+        } catch (TimeoutException) {
+            self::fail('The gRPC exporter did not dial the plaintext endpoint');
+        } finally {
+            try {
+                $process->kill();
+            } catch (Throwable) {
+                // The process may have exited on its own already.
+            }
+
+            $server->close();
+        }
     }
 
     #[Group('env'), Group('traces')]
