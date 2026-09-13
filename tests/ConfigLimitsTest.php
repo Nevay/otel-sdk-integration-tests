@@ -6,7 +6,7 @@ use OpenTelemetry\API\Trace\Span;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 
-    #[Group('config-file'), Group('traces')]
+#[Group('config-file'), Group('traces')]
 final class ConfigLimitsTest extends TestCase {
     use OTelEndpointTrait;
 
@@ -57,6 +57,59 @@ final class ConfigLimitsTest extends TestCase {
                 'attribute-limits',
                 'a1',
             ),
+        );
+    }
+
+    public function testAttributeValueDepthLimitTruncatesNestedValues(): void
+    {
+        /*
+         * With a depth limit of one, arrays inside attribute values are
+         * replaced by empty arrays; scalar entries of the same array are
+         * kept.
+         */
+        $this->runOTelConfig(
+            <<<'YAML'
+            file_format: "1.2"
+
+            attribute_limits:
+              attribute_value_depth_limit: 1
+
+            tracer_provider:
+              processors:
+                - batch:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT}
+            YAML,
+            static function (): void {
+                Globals::tracerProvider()
+                    ->getTracer('config-test')
+                    ->spanBuilder('depth-limit')
+                    ->setAttribute('nested', ['a' => ['b' => 'c'], 's' => 'keep'])
+                    ->startSpan()
+                    ->end();
+            },
+        );
+
+        $base = '$.resourceSpans[*].scopeSpans[*].spans[?(@.name == "depth-limit")].attributes[?(@.key == "nested")].value.kvlistValue.values';
+
+        self::assertSame(
+            ['a', 's'],
+            $this->path($this->combinedTracePayload(), $base . '[*].key'),
+        );
+
+        /*
+         * The nested array is clipped to an empty array value (the entry
+         * itself survives, its contents do not).
+         */
+        self::assertSame(
+            [['key' => 'a', 'value' => ['arrayValue' => []]]],
+            $this->path($this->combinedTracePayload(), $base . '[0]'),
+        );
+
+        self::assertSame(
+            ['keep'],
+            $this->path($this->combinedTracePayload(), $base . '[1].value.stringValue'),
         );
     }
 
