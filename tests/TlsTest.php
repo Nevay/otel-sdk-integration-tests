@@ -1,10 +1,11 @@
 <?php declare(strict_types=1);
 namespace Nevay\OTelTest;
 
-use Amp\Http\Client\Response;
 use Amp\Http\Server\DefaultErrorHandler;
+use Amp\Http\Server\Driver\DefaultHttpDriverFactory;
 use Amp\Http\Server\Request;
 use Amp\Http\Server\RequestHandler\ClosureRequestHandler;
+use Amp\Http\Server\Response;
 use Amp\Http\Server\Router;
 use Amp\Http\Server\SocketHttpServer;
 use Amp\Socket\BindContext;
@@ -19,9 +20,12 @@ use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
 
 /**
- * Exports over HTTPS to a collector with a self-signed certificate. The
+ * Exports over HTTPS to collectors with self-signed certificates. The
  * suite's regular capture server runs in plain HTTP, so this class exposes
- * a second, TLS-secured endpoint that captures into the same slots.
+ * two additional TLS-secured endpoints that capture into the same slots:
+ * one that only verifies the client against the system CA bundle (i.e.
+ * rejects our self-signed CA unless configured) and one that requires a
+ * client certificate signed by the fixture CA (mutual TLS).
  */
 final class TlsTest extends TestCase {
     use OTelEndpointTrait;
@@ -29,13 +33,45 @@ final class TlsTest extends TestCase {
     private const CERT = __DIR__ . '/fixtures/tls/cert.pem';
     private const KEY  = __DIR__ . '/fixtures/tls/key.pem';
 
-    private SocketHttpServer $tlsServer;
+    /** @var list<SocketHttpServer> */
+    private array $servers = [];
     private string $tlsBaseUrl = '';
+    private string $mtlsBaseUrl = '';
 
     protected function setUp(): void {
         parent::setUp();
 
-        $server = SocketHttpServer::createForDirectAccess(new NullLogger());
+        [$server, $this->tlsBaseUrl] = $this->createTlsCaptureServer(false);
+        [$server, $this->mtlsBaseUrl] = $this->createTlsCaptureServer(true);
+    }
+
+    protected function tearDown(): void {
+        foreach ($this->servers as $server) {
+            $server->stop();
+        }
+
+        parent::tearDown();
+    }
+
+    /**
+     * @return array{SocketHttpServer, string} [server, base URL]
+     */
+    private function createTlsCaptureServer(bool $requireClientCertificate): array {
+        /*
+         * The mTLS endpoint disables HTTP/2: with the default ALPN list
+         * (h2 first) a rejected client certificate surfaces on the client
+         * as an opaque "closed before HTTP/2 settings" error instead of
+         * the certificate verification failure.
+         */
+        $driverFactory = new DefaultHttpDriverFactory(
+            new NullLogger(),
+            http2Enabled: !$requireClientCertificate,
+        );
+
+        $server = SocketHttpServer::createForDirectAccess(
+            new NullLogger(),
+            httpDriverFactory: $driverFactory,
+        );
         $router = new Router($server, new NullLogger(), new DefaultErrorHandler());
         $router->addRoute('POST', 'v1/traces', new ClosureRequestHandler(function (Request $request): Response {
             return self::captureRequestBody(
@@ -49,20 +85,27 @@ final class TlsTest extends TestCase {
         $tlsContext = (new ServerTlsContext())
             ->withDefaultCertificate(new Certificate(self::CERT, self::KEY));
 
+        if ($requireClientCertificate) {
+            /*
+             * Peer name verification must be disabled: with an empty
+             * peer_name PHP compares the client certificate's CN against
+             * an empty string and fails the handshake.
+             */
+            $tlsContext = $tlsContext
+                ->withPeerVerification()
+                ->withoutPeerNameVerification()
+                ->withCaFile(self::CERT);
+        }
+
         $server->expose(
             new InternetAddress('127.0.0.1', 0),
             (new BindContext())->withTlsContext($tlsContext),
         );
 
         $server->start($router, new DefaultErrorHandler());
-        $this->tlsBaseUrl = 'https://127.0.0.1:' . $server->getServers()[0]->getAddress()->getPort();
-        $this->tlsServer = $server;
-    }
+        $this->servers[] = $server;
 
-    protected function tearDown(): void {
-        $this->tlsServer->stop();
-
-        parent::tearDown();
+        return [$server, 'https://127.0.0.1:' . $server->getServers()[0]->getAddress()->getPort()];
     }
 
     #[Group('env'), Group('traces')]
@@ -145,6 +188,107 @@ final class TlsTest extends TestCase {
         self::assertSame([], $this->traces);
         self::assertStringContainsString(
             'certificate',
+            strtolower($this->lastStderr),
+        );
+    }
+
+    #[Group('env'), Group('traces')]
+    public function testEnvClientCertificateIsPresentedAndVerified(): void {
+        $this->runOTel(
+            static function (): void {
+                Globals::tracerProvider()->getTracer('tls-test')
+                    ->spanBuilder('mtls-span')
+                    ->startSpan()
+                    ->end();
+            },
+            'OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=' . $this->mtlsBaseUrl . '/v1/traces',
+            'OTEL_EXPORTER_OTLP_TRACES_CERTIFICATE=' . self::CERT,
+            'OTEL_EXPORTER_OTLP_TRACES_CLIENT_CERTIFICATE=' . self::CERT,
+            'OTEL_EXPORTER_OTLP_TRACES_CLIENT_KEY=' . self::KEY,
+        );
+
+        /*
+         * The collector requires a client certificate signed by the
+         * fixture CA: with both the CA file and the client certificate
+         * configured, the span is exported.
+         */
+        self::assertCount(1, $this->traces);
+        self::assertSame(
+            ['mtls-span'],
+            $this->spanNames($this->traces[0]),
+        );
+    }
+
+    #[Group('config-file'), Group('traces')]
+    public function testConfigFileClientCertificateIsPresentedAndVerified(): void {
+        $caFile = self::CERT;
+        $clientCert = self::CERT;
+        $clientKey = self::KEY;
+
+        $this->runOTelConfig(<<<YAML
+            file_format: "1.2"
+
+            tracer_provider:
+              processors:
+                - batch:
+                    exporter:
+                      otlp_http:
+                        endpoint: {$this->mtlsBaseUrl}/v1/traces
+                        tls:
+                          ca_file: {$caFile}
+                          cert_file: {$clientCert}
+                          key_file: {$clientKey}
+        YAML, static function (): void {
+            Globals::tracerProvider()->getTracer('tls-test')
+                ->spanBuilder('mtls-config-span')
+                ->startSpan()
+                ->end();
+        });
+
+        self::assertCount(1, $this->traces);
+        self::assertSame(
+            ['mtls-config-span'],
+            $this->spanNames($this->traces[0]),
+        );
+    }
+
+    #[Group('config-file'), Group('traces')]
+    public function testMissingClientCertificateIsRejected(): void {
+        /*
+         * The collector requires a client certificate, but the client
+         * presents none, so the connection is dropped during the request
+         * and nothing is exported. PHP streams surface the peer
+         * verification failure only after the handshake, so the client
+         * sees a plain socket disconnect rather than a TLS error.
+         * (The shutdown timeout bounds the exporter's retry backoff.)
+         */
+        $caFile = self::CERT;
+
+        $this->runOTelConfig(<<<YAML
+            file_format: "1.2"
+
+            distribution:
+              tbachert/otel-sdk:
+                shutdown_timeout: 1
+
+            tracer_provider:
+              processors:
+                - batch:
+                    exporter:
+                      otlp_http:
+                        endpoint: {$this->mtlsBaseUrl}/v1/traces
+                        tls:
+                          ca_file: {$caFile}
+        YAML, static function (): void {
+            Globals::tracerProvider()->getTracer('tls-test')
+                ->spanBuilder('mtls-rejected')
+                ->startSpan()
+                ->end();
+        });
+
+        self::assertSame([], $this->traces);
+        self::assertStringContainsString(
+            'export failure',
             strtolower($this->lastStderr),
         );
     }
