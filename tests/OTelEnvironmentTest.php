@@ -1850,6 +1850,77 @@ final class OTelEnvironmentTest extends TestCase {
         );
     }
 
+    public function testLogRecordInNestedSpanReferencesInnerSpan(): void {
+        $this->runOTel(
+            static function (): void {
+                $outer = Globals::tracerProvider()
+                    ->getTracer('test')
+                    ->spanBuilder('nested-outer')
+                    ->startSpan();
+
+                $outerScope = $outer->activate();
+
+                $inner = Globals::tracerProvider()
+                    ->getTracer('test')
+                    ->spanBuilder('nested-inner')
+                    ->startSpan();
+
+                $innerScope = $inner->activate();
+
+                Globals::loggerProvider()
+                    ->getLogger('test')
+                    ->logRecordBuilder()
+                    ->setBody('inside-nested-span')
+                    ->emit();
+
+                $innerScope->detach();
+                $inner->end();
+
+                $outerScope->detach();
+                $outer->end();
+            },
+        );
+
+        self::assertNotEmpty($this->traces);
+        self::assertNotEmpty($this->logs);
+
+        $spans = $this->path(
+            $this->traces[0],
+            '$.resourceSpans[*].scopeSpans[*].spans[*]',
+        );
+
+        $byName = array_column($spans, null, 'name');
+
+        self::assertArrayHasKey('nested-outer', $byName);
+        self::assertArrayHasKey('nested-inner', $byName);
+
+        /*
+         * The inner span is a child of the outer span...
+         */
+        self::assertSame(
+            $byName['nested-outer']['spanId'],
+            $byName['nested-inner']['parentSpanId'],
+        );
+
+        /*
+         * ...and the log record references the inner (active) span,
+         * not the outer one.
+         */
+        $logRecords = $this->logsInExport($this->logs[0]);
+
+        self::assertCount(1, $logRecords);
+
+        self::assertSame(
+            $byName['nested-inner']['spanId'],
+            bin2hex(base64_decode($logRecords[0]['spanId'])),
+        );
+
+        self::assertSame(
+            $byName['nested-outer']['traceId'],
+            bin2hex(base64_decode($logRecords[0]['traceId'])),
+        );
+    }
+
     public function testMetricsExemplarCarriesActiveSpanContext(): void {
         $this->runOTel(
             static function (): void {

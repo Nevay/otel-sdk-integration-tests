@@ -874,6 +874,152 @@ final class OTelMetricsTest extends TestCase
         }
     }
 
+    public function testMultipleMetersProduceSeparateScopesInOneExport(): void
+    {
+        $output = $this->runOTelConfig(
+            <<<'YAML'
+            file_format: "1.2"
+
+            meter_provider:
+              readers:
+                - periodic:
+                    interval: 200
+                    exporter:
+                      otlp_http:
+                        endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
+            YAML,
+            static function (): void {
+                $meterA = Globals::meterProvider()->getMeter(
+                    'meter-a',
+                    '1.0.0',
+                );
+                $meterB = Globals::meterProvider()->getMeter(
+                    'meter-b',
+                    '2.0.0',
+                );
+
+                $meterA->createCounter('scope.a')->add(1);
+                $meterB->createCounter('scope.b')->add(2);
+
+                delay(0.35);
+
+                echo 'done';
+            },
+        );
+
+        self::assertSame('done', $output);
+
+        $payload = $this->lastMetricExport();
+
+        /*
+         * Each meter maps to its own scopeMetrics entry, keeping its
+         * name and version.
+         */
+        $scopes = $this->path(
+            $payload,
+            '$.resourceMetrics[*].scopeMetrics[*].scope',
+        );
+
+        self::assertCount(2, $scopes);
+
+        $scopeNames = array_column($scopes, 'name');
+        $scopeVersions = array_column($scopes, 'version');
+
+        self::assertSame(['1.0.0', '2.0.0'], $scopeVersions);
+        self::assertContains('meter-a', $scopeNames);
+        self::assertContains('meter-b', $scopeNames);
+
+        /*
+         * Each metric is only reported by the scope of its own meter.
+         */
+        $metricScopes = [];
+
+        foreach ($this->path(
+            $payload,
+            '$.resourceMetrics[*].scopeMetrics[*]',
+        ) as $scopeMetric) {
+            foreach ($scopeMetric['metrics'] ?? [] as $metric) {
+                $metricScopes[$metric['name']] = $scopeMetric['scope']['name'];
+            }
+        }
+
+        self::assertSame('meter-a', $metricScopes['scope.a']);
+        self::assertSame('meter-b', $metricScopes['scope.b']);
+    }
+
+    public function testUpDownCounterExportsNonMonotonicSum(): void
+    {
+        $output = $this->runOTelConfig(
+            <<<'YAML'
+            file_format: "1.2"
+
+            meter_provider:
+              readers:
+                - periodic:
+                    interval: 200
+                    exporter:
+                      otlp_http:
+                        endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
+            YAML,
+            static function (): void {
+                $active = Globals::meterProvider()
+                    ->getMeter('updown-test')
+                    ->createUpDownCounter('active.requests');
+
+                $active->add(5);
+
+                delay(0.25);
+
+                $active->add(-2);
+
+                delay(0.3);
+
+                echo 'done';
+            },
+        );
+
+        self::assertSame('done', $output);
+
+        $values = [];
+
+        foreach ($this->metrics as $payload) {
+            $dataPoints = $this->dataPoints(
+                $payload,
+                'active.requests',
+            );
+
+            if ($dataPoints !== []) {
+                $values[] = $dataPoints[0]['asInt'];
+            }
+        }
+
+        self::assertNotEmpty($values);
+
+        /*
+         * The cumulative sum includes the negative addition, so the
+         * final collection reports the net value 5 + (-2) = 3.
+         */
+        self::assertSame('3', $values[array_key_last($values)]);
+
+        /*
+         * Only the two intermediate totals can be observed...
+         */
+        foreach ($values as $value) {
+            self::assertContains($value, ['5', '3']);
+        }
+
+        /*
+         * ...and a cumulative sum only ever decreases here once the
+         * negative addition has been made.
+         */
+        if (in_array('5', $values, true) && in_array('3', $values, true)) {
+            self::assertLessThan(
+                array_search('3', $values, true),
+                array_search('5', $values, true),
+            );
+        }
+    }
+
     private function lastMetricExport(): string
     {
         self::assertNotEmpty(
