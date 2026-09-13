@@ -8,7 +8,9 @@ The suite is SDK-independent: it interacts with the SDK under test only through
 its documented configuration surface (environment variables, configuration
 file) and the OTLP wire protocol, so it can be pointed at any SDK to verify
 compliance. The env-based tests check specification behavior as-is; the
-file-based tests check the configured SDK's documented schema (here:
+file-based tests use the official
+[opentelemetry-configuration](https://github.com/open-telemetry/opentelemetry-configuration)
+data model as supported by the configured SDK (here:
 [`tbachert/otel-sdk`](https://github.com/tbachert/otel-sdk)). The only
 SDK-specific glue is the child-process bootstrap that loads the SDK
 (`OTEL_PHP_AUTOLOAD_ENABLED`) and the initialization error message used as a
@@ -33,12 +35,11 @@ Tests can be selected with PHPUnit groups (`--group` / `--exclude-group`):
 Exact package versions pinned in `composer.lock`.
 
 **Scope.** All stable environment variables from the specification's SDK
-configuration section, plus this SDK's file-based configuration schema. Note
-that its configuration file format is its own (with a `file_format` field and a
-top-level `distribution:` node), not the official
+configuration section, plus file-based configuration using the official
 [opentelemetry-configuration](https://github.com/open-telemetry/opentelemetry-configuration)
-spec format, which is still experimental; conformance here means conformance to
-the SDK's documented schema.
+data model — this SDK accepts schema versions 1.0 through 1.2 (its `file_format`
+check) and uses the schema's `distribution:` extension point for vendor-specific
+options.
 
 **Spec features not implemented by this SDK (gaps, not deviations):**
 
