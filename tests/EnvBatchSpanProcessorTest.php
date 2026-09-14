@@ -114,12 +114,14 @@ final class EnvBatchSpanProcessorTest extends TestCase {
     }
 
     /*
-     * Vendor-specific: the specification mandates that spans are dropped once
-     * the queue is full, but not when a batch-full export runs. This scenario
-     * relies on tbachert/otel-sdk deferring exports to its timer, so the queue
-     * can fill up; the official SDK flushes synchronously after every span
-     * (autoFlush hardcoded to true), so the queue never fills and the drop
-     * path is unobservable there.
+     * Vendor-specific: the specification mandates both halves of this scenario
+     * (spans are dropped once the queue is full; a full batch is exported
+     * before the scheduled delay elapses) but not how the batch-full export
+     * runs. tbachert/otel-sdk defers it to its event loop, so the queue can
+     * fill up while exports are pending; the official SDK flushes
+     * synchronously after every span (autoFlush hardcoded to true), so in a
+     * single-threaded scenario the queue never fills and the drop path is
+     * unobservable there.
      */
     #[Group('tbachert')]
     public function testBspDropsSpansWhenQueueIsFull(): void {

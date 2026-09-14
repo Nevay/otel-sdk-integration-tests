@@ -148,6 +148,50 @@ final class EnvLogRecordTest extends TestCase {
         self::assertGreaterThan(0, $exported);
     }
 
+    /*
+     * Mirror of EnvBatchSpanProcessorTest::testBspDropsSpansWhenQueueIsFull:
+     * the specification mandates that log records are dropped once the queue
+     * is full, but not how the batch-full export runs. tbachert/otel-sdk
+     * defers it to its event loop, so the queue can fill up while exports are
+     * pending; the official SDK flushes synchronously after every record
+     * (autoFlush hardcoded to true), so in a single-threaded scenario the
+     * queue never fills and the drop path is unobservable there.
+     */
+    #[Group('tbachert')]
+    public function testBlrpDropsLogRecordsWhenQueueIsFull(): void {
+        $this->runOTel(
+            static function (): void {
+                $logger = Globals::loggerProvider()->getLogger('test');
+
+                /*
+                 * Four log records are emitted before the first export; with
+                 * a queue size of two, the last two must be dropped.
+                 */
+                for ($i = 0; $i < 4; $i++) {
+                    $logger->emit(new LogRecord("overflow-$i"));
+                }
+            },
+            'OTEL_BLRP_MAX_QUEUE_SIZE=2',
+            'OTEL_BLRP_MAX_EXPORT_BATCH_SIZE=1',
+        );
+
+        self::assertNotEmpty($this->logs);
+
+        /*
+         * Only the first two records fit into the queue; the rest are lost.
+         */
+        $bodies = [];
+
+        foreach ($this->logs as $payload) {
+            $bodies = [...$bodies, ...$this->path(
+                $payload,
+                '$.resourceLogs[*].scopeLogs[*].logRecords[*].body.stringValue',
+            )];
+        }
+
+        self::assertSame(['overflow-0', 'overflow-1'], $bodies);
+    }
+
     public function testBlrpScheduleDelayDoesNotLoseLogsAfterFlush(): void {
         $this->runOTel(
             static function (): void {
