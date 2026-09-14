@@ -164,12 +164,88 @@ final class EnvEdgeCasesTest extends TestCase {
         );
 
         /*
-         * The collector rejects the export with a non-retryable status.
+         * The collector rejects the export with a non-retryable status. Per
+         * the OTLP specification, all 4xx/5xx codes other than 429, 502,
+         * 503 and 504 MUST NOT be retried: exactly one request was made.
+         */
+        self::assertSame(1, $this->failRequests);
+
+        /*
          * The failure is logged and swallowed: the process exits cleanly
          * (runOTel would throw on a non-zero exit code) and nothing was
          * captured by the real endpoint.
          */
         self::assertSame([], $this->traces);
+    }
+
+    #[Group('async')]
+    public function testOtlpHttpRetriesRetryableStatusCodes(): void {
+        $this->runOTel(
+            static function (): void {
+                $span = Globals::tracerProvider()
+                    ->getTracer('test')
+                    ->spanBuilder('retried')
+                    ->startSpan();
+
+                $span->end();
+            },
+            'OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=' . str_replace(
+                '/v1/traces',
+                '/v1/flaky',
+                $this->env['OTEL_EXPORTER_OTLP_TRACES_ENDPOINT'],
+            ),
+        );
+
+        /*
+         * The first attempt receives a retryable 503; per the OTLP
+         * specification the exporter retries with backoff, and the second
+         * attempt delivers the data.
+         */
+        self::assertSame(2, $this->flakyRequests);
+        self::assertCount(1, $this->traces);
+        self::assertSame(
+            ['retried'],
+            $this->spanNames($this->traces[0]),
+        );
+    }
+
+    #[Group('async')]
+    public function testOtlpHttpHonorsThrottlingResponse(): void {
+        $this->runOTel(
+            static function (): void {
+                $span = Globals::tracerProvider()
+                    ->getTracer('test')
+                    ->spanBuilder('throttled')
+                    ->startSpan();
+
+                $span->end();
+            },
+            'OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=' . str_replace(
+                '/v1/traces',
+                '/v1/throttle',
+                $this->env['OTEL_EXPORTER_OTLP_TRACES_ENDPOINT'],
+            ),
+        );
+
+        /*
+         * The first attempt receives a 429 with a Retry-After header of six
+         * seconds; per the OTLP specification the client honours it, so the
+         * retry happens well after the maximum backoff delay (five seconds).
+         */
+        self::assertSame(2, $this->throttleRequests);
+        self::assertGreaterThanOrEqual(
+            5.5,
+            $this->requestTimes[1] - $this->requestTimes[0],
+        );
+
+        /*
+         * The second attempt delivers the data.
+         */
+        self::assertCount(1, $this->traces);
+        self::assertSame(
+            ['throttled'],
+            $this->spanNames($this->traces[0]),
+        );
     }
 
     #[Group('metrics'), Group('logs')]

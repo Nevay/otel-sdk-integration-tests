@@ -68,6 +68,24 @@ trait OTelEndpointTrait {
     public int $slowRequests = 0;
 
     /**
+     * Number of requests received by the /v1/fail route.
+     */
+    public int $failRequests = 0;
+
+    /**
+     * Number of requests received by the /v1/flaky route (503 on the first
+     * request, then captured like /v1/traces).
+     */
+    public int $flakyRequests = 0;
+
+    /**
+     * Number of requests received by the /v1/throttle route (429 with a
+     * Retry-After header on the first request, then captured like
+     * /v1/traces).
+     */
+    public int $throttleRequests = 0;
+
+    /**
      * Arrival times (microtime) of the captured export requests, in order.
      */
     public array $requestTimes = [];
@@ -115,7 +133,45 @@ trait OTelEndpointTrait {
          * A route that always rejects the export with a non-retryable
          * status; used to test collector failure handling.
          */
-        $router->addRoute('POST', 'v1/fail', new ClosureRequestHandler(fn(Request $request): Response => new Response(HttpStatus::INTERNAL_SERVER_ERROR)));
+        $router->addRoute('POST', 'v1/fail', new ClosureRequestHandler(function (Request $request): Response {
+            $this->failRequests++;
+
+            return new Response(HttpStatus::INTERNAL_SERVER_ERROR);
+        }));
+
+        /*
+         * A route that rejects the first export with a retryable status and
+         * accepts subsequent ones; used to test exporter retry behavior.
+         */
+        $router->addRoute('POST', 'v1/flaky', new ClosureRequestHandler(function (Request $request): Response {
+            $this->flakyRequests++;
+
+            if ($this->flakyRequests === 1) {
+                return new Response(HttpStatus::SERVICE_UNAVAILABLE);
+            }
+
+            $this->requestTimes[] = microtime(true);
+            $this->requestHeaders[] = $request->getHeaders();
+
+            return self::captureRequestBody($request, $this->traces[], ExportTraceServiceRequest::class, ExportTraceServiceResponse::class);
+        }));
+
+        /*
+         * A route that throttles the first export (429 + Retry-After) and
+         * accepts subsequent ones; used to test throttling response handling.
+         */
+        $router->addRoute('POST', 'v1/throttle', new ClosureRequestHandler(function (Request $request): Response {
+            $this->throttleRequests++;
+            $this->requestTimes[] = microtime(true);
+
+            if ($this->throttleRequests === 1) {
+                return new Response(HttpStatus::TOO_MANY_REQUESTS, ['retry-after' => '6']);
+            }
+
+            $this->requestHeaders[] = $request->getHeaders();
+
+            return self::captureRequestBody($request, $this->traces[], ExportTraceServiceRequest::class, ExportTraceServiceResponse::class);
+        }));
 
         /*
          * A route that delays its response; used to test exporter timeout
