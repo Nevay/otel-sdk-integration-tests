@@ -206,12 +206,13 @@ final class EnvMetricsTest extends TestCase {
 
     #[Group('async')]
     /*
-     * Vendor-specific: OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE is
-     * not part of the specification's environment variables; it is an option
-     * of tbachert/otel-sdk. The spec-based collection interval behavior is
-     * covered by testMetricExportIntervalEnvVarControlsCollectionFrequency.
+     * OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE is a specification
+     * variable (Metrics SDK exporters, OTLP) and both SDKs implement it. The
+     * test needs multiple periodic exports to observe delta values, so it
+     * also depends on OTEL_METRIC_EXPORT_INTERVAL being applied; the
+     * official SDK currently only exports at shutdown, where a single
+     * collection cannot distinguish delta from cumulative.
      */
-    #[Group('tbachert')]
     public function testMetricsTemporalityPreferenceEnvVarUsesDelta(): void
     {
         $this->runOTel(
@@ -253,6 +254,40 @@ final class EnvMetricsTest extends TestCase {
          */
         self::assertSame('5', $exports[0]['asInt']);
         self::assertSame('3', $exports[1]['asInt']);
+    }
+
+    public function testDefaultHistogramAggregationEnvVarUsesExponentialBuckets(): void {
+        $this->runOTel(
+            static function (): void {
+                $histogram = Globals::meterProvider()
+                    ->getMeter('env-test')
+                    ->createHistogram('agg.histogram');
+
+                foreach ([0.5, 1, 2, 4, 8, 16] as $value) {
+                    $histogram->record($value);
+                }
+            },
+            'OTEL_EXPORTER_OTLP_METRICS_DEFAULT_HISTOGRAM_AGGREGATION=base2_exponential_bucket_histogram',
+        );
+
+        self::assertNotEmpty($this->metrics);
+
+        /*
+         * The environment variable switches the default histogram aggregation
+         * to base-2 exponential buckets: data points carry a scale and
+         * offset/bucket-count pairs instead of explicit bounds.
+         */
+        $dataPoint = $this->path(
+            $this->metrics[0],
+            '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "agg.histogram")].exponentialHistogram.dataPoints[0]',
+        )[0];
+
+        self::assertArrayNotHasKey('explicitBounds', $dataPoint);
+        self::assertIsInt($dataPoint['scale']);
+        self::assertSame(
+            6,
+            array_sum(array_map('intval', $dataPoint['positive']['bucketCounts'])),
+        );
     }
 
     /*

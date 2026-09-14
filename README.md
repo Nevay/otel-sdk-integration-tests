@@ -64,11 +64,13 @@ selectable under `resource.detection/development` in config-file mode); entities
 are exported with OTLP as references into the resource attributes.
 
 **SDK-specific configuration.** Beyond the spec surface, this SDK exposes
-vendor options: non-spec environment variables (e.g.
-`OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE`), experimental config-file
-nodes under `distribution:` (e.g. `capture_code_attributes/development`), and
-implementation-specific behavior such as deferred batch exports. Tests that pin
-this surface are tagged with the group `tbachert` and are excluded from the
+vendor options: non-spec environment variables (`OTEL_PHP_SHUTDOWN_TIMEOUT`,
+`OTEL_PHP_FIBERS_ENABLED`,
+`OTEL_PHP_EXPERIMENTAL_SPAN_SUPPRESSION_STRATEGY`), a config-file processor
+node that is not part of the official data model
+(`capture_code_attributes/development`), and vendor options under the schema's
+`distribution:` extension point (e.g. `shutdown_timeout`). Tests that pin this
+surface are tagged with the group `tbachert` and are excluded from the
 official run.
 
 **Spec features not implemented by this SDK (gaps, not deviations):**
@@ -160,7 +162,14 @@ detector is not implemented (upstream PR in progress).
   (in-development) variables, but no exporter factory is registered for the
   protocol.
 - **Metric export interval.** `OTEL_METRIC_EXPORT_INTERVAL` is declared but
-  not applied; the periodic reader only exports at shutdown.
+  not applied; the periodic reader only exports at shutdown. The
+delta-temporality test (`OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE`,
+implemented by this SDK) also depends on periodic exports and fails for the
+same reason: a single shutdown collection cannot distinguish delta from
+cumulative.
+- **Default histogram aggregation.** `OTEL_EXPORTER_OTLP_METRICS_DEFAULT_HISTOGRAM_AGGREGATION`
+  is declared (default and enum values) but not applied; histograms always use
+  explicit bucket aggregation.
 - **Batch processor queue-full drop.** The batch span and log record
   processors flush synchronously after every span/record (autoFlush hardcoded
   to true), so ending a span or emitting a log performs blocking I/O on the
