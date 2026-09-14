@@ -81,6 +81,13 @@ official run.
 - **`OTEL_EXPERIMENTAL_CONFIG_FILE`** — deprecated in the specification; this
   SDK reads its stable replacement, `OTEL_CONFIG_FILE`, instead (used by all
   config-file tests).
+- **Consistent probability sampling tracestate.** The ratio-based samplers do
+  not write the W3C Trace Context Level 2 `th`/`rv` subkeys to the span's
+  tracestate; a sampled root span propagates a bare `traceparent` only.
+- **SDK self-observability metrics.** The OTLP exporters record
+  `otel.sdk.exporter.*` instruments, but only against an injected meter
+  provider (a no-op by default); no environment variable or configuration
+  node enables them.
 
 **Testability note.** gRPC over plaintext (h2c prior knowledge) cannot be
 tested end-to-end by the suite itself: the amphp HTTP server only speaks
@@ -90,6 +97,11 @@ format has been verified manually against a reference collector
 (opentelemetry-collector v0.160.0, plaintext h2c and TLS alike); the suite
 verifies the plaintext dial itself (the HTTP/2 connection preface on the wire)
 instead.
+
+The `jaeger_remote` sampler is implemented (env mode and config file), but
+its strategy client hard-codes a default TLS context: it cannot be pointed
+at the suite's self-signed test server without modifying the container's
+system trust store, so it is not covered by tests.
 
 ### [`open-telemetry/sdk`](https://github.com/open-telemetry/opentelemetry-php)
 
@@ -171,6 +183,14 @@ detector is not implemented; no upstream issue or PR tracks it yet.
 - **Default histogram aggregation.** `OTEL_EXPORTER_OTLP_METRICS_DEFAULT_HISTOGRAM_AGGREGATION`
   is declared (default and enum values) but not applied; histograms always use
   explicit bucket aggregation.
+- **Non-retryable HTTP responses are retried.** The OTLP/HTTP exporter
+  retries `500 Internal Server Error` responses (four attempts observed);
+  the specification requires that all `4xx`/`5xx` codes other than 429, 502,
+  503 and 504 MUST NOT be retried.
+- **Invalid exemplar filter fallback.** An unknown
+  `OTEL_METRICS_EXEMPLAR_FILTER` value falls back to no exemplars at all;
+  per the configuration guidance, invalid values should be treated as unset,
+  i.e. the default (`trace_based`) should apply.
 - **Batch processor queue-full drop.** The batch span and log record
   processors flush synchronously after every span/record (autoFlush hardcoded
   to true), so ending a span or emitting a log performs blocking I/O on the
