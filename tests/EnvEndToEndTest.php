@@ -315,6 +315,84 @@ final class EnvEndToEndTest extends TestCase {
         self::assertArrayNotHasKey('generic', $headers);
     }
 
+    #[Group('metrics')]
+    public function testPerSignalOtlpHeadersApplyToMetrics(): void {
+        $this->runOTel(
+            static function (): void {
+                Globals::meterProvider()
+                    ->getMeter('test')
+                    ->createCounter('per-signal-headers.counter')
+                    ->add(1);
+            },
+            'OTEL_EXPORTER_OTLP_METRICS_HEADERS=specific=m1',
+        );
+
+        self::assertNotEmpty($this->metrics);
+
+        $headers = array_change_key_case($this->requestHeaders[0]);
+
+        self::assertSame(['m1'], $headers['specific']);
+    }
+
+    #[Group('logs')]
+    public function testPerSignalOtlpHeadersApplyToLogs(): void {
+        $this->runOTel(
+            static function (): void {
+                Globals::loggerProvider()
+                    ->getLogger('test')
+                    ->logRecordBuilder()
+                    ->setBody('per-signal-headers-log')
+                    ->emit();
+            },
+            'OTEL_EXPORTER_OTLP_LOGS_HEADERS=specific=l1',
+        );
+
+        self::assertNotEmpty($this->logs);
+
+        $headers = array_change_key_case($this->requestHeaders[0]);
+
+        self::assertSame(['l1'], $headers['specific']);
+    }
+
+    #[Group('metrics')]
+    public function testPerSignalOtlpCompressionAppliesToMetrics(): void {
+        $this->runOTel(
+            static function (): void {
+                Globals::meterProvider()
+                    ->getMeter('test')
+                    ->createCounter('per-signal-gzip.counter')
+                    ->add(1);
+            },
+            'OTEL_EXPORTER_OTLP_METRICS_COMPRESSION=gzip',
+        );
+
+        self::assertNotEmpty($this->metrics);
+
+        $headers = array_change_key_case($this->requestHeaders[0]);
+
+        self::assertSame(['gzip'], $headers['content-encoding']);
+    }
+
+    #[Group('logs')]
+    public function testPerSignalOtlpCompressionAppliesToLogs(): void {
+        $this->runOTel(
+            static function (): void {
+                Globals::loggerProvider()
+                    ->getLogger('test')
+                    ->logRecordBuilder()
+                    ->setBody('per-signal-gzip-log')
+                    ->emit();
+            },
+            'OTEL_EXPORTER_OTLP_LOGS_COMPRESSION=gzip',
+        );
+
+        self::assertNotEmpty($this->logs);
+
+        $headers = array_change_key_case($this->requestHeaders[0]);
+
+        self::assertSame(['gzip'], $headers['content-encoding']);
+    }
+
     #[Group('traces')]
     public function testOtlpHttpGzipCompressionIsApplied(): void {
         $this->runOTel(
