@@ -412,9 +412,15 @@ final class ConfigBasicTest extends TestCase {
 
     #[Group('traces')]
     public function testConfigFileNewerMinorFormatIsAcceptedWithWarning(): void {
+        /*
+         * A far-future minor of the current major version: this stays
+         * "newer than implemented" without having to be bumped whenever a
+         * new schema minor is released (a major mismatch is covered by
+         * testUnsupportedFileFormatResultsInNoOpSdk).
+         */
         $this->runOTelConfig(
             <<<'YAML'
-            file_format: "1.3"
+            file_format: "1.99"
 
             tracer_provider:
               processors:
