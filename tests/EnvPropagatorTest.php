@@ -211,6 +211,39 @@ final class EnvPropagatorTest extends TestCase {
         self::assertNotEmpty($this->traces);
     }
 
+    public function testBaggagePropagatorDecodesPercentEncodedValuesOnExtract(): void {
+        /*
+         * W3C Baggage: list-member values are percent-encoded on the wire, and
+         * code points outside the baggage-octet range (space, comma, semicolon,
+         * double quote) MUST be represented in percent-encoded form. On extract
+         * the percent-encoded octet sequences MUST be decoded; only sequences
+         * that do not match a UTF-8 encoding are replaced with U+FFFD. So
+         * "space=v%20alue" and "comma=a%2Cb" are valid members that must be
+         * extracted as "v alue" and "a,b".
+         */
+        $output = $this->runOTel(
+            static function (): void {
+                $carrier = [
+                    'baggage' => 'space=v%20alue,comma=a%2Cb',
+                ];
+
+                $context = Globals::propagator()->extract($carrier);
+                $baggage = Baggage::fromContext($context);
+
+                echo json_encode([
+                    'space' => $baggage->getValue('space'),
+                    'comma' => $baggage->getValue('comma'),
+                ], JSON_THROW_ON_ERROR);
+            },
+            'OTEL_PROPAGATORS=baggage',
+        );
+
+        $result = json_decode($output, true, 512, JSON_THROW_ON_ERROR);
+
+        self::assertSame('v alue', $result['space']);
+        self::assertSame('a,b', $result['comma']);
+    }
+
     public function testMultiplePropagators(): void {
         $this->runOTel(
             static function (): void {
