@@ -83,9 +83,18 @@ vendor options: non-spec environment variables (`OTEL_PHP_SHUTDOWN_TIMEOUT`,
 `OTEL_PHP_EXPERIMENTAL_SPAN_SUPPRESSION_STRATEGY`), a config-file processor
 node that is not part of the official data model
 (`capture_code_attributes/development`), and vendor options under the schema's
-`distribution:` extension point (e.g. `shutdown_timeout`). Tests that pin this
-surface are tagged with the group `tbachert` and are excluded from the
-official run.
+`distribution:` extension point (e.g. `shutdown_timeout`). SDK self-observability
+is filtered out by default but can be enabled through vendor-only development
+configurator nodes (`tracer_provider.tracer_configurator/development`,
+`meter_provider.meter_configurator/development`,
+`logger_provider.logger_configurator/development`) with `config.enabled: true`:
+the batch span processor then records a self-diagnostic span per export cycle
+and the OTLP exporters record the semconv-defined `otel.sdk.exporter.*`
+instruments, all marked with the scope attribute
+`php.otel.sdk.self_diagnostics`. `ConfigSelfObservabilityTest` pins the
+metrics side (semconv names and instrument types) and the disabled-by-default
+state; tests that pin this surface are tagged with the group `tbachert` and
+are excluded from the official run.
 
 **Spec features not implemented by this SDK (gaps, not deviations):**
 
@@ -95,10 +104,6 @@ official run.
 - **`OTEL_EXPERIMENTAL_CONFIG_FILE`** — deprecated in the specification; this
   SDK reads its stable replacement, `OTEL_CONFIG_FILE`, instead (used by all
   config-file tests).
-- **SDK self-observability metrics.** The OTLP exporters record
-  `otel.sdk.exporter.*` instruments, but only against an injected meter
-  provider (a no-op by default); no environment variable or configuration
-  node enables them.
 
 **Testability note.** gRPC over plaintext (h2c prior knowledge) cannot be
 tested end-to-end by the suite itself: the amphp HTTP server only speaks
