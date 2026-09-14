@@ -562,4 +562,218 @@ final class ConfigSamplingTest extends TestCase {
             $this->spanNames($this->traces[0]),
         );
     }
+
+    #[Group('sampler')]
+    public function testProbabilitySamplerWritesThresholdTraceState(): void {
+        $output = $this->runOTelConfig(
+            <<<'YAML'
+            file_format: "1.2"
+
+            tracer_provider:
+              sampler:
+                probability/development:
+                  ratio: 1.0
+              processors:
+                - batch:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${env:OTEL_EXPORTER_OTLP_TRACES_ENDPOINT}
+            YAML,
+            static function (): void {
+                $span = Globals::tracerProvider()
+                    ->getTracer('config-test')
+                    ->spanBuilder('prob-th')
+                    ->startSpan();
+
+                self::emitSpanContext($span->getContext());
+                $span->end();
+            },
+        );
+
+        /*
+         * The non-composable probability sampler is a consistent-probability
+         * sampler: it encodes its rejection threshold in the OpenTelemetry
+         * TraceState `th` sub-key (a ratio of one keeps every span, so the
+         * threshold is zero) and sets the W3C Trace Context Level 2 random
+         * flag on generated trace IDs. The explicit `rv` randomness value is
+         * only inserted when the trace ID does not carry the random flag,
+         * which cannot be configured through environment variables or the
+         * configuration file.
+         */
+        $context = json_decode(trim($output), true, 512, JSON_THROW_ON_ERROR);
+
+        self::assertSame('ot=th:0', $context['tracestate']);
+        self::assertSame(
+            TraceFlags::SAMPLED | TraceFlags::RANDOM,
+            $context['flags'],
+        );
+
+        self::assertCount(1, $this->traces);
+        self::assertSame(
+            ['prob-th'],
+            $this->spanNames($this->traces[0]),
+        );
+    }
+
+    #[Group('sampler')]
+    public function testProbabilitySamplerThresholdMatchesSamplingDecisions(): void {
+        $output = $this->runOTelConfig(
+            <<<'YAML'
+            file_format: "1.2"
+
+            tracer_provider:
+              sampler:
+                probability/development:
+                  ratio: 0.5
+              processors:
+                - batch:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${env:OTEL_EXPORTER_OTLP_TRACES_ENDPOINT}
+            YAML,
+            static function (): void {
+                $tracer = Globals::tracerProvider()->getTracer('config-test');
+
+                for ($i = 0; $i < 40; $i++) {
+                    $span = $tracer->spanBuilder('prob-decision')->startSpan();
+                    self::emitSpanContext($span->getContext());
+                    $span->end();
+                }
+            },
+        );
+
+        /*
+         * A ratio of one half maps to the rejection threshold 2**55, encoded
+         * as `th:8` (trailing zeros are stripped). The threshold is written
+         * for every decision, sampled and dropped alike, so that downstream
+         * participants can reproduce the same decision; each decision must
+         * match the comparison of the trace ID's rightmost 56 bits of
+         * randomness with the threshold.
+         */
+        $lines = array_values(array_filter(explode("\n", trim($output))));
+
+        self::assertCount(40, $lines);
+
+        foreach ($lines as $line) {
+            $context = json_decode($line, true, 512, JSON_THROW_ON_ERROR);
+
+            self::assertSame('ot=th:8', $context['tracestate']);
+
+            $randomness = hexdec(substr($context['trace_id'], -14));
+            $sampled = ($context['flags'] & TraceFlags::SAMPLED) !== 0;
+
+            self::assertSame(
+                $randomness >= 0x80000000000000,
+                $sampled,
+                sprintf('Decision for %s does not match the threshold.', $context['trace_id']),
+            );
+        }
+    }
+
+    #[Group('sampler')]
+    public function testComposableProbabilitySamplerWritesThresholdTraceState(): void {
+        $output = $this->runOTelConfig(
+            <<<'YAML'
+            file_format: "1.2"
+
+            tracer_provider:
+              sampler:
+                composite/development:
+                  probability:
+                    ratio: 1.0
+              processors:
+                - batch:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${env:OTEL_EXPORTER_OTLP_TRACES_ENDPOINT}
+            YAML,
+            static function (): void {
+                $span = Globals::tracerProvider()
+                    ->getTracer('config-test')
+                    ->spanBuilder('prob-composable')
+                    ->startSpan();
+
+                self::emitSpanContext($span->getContext());
+                $span->end();
+            },
+        );
+
+        /* The composable form is wrapped in the composite sampler, which
+         * performs the same consistent-probability bookkeeping. */
+        $context = json_decode(trim($output), true, 512, JSON_THROW_ON_ERROR);
+
+        self::assertSame('ot=th:0', $context['tracestate']);
+        self::assertSame(
+            TraceFlags::SAMPLED | TraceFlags::RANDOM,
+            $context['flags'],
+        );
+    }
+
+    #[Group('sampler')]
+    public function testProbabilitySamplerTraceStatePropagatesToChildSpans(): void {
+        $output = $this->runOTelConfig(
+            <<<'YAML'
+            file_format: "1.2"
+
+            tracer_provider:
+              sampler:
+                probability/development:
+                  ratio: 1.0
+              processors:
+                - batch:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${env:OTEL_EXPORTER_OTLP_TRACES_ENDPOINT}
+            YAML,
+            static function (): void {
+                $tracer = Globals::tracerProvider()->getTracer('config-test');
+
+                $root = $tracer->spanBuilder('prob-parent')->startSpan();
+                $child = $tracer
+                    ->spanBuilder('prob-child')
+                    ->setParent($root->storeInContext(Context::getCurrent()))
+                    ->startSpan();
+
+                self::emitSpanContext($root->getContext());
+                self::emitSpanContext($child->getContext());
+
+                $child->end();
+                $root->end();
+            },
+        );
+
+        /*
+         * The threshold (and any explicit randomness value) propagates through
+         * span contexts unmodified, so that child samplers can make the same
+         * decision as their parent.
+         */
+        [$parent, $child] = array_values(array_filter(explode("\n", trim($output))));
+        $parentContext = json_decode($parent, true, 512, JSON_THROW_ON_ERROR);
+        $childContext = json_decode($child, true, 512, JSON_THROW_ON_ERROR);
+
+        self::assertSame('ot=th:0', $parentContext['tracestate']);
+        self::assertSame($parentContext['tracestate'], $childContext['tracestate']);
+        self::assertSame($parentContext['trace_id'], $childContext['trace_id']);
+
+        /* The child ends first, so it is exported first. */
+        self::assertCount(1, $this->traces);
+        self::assertSame(
+            ['prob-child', 'prob-parent'],
+            $this->spanNames($this->traces[0]),
+        );
+    }
+
+    /**
+     * Emits the given span context as a JSON line on stdout, for assertions
+     * in the parent process.
+     */
+    private static function emitSpanContext(object $spanContext): void {
+        fwrite(STDOUT, json_encode([
+            'trace_id' => $spanContext->getTraceId(),
+            'flags' => $spanContext->getTraceFlags(),
+            'tracestate' => $spanContext->getTraceState() === null
+                ? null
+                : (string) $spanContext->getTraceState(),
+        ]) . "\n");
+    }
 }

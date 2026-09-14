@@ -62,7 +62,16 @@ check) and uses the schema's `distribution:` extension point for vendor-specific
 options. The specification's experimental entity propagation (`OTEL_ENTITIES`)
 is implemented as a built-in `env` resource detector (active in env mode,
 selectable under `resource.detection/development` in config-file mode); entities
-are exported with OTLP as references into the resource attributes.
+are exported with OTLP as references into the resource attributes. The
+specification's consistent probability sampling (`ProbabilitySampler`,
+development status) is implemented in both its non-composable form
+(`probability/development`) and its composable form (under
+`composite/development`): the rejection threshold is encoded in the
+OpenTelemetry TraceState `th` sub-key for every decision, sampled and dropped
+alike, and generated trace IDs carry the W3C Trace Context Level 2 random flag;
+the explicit `rv` randomness value is only inserted when a trace ID does not
+carry that flag (which cannot be configured through environment variables or
+the configuration file).
 
 **SDK-specific configuration.** Beyond the spec surface, this SDK exposes
 vendor options: non-spec environment variables (`OTEL_PHP_SHUTDOWN_TIMEOUT`,
@@ -81,9 +90,6 @@ official run.
 - **`OTEL_EXPERIMENTAL_CONFIG_FILE`** — deprecated in the specification; this
   SDK reads its stable replacement, `OTEL_CONFIG_FILE`, instead (used by all
   config-file tests).
-- **Consistent probability sampling tracestate.** The ratio-based samplers do
-  not write the W3C Trace Context Level 2 `th`/`rv` subkeys to the span's
-  tracestate; a sampled root span propagates a bare `traceparent` only.
 - **SDK self-observability metrics.** The OTLP exporters record
   `otel.sdk.exporter.*` instruments, but only against an injected meter
   provider (a no-op by default); no environment variable or configuration
