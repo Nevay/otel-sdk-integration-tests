@@ -136,7 +136,7 @@ destination), and `OTEL_PHP_INTERNAL_METRICS_ENABLED` (SDK self-instrumentation)
       work: a raw C-core client delivers correct gRPC frames to the suite's
       amphp capture server, so no interop problem exists.
 - **Entity propagation (`OTEL_ENTITIES`).** The spec-mandated env entity
-detector is not implemented (upstream PR in progress).
+detector is not implemented; no upstream issue or PR tracks it yet.
 - **Exemplar filter values.** The SDK's known values for
   `OTEL_METRICS_EXEMPLAR_FILTER` are `with_sampled_trace`, `all`, and `none`
   instead of the spec's `trace_based`, `always_on`, and `always_off`; spec
@@ -161,11 +161,12 @@ detector is not implemented (upstream PR in progress).
   (in-development) variables, but no exporter factory is registered for the
   protocol.
 - **Metric export interval.** `OTEL_METRIC_EXPORT_INTERVAL` is declared but
-  not applied; the periodic reader only exports at shutdown. The
-delta-temporality test (`OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE`,
-implemented by this SDK) also depends on periodic exports and fails for the
-same reason: a single shutdown collection cannot distinguish delta from
-cumulative.
+  not applied; the periodic reader only exports at shutdown. Tracked in
+  [open-telemetry/opentelemetry-php#1884](https://github.com/open-telemetry/opentelemetry-php/issues/1884)
+  ("Periodic exporting MetricReader not working"). The delta-temporality test
+  (`OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE`, implemented by this
+  SDK) also depends on periodic exports and fails for the same reason: a
+  single shutdown collection cannot distinguish delta from cumulative.
 - **Default histogram aggregation.** `OTEL_EXPORTER_OTLP_METRICS_DEFAULT_HISTOGRAM_AGGREGATION`
   is declared (default and enum values) but not applied; histograms always use
   explicit bucket aggregation.
