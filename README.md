@@ -67,10 +67,13 @@ are exported with OTLP as references into the resource attributes.
   config-file tests).
 
 **Testability note.** gRPC over plaintext (h2c prior knowledge) cannot be
-tested end-to-end in this environment because no available gRPC server
-implementation interoperates with this SDK's amphp-based HTTP/2 client; the
-suite verifies the plaintext dial itself (the HTTP/2 connection preface on the
-wire) instead.
+tested end-to-end by the suite itself: the amphp HTTP server only speaks
+HTTP/2 over TLS (ALPN) or via the opt-in h2c UPGRADE mechanism, and no other
+gRPC server implementation ships with this environment. The exporter's wire
+format has been verified manually against a reference collector
+(opentelemetry-collector v0.160.0, plaintext h2c and TLS alike); the suite
+verifies the plaintext dial itself (the HTTP/2 connection preface on the wire)
+instead.
 
 ### [`open-telemetry/sdk`](https://github.com/open-telemetry/opentelemetry-php)
 
@@ -99,11 +102,16 @@ that is in scope of the official specification.
       `LogsExporterFactory`). The specification says the gRPC endpoint option
       MUST accept a URL with an `http`/`https` scheme (the usual `host:port`
       form), so standard per-signal configuration aborts SDK initialization.
-    - End-to-end export is blocked by HTTP/2 interop in this environment: the
-      C-core gRPC client (required by `transport-grpc`) and the amphp-based
-      HTTP/2 server used by the suite's capture collector do not
-      interoperate (the request never reaches the server handler; the client
-      reports "Deadline Exceeded").
+    - TLS export fails certificate verification: the signal exporter
+      factories never pass the `OTEL_EXPORTER_OTLP_<signal>_CERTIFICATE`,
+      `_CLIENT_CERTIFICATE`, and `_CLIENT_KEY` values to the gRPC transport
+      factory (which accepts them as optional parameters), so the C-core
+      channel falls back to the default root store and rejects self-signed
+      test certificates (`CERTIFICATE_VERIFY_FAILED: self signed
+      certificate`). This is the same wiring gap as the OTLP/HTTP TLS issue,
+      generalized to gRPC. The HTTP/2 exchange itself has been verified to
+      work: a raw C-core client delivers correct gRPC frames to the suite's
+      amphp capture server, so no interop problem exists.
 - **Entity propagation (`OTEL_ENTITIES`).** The spec-mandated env entity
 detector is not implemented (upstream PR in progress).
 - **Exemplar filter values.** The SDK's known values for

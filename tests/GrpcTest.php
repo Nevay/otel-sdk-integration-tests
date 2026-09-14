@@ -46,10 +46,13 @@ use function Amp\async;
  * Plaintext endpoints (http:// and tls.insecure) use h2c prior knowledge,
  * which no gRPC server in this environment can serve: the amphp HTTP server
  * only speaks HTTP/2 over TLS (ALPN) or via the opt-in h2c UPGRADE
- * mechanism, and a C-core based server (PHP grpc extension) resets streams
- * from the SDK's amphp HTTP/2 client. The plaintext tests therefore verify
- * the dial itself — that the exporter connects in plaintext and speaks the
- * HTTP/2 preface — against a raw TCP listener.
+ * mechanism, and a C-core based server (PHP grpc extension) cannot complete
+ * an HTTP/2 exchange at all in this environment (it resets every connection
+ * right after the preface, regardless of client). The plaintext tests
+ * therefore verify the dial itself — that the exporter connects in plaintext
+ * and speaks the HTTP/2 preface — against a raw TCP listener. End-to-end
+ * plaintext export has been verified manually against a reference collector
+ * (opentelemetry-collector).
  */
 final class GrpcTest extends TestCase {
     use OTelEndpointTrait;
