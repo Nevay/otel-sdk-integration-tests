@@ -150,14 +150,17 @@ final class EnvLogRecordTest extends TestCase {
 
     /*
      * Mirror of EnvBatchSpanProcessorTest::testBspDropsSpansWhenQueueIsFull:
-     * the specification mandates that log records are dropped once the queue
-     * is full, but not how the batch-full export runs. tbachert/otel-sdk
-     * defers it to its event loop, so the queue can fill up while exports are
-     * pending; the official SDK flushes synchronously after every record
-     * (autoFlush hardcoded to true), so in a single-threaded scenario the
-     * queue never fills and the drop path is unobservable there.
+     * log records are dropped once the queue is full, and OnEmit SHOULD NOT
+     * block (SDK spec), so a full batch is exported asynchronously while new
+     * records can still arrive and fill the queue.
+     *
+     * tbachert/otel-sdk defers exports to its event loop, which exhibits
+     * exactly this behavior. The official SDK instead flushes synchronously
+     * after every record (autoFlush hardcoded to true), so in a single-threaded
+     * scenario the queue never fills and all records are exported — a
+     * deviation from the spec's non-blocking requirement that makes the drop
+     * path unobservable there.
      */
-    #[Group('tbachert')]
     public function testBlrpDropsLogRecordsWhenQueueIsFull(): void {
         $this->runOTel(
             static function (): void {

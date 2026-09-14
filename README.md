@@ -161,3 +161,10 @@ detector is not implemented (upstream PR in progress).
   protocol.
 - **Metric export interval.** `OTEL_METRIC_EXPORT_INTERVAL` is declared but
   not applied; the periodic reader only exports at shutdown.
+- **Batch processor queue-full drop.** The batch span and log record
+  processors flush synchronously after every span/record (autoFlush hardcoded
+  to true), so ending a span or emitting a log performs blocking I/O on the
+  calling thread — against the API spec's "MUST NOT perform blocking I/O" for
+  `End()` and the SDK spec's "should not block" for `OnEnd`/`OnEmit`. In a
+  single-threaded scenario the bounded queue therefore never fills, making
+  the spec-mandated queue-full drop behavior unobservable.
