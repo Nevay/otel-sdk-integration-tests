@@ -211,7 +211,7 @@ final class EnvMetricsTest extends TestCase {
      * of tbachert/otel-sdk. The spec-based collection interval behavior is
      * covered by testMetricExportIntervalEnvVarControlsCollectionFrequency.
      */
-    #[Group('vendor-specific')]
+    #[Group('tbachert')]
     public function testMetricsTemporalityPreferenceEnvVarUsesDelta(): void
     {
         $this->runOTel(

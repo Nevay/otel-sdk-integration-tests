@@ -16,15 +16,14 @@
     </testsuites>
 
     <!--
-        Tests tagged vendor-specific pin behavior that is outside the scope of
-        the official OpenTelemetry specification (tbachert/otel-sdk options,
-        non-spec environment variables, or implementation-dependent timing).
-        They are excluded here so that remaining failures reflect spec gaps in
-        the SDK under test.
+        Tests tagged with the other SDK's name only apply to that SDK (vendor
+        options, non-spec environment variables, implementation-dependent
+        behavior) and are excluded here so that remaining failures reflect
+        spec gaps in the SDK under test.
     -->
     <groups>
         <exclude>
-            <group>vendor-specific</group>
+            <group>tbachert</group>
         </exclude>
     </groups>
 </phpunit>

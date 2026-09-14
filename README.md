@@ -36,10 +36,9 @@ passable via `ARGS='--group env'`):
 - configuration mode: `env`, `config-file`
 - signal: `traces`, `metrics`, `logs`
 - `async`: tests whose server handlers use `Amp\delay`
-- `vendor-specific`: tests that pin behavior outside the scope of the official
-  specification (tbachert/otel-sdk options, non-spec environment variables,
-  implementation-dependent timing). The official SDK run excludes this group;
-  the tbachert run includes it.
+- SDK name (`tbachert`, `official`): tests that only apply to that specific
+  SDK (vendor options, non-spec environment variables, implementation-dependent
+  behavior). Each run excludes the other SDK's group.
 
 ## Tested SDKs
 
@@ -80,8 +79,8 @@ instead.
 Exact package versions pinned in `sdks/official/composer.lock`.
 
 **Status.** The env-based suite is green except for the groups below; all
-file-based tests are currently blocked. Tests tagged `vendor-specific`
-(tbachert-only options, non-spec environment variables, implementation-dependent
+file-based tests are currently blocked. Tests tagged `tbachert` (options of
+tbachert/otel-sdk, non-spec environment variables, implementation-dependent
 timing) are excluded from this run, so every remaining failure pins behavior
 that is in scope of the official specification.
 

@@ -164,7 +164,7 @@ final class EnvSdkTest extends TestCase {
      * warning level, initialization errors at error level), which other SDKs
      * may legitimately classify differently.
      */
-    #[Group('vendor-specific')]
+    #[Group('tbachert')]
     public function testLogLevelControlsSdkLogging(): void {
         $failEndpoint = 'OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=' . str_replace(
             '/v1/traces',

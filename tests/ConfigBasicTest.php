@@ -416,7 +416,7 @@ final class ConfigBasicTest extends TestCase {
      * official opentelemetry-configuration data model; it is an experimental
      * processor of tbachert/otel-sdk.
      */
-    #[Group('vendor-specific')]
+    #[Group('tbachert')]
     public function testCaptureCodeAttributesProcessorAddsSourceLocation(): void
     {
         $run = function (string $config): array {

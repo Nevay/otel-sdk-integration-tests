@@ -121,7 +121,7 @@ final class EnvBatchSpanProcessorTest extends TestCase {
      * (autoFlush hardcoded to true), so the queue never fills and the drop
      * path is unobservable there.
      */
-    #[Group('vendor-specific')]
+    #[Group('tbachert')]
     public function testBspDropsSpansWhenQueueIsFull(): void {
         $this->runOTel(
             static function (): void {

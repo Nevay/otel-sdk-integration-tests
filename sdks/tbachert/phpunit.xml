@@ -14,4 +14,15 @@
             <directory>../../tests</directory>
         </testsuite>
     </testsuites>
+
+    <!--
+        Tests tagged with the other SDK's name only apply to that SDK (vendor
+        options, non-spec environment variables, implementation-dependent
+        behavior) and are excluded here.
+    -->
+    <groups>
+        <exclude>
+            <group>official</group>
+        </exclude>
+    </groups>
 </phpunit>
