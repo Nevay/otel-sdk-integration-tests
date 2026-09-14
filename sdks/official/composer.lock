@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "517f08d2283aa936eea6b4b28b163171",
+    "content-hash": "6e3a7280e440e5ee3176eeeab6d323c5",
     "packages": [
         {
             "name": "amphp/amp",
@@ -4640,12 +4640,12 @@
             "time": "2026-05-26T12:45:58+00:00"
         },
         {
-            "name": "tbachert/otel-test-harness",
+            "name": "tbachert/otel-test",
             "version": "dev-main",
             "dist": {
                 "type": "path",
-                "url": "../../tests",
-                "reference": "fdf02749464476957c5cd00cf220dd4d62c0abbb"
+                "url": "../..",
+                "reference": "7e8a35ab114d5eee1631f19ca5361e86cdbd6625"
             },
             "require": {
                 "amphp/amp": "^3.0",
@@ -4671,10 +4671,10 @@
             "type": "library",
             "autoload": {
                 "psr-4": {
-                    "Nevay\\OTelTest\\": "./"
+                    "Nevay\\OTelTest\\": "tests/"
                 }
             },
-            "description": "SDK-agnostic OpenTelemetry SDK configuration test suite",
+            "description": "SDK-agnostic OpenTelemetry SDK configuration compliance suite",
             "transport-options": {
                 "symlink": true,
                 "relative": true
@@ -4867,6 +4867,50 @@
                 }
             ],
             "time": "2025-08-20T19:15:30+00:00"
+        },
+        {
+            "name": "grpc/grpc",
+            "version": "1.82.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/grpc/grpc-php.git",
+                "reference": "be984cb608f21e96453b3cfe54c748cc7b192250"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/grpc/grpc-php/zipball/be984cb608f21e96453b3cfe54c748cc7b192250",
+                "reference": "be984cb608f21e96453b3cfe54c748cc7b192250",
+                "shasum": ""
+            },
+            "require": {
+                "php": ">=7.1.0"
+            },
+            "require-dev": {
+                "google/auth": "^v1.3.0"
+            },
+            "suggest": {
+                "ext-protobuf": "For better performance, install the protobuf C extension.",
+                "google/protobuf": "To get started using grpc quickly, install the native protobuf library."
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Grpc\\": "src/lib/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "Apache-2.0"
+            ],
+            "description": "gRPC library for PHP",
+            "homepage": "https://grpc.io",
+            "keywords": [
+                "rpc"
+            ],
+            "support": {
+                "source": "https://github.com/grpc/grpc-php/tree/v1.82.0"
+            },
+            "time": "2026-07-03T09:39:53+00:00"
         },
         {
             "name": "guzzlehttp/guzzle",
@@ -5597,6 +5641,68 @@
                 "source": "https://github.com/open-telemetry/opentelemetry-php"
             },
             "time": "2026-09-09T22:06:17+00:00"
+        },
+        {
+            "name": "open-telemetry/transport-grpc",
+            "version": "1.2.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/opentelemetry-php/transport-grpc.git",
+                "reference": "c276f1dbb43ca735b8850b19809100b7acd3fd60"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/opentelemetry-php/transport-grpc/zipball/c276f1dbb43ca735b8850b19809100b7acd3fd60",
+                "reference": "c276f1dbb43ca735b8850b19809100b7acd3fd60",
+                "shasum": ""
+            },
+            "require": {
+                "ext-grpc": "*",
+                "grpc/grpc": "*",
+                "open-telemetry/sdk": "^1.0",
+                "php": "^8.1"
+            },
+            "type": "library",
+            "extra": {
+                "branch-alias": {
+                    "dev-main": "1.0.x-dev"
+                }
+            },
+            "autoload": {
+                "files": [
+                    "_register.php"
+                ],
+                "psr-4": {
+                    "OpenTelemetry\\Contrib\\Grpc\\": "."
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "Apache-2.0"
+            ],
+            "authors": [
+                {
+                    "name": "opentelemetry-php contributors",
+                    "homepage": "https://github.com/open-telemetry/opentelemetry-php/graphs/contributors"
+                }
+            ],
+            "description": "gRPC transport for OpenTelemetry PHP.",
+            "keywords": [
+                "contrib",
+                "gRPC",
+                "opentelemetry",
+                "otel",
+                "otlp",
+                "tracing",
+                "transport"
+            ],
+            "support": {
+                "chat": "https://app.slack.com/client/T08PSQ7BQ/C01NFPCV44V",
+                "docs": "https://opentelemetry.io/docs/languages/php",
+                "issues": "https://github.com/open-telemetry/opentelemetry-php/issues",
+                "source": "https://github.com/open-telemetry/opentelemetry-php"
+            },
+            "time": "2025-10-19T06:44:33+00:00"
         },
         {
             "name": "php-http/discovery",

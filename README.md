@@ -18,9 +18,11 @@ failure guard.
 
 ## Running the tests
 
-Each SDK is a separate Composer project under `sdks/`, pulling in the shared
-suite (`tests/`) through a local path repository, so both SDKs can be installed
-side by side:
+The repository root is itself a Composer package (the compliance suite,
+`tbachert/otel-test`). Each SDK is a separate project under `sdks/`, pulling
+in the suite through a local path repository to the repository root, so both
+SDKs can be installed side by side — and external projects can require the
+suite the same way:
 
 ```sh
 make dependencies-install   # or: make dependencies-update
@@ -86,9 +88,20 @@ that is in scope of the official specification.
   `sdk-configuration` package only accepts `file_format: '1.0-rc.2'`, while the
   suite uses data model version 1.2. Expected to be resolved by
   [open-telemetry/opentelemetry-php#2050](https://github.com/open-telemetry/opentelemetry-php/pull/2050).
-- **OTLP/gRPC.** No gRPC transport is registered ("transport factory not
-defined for protocol: grpc"), although `grpc` is a known value of
-  `OTEL_EXPORTER_OTLP_PROTOCOL`.
+- **OTLP/gRPC.** A gRPC transport is available via
+  [`open-telemetry/transport-grpc`](https://packagist.org/packages/open-telemetry/transport-grpc)
+  (installed in `sdks/official`), but the tests still fail for two reasons:
+    - Per-signal endpoints (`OTEL_EXPORTER_OTLP_<signal>_ENDPOINT`) are passed
+      to the transport factory as-is, while the factory requires a full gRPC
+      method path; only the generic `OTEL_EXPORTER_OTLP_ENDPOINT` gets the
+      method appended. The specification says the gRPC endpoint option MUST
+      accept a URL with an `http`/`https` scheme (the usual `host:port` form),
+      so standard per-signal configuration aborts SDK initialization.
+    - End-to-end export is blocked by HTTP/2 interop in this environment: the
+      C-core gRPC client (required by `transport-grpc`) and the amphp-based
+      HTTP/2 server used by the suite's capture collector do not
+      interoperate (the request never reaches the server handler; the client
+      reports "Deadline Exceeded").
 - **Entity propagation (`OTEL_ENTITIES`).** The spec-mandated env entity
 detector is not implemented (upstream PR in progress).
 - **Exemplar filter values.** The SDK's known values for

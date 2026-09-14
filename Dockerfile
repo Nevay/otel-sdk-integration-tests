@@ -5,6 +5,7 @@ RUN --mount=from=mlocati/php-extension-installer,dst=/build/extension-installer,
     /build/extension-installer \
       ffi \
       gmp \
+      grpc \
       inotify \
       opcache \
       opentelemetry \
