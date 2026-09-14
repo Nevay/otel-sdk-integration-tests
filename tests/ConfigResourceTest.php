@@ -418,6 +418,54 @@ final class ConfigResourceTest extends TestCase {
     }
 
     #[Group('resource')]
+    public function testResourceDetectorExclusionTakesPrecedenceOverInclusion(): void {
+        $this->runOTelConfig(
+            <<<'YAML'
+            file_format: "1.2"
+
+            resource:
+              detection/development:
+                attributes:
+                  included:
+                    - process.*
+                  excluded:
+                    - process.pid
+                detectors:
+                  - process:
+
+            tracer_provider:
+              processors:
+                - batch:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${env:OTEL_EXPORTER_OTLP_TRACES_ENDPOINT}
+            YAML,
+            static function (): void {
+                $span = Globals::tracerProvider()
+                    ->getTracer('test')
+                    ->spanBuilder('detector-filter-precedence')
+                    ->startSpan();
+
+                $span->end();
+            },
+        );
+
+        self::assertNotEmpty($this->traces);
+
+        /*
+         * Per the data model, excluded patterns apply after included ones,
+         * i.e. exclusion has higher priority than inclusion.
+         */
+        $keys = $this->path(
+            $this->traces[0],
+            '$.resourceSpans[*].resource.attributes[*].key',
+        );
+
+        self::assertContains('process.runtime.name', $keys);
+        self::assertNotContains('process.pid', $keys);
+    }
+
+    #[Group('resource')]
     public function testContainerDetectorReportsContainerId(): void {
         /*
          * The suite runs inside a Docker container, so the container
