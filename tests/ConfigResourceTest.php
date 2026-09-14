@@ -458,6 +458,180 @@ final class ConfigResourceTest extends TestCase {
     }
 
     #[Group('resource')]
+    public function testHostDetectorPopulatesHostAndOsAttributes(): void {
+        $this->runOTelConfig(
+            <<<'YAML'
+            file_format: "1.2"
+
+            resource:
+              detection/development:
+                detectors:
+                  - host:
+
+            tracer_provider:
+              processors:
+                - batch:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${env:OTEL_EXPORTER_OTLP_TRACES_ENDPOINT}
+            YAML,
+            static function (): void {
+                $span = Globals::tracerProvider()
+                    ->getTracer('test')
+                    ->spanBuilder('detector-host')
+                    ->startSpan();
+
+                $span->end();
+            },
+        );
+
+        self::assertNotEmpty($this->traces);
+
+        /*
+         * The host detector populates host.* and os.* attributes; detectors
+         * that are not listed do not run.
+         */
+        $keys = $this->path(
+            $this->traces[0],
+            '$.resourceSpans[*].resource.attributes[*].key',
+        );
+
+        self::assertContains('host.id', $keys);
+        self::assertContains('os.type', $keys);
+        self::assertNotContains('process.pid', $keys);
+    }
+
+    #[Group('resource')]
+    public function testServiceDetectorReadsServiceNameFromEnvironmentVariable(): void {
+        $this->runOTelConfig(
+            <<<'YAML'
+            file_format: "1.2"
+
+            resource:
+              detection/development:
+                detectors:
+                  - service:
+
+            tracer_provider:
+              processors:
+                - batch:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${env:OTEL_EXPORTER_OTLP_TRACES_ENDPOINT}
+            YAML,
+            static function (): void {
+                $span = Globals::tracerProvider()
+                    ->getTracer('test')
+                    ->spanBuilder('detector-service')
+                    ->startSpan();
+
+                $span->end();
+            },
+            'OTEL_SERVICE_NAME=config-detected-service',
+        );
+
+        self::assertNotEmpty($this->traces);
+
+        /*
+         * The service detector populates service.name from the environment
+         * variable and a unique service.instance.id.
+         */
+        $payload = $this->traces[0];
+
+        self::assertSame('config-detected-service', $this->resourceAttribute($payload, 'service.name'));
+        self::assertNotEmpty($this->resourceAttribute($payload, 'service.instance.id'));
+    }
+
+    #[Group('resource')]
+    public function testResourceDetectionIsDisabledWithoutDetectionNode(): void {
+        $this->runOTelConfig(
+            <<<'YAML'
+            file_format: "1.2"
+
+            resource:
+              attributes:
+                - name: custom.attribute
+                  value: value
+
+            tracer_provider:
+              processors:
+                - batch:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${env:OTEL_EXPORTER_OTLP_TRACES_ENDPOINT}
+            YAML,
+            static function (): void {
+                $span = Globals::tracerProvider()
+                    ->getTracer('test')
+                    ->spanBuilder('detector-disabled')
+                    ->startSpan();
+
+                $span->end();
+            },
+        );
+
+        self::assertNotEmpty($this->traces);
+
+        /*
+         * Per the data model, omitting the detection node disables resource
+         * detection: only explicitly configured attributes (plus the SDK's
+         * own defaults) are present.
+         */
+        $keys = $this->path(
+            $this->traces[0],
+            '$.resourceSpans[*].resource.attributes[*].key',
+        );
+
+        self::assertContains('custom.attribute', $keys);
+        self::assertNotContains('host.id', $keys);
+        self::assertNotContains('process.pid', $keys);
+    }
+
+    #[Group('resource')]
+    public function testMultipleResourceDetectorsAreCombined(): void {
+        $this->runOTelConfig(
+            <<<'YAML'
+            file_format: "1.2"
+
+            resource:
+              detection/development:
+                detectors:
+                  - host:
+                  - process:
+
+            tracer_provider:
+              processors:
+                - batch:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${env:OTEL_EXPORTER_OTLP_TRACES_ENDPOINT}
+            YAML,
+            static function (): void {
+                $span = Globals::tracerProvider()
+                    ->getTracer('test')
+                    ->spanBuilder('detector-multi')
+                    ->startSpan();
+
+                $span->end();
+            },
+        );
+
+        self::assertNotEmpty($this->traces);
+
+        /*
+         * All listed detectors run and their attributes are merged into the
+         * resource.
+         */
+        $keys = $this->path(
+            $this->traces[0],
+            '$.resourceSpans[*].resource.attributes[*].key',
+        );
+
+        self::assertContains('host.id', $keys);
+        self::assertContains('process.pid', $keys);
+    }
+
+    #[Group('resource')]
     public function testEnvDetectorParsesEntitiesFromEnvironmentVariable(): void {
         $this->runOTelConfig(
             <<<'YAML'
