@@ -66,13 +66,13 @@ are exported with OTLP as references into the resource attributes. The
 specification's consistent probability sampling (`ProbabilitySampler`,
 development status) is implemented in both its non-composable form
 (`probability/development`) and its composable form (under
-`composite/development`): the rejection threshold is encoded in the
-OpenTelemetry TraceState `th` sub-key for every decision, sampled and dropped
-alike, and generated trace IDs carry the W3C Trace Context Level 2 random flag;
-a propagated explicit `rv` randomness value takes precedence over the trace
-ID's own bits as the source of randomness and is preserved unmodified; a new
-one is only inserted when a trace ID does not carry that flag (which cannot
-be configured through environment variables or the configuration file).
+`composite/development`); the spec-mandated `th`/`rv` TraceState semantics are
+pinned by tests rather than documented here. Two implementation details go
+beyond the spec's wording: the rejection threshold is written to the TraceState
+`th` sub-key even for dropped decisions, and root spans whose trace IDs lack
+the random flag get a generated explicit `rv` value (a spec-optional behavior)
+— a path that cannot be triggered through environment variables or the
+configuration file.
 `OTEL_LOG_LEVEL` is applied to the SDK's internal logger: at `debug`,
 diagnostic messages appear on stderr; at `error`, even warnings (e.g. for an
 unrecognized `OTEL_TRACES_SAMPLER` value, which is logged and ignored in
