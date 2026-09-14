@@ -65,7 +65,6 @@ are exported with OTLP as references into the resource attributes.
 
 **SDK-specific configuration.** Beyond the spec surface, this SDK exposes
 vendor options: non-spec environment variables (`OTEL_PHP_SHUTDOWN_TIMEOUT`,
-`OTEL_PHP_FIBERS_ENABLED`,
 `OTEL_PHP_EXPERIMENTAL_SPAN_SUPPRESSION_STRATEGY`), a config-file processor
 node that is not part of the official data model
 (`capture_code_attributes/development`), and vendor options under the schema's
