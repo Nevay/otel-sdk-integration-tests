@@ -73,6 +73,10 @@ a propagated explicit `rv` randomness value takes precedence over the trace
 ID's own bits as the source of randomness and is preserved unmodified; a new
 one is only inserted when a trace ID does not carry that flag (which cannot
 be configured through environment variables or the configuration file).
+`OTEL_LOG_LEVEL` is applied to the SDK's internal logger: at `debug`,
+diagnostic messages appear on stderr; at `error`, even warnings (e.g. for an
+unrecognized `OTEL_TRACES_SAMPLER` value, which is logged and ignored in
+favour of the default sampler) are suppressed.
 
 **SDK-specific configuration.** Beyond the spec surface, this SDK exposes
 vendor options: non-spec environment variables (`OTEL_PHP_SHUTDOWN_TIMEOUT`,
@@ -126,7 +130,9 @@ PHP-specific environment variables: `OTEL_PHP_TRACES_PROCESSOR` /
 (resource detector selection), `OTEL_PHP_LOG_DESTINATION` (self-diagnostic log
 destination), and `OTEL_PHP_INTERNAL_METRICS_ENABLED` (SDK self-instrumentation).
 `OfficialSpecificTest` covers these; the tests are tagged with the group
-`official` and are excluded from the tbachert run.
+`official` and are excluded from the tbachert run. The spec variable
+`OTEL_LOG_LEVEL` is declared (with its known values) but not applied to the
+SDK's log output.
 
 **Currently failing groups:**
 
