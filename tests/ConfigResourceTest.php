@@ -631,7 +631,7 @@ final class ConfigResourceTest extends TestCase {
         self::assertContains('process.pid', $keys);
     }
 
-    #[Group('resource')]
+    #[Group('resource'), Group('entities')]
     public function testEnvDetectorParsesEntitiesFromEnvironmentVariable(): void {
         $this->runOTelConfig(
             <<<'YAML'

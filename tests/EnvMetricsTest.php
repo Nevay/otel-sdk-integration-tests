@@ -17,6 +17,7 @@ final class EnvMetricsTest extends TestCase {
      * =========================================================================
      */
 
+    #[Group('prometheus')]
     public function testPrometheusExporterServesMetricsOnConfiguredPort(): void {
         $port = 39464;
 

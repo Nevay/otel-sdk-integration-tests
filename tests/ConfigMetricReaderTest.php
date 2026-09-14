@@ -134,6 +134,7 @@ final class ConfigMetricReaderTest extends TestCase {
         self::assertArrayNotHasKey('spanId', $exemplars[0]);
     }
 
+    #[Group('prometheus')]
     public function testPrometheusReaderServesMetricsOnConfiguredPort(): void {
         $port = 39465;
 
@@ -183,6 +184,7 @@ final class ConfigMetricReaderTest extends TestCase {
         self::assertSame([], $this->metrics);
     }
 
+    #[Group('prometheus')]
     public function testPrometheusReaderInfoMetricsCanBeDisabled(): void {
         $port = 39467;
 
@@ -238,7 +240,7 @@ final class ConfigMetricReaderTest extends TestCase {
         self::assertSame([], $this->metrics);
     }
 
-    #[Group('metrics')]
+    #[Group('metrics'), Group('prometheus')]
     public function testPrometheusResourceConstantLabelsAreIncluded(): void {
         $port = 39468;
 
@@ -285,7 +287,7 @@ final class ConfigMetricReaderTest extends TestCase {
         );
     }
 
-    #[Group('metrics')]
+    #[Group('metrics'), Group('prometheus')]
     public function testPrometheusTranslationStrategyWithoutSuffixes(): void {
         $port = 39469;
 

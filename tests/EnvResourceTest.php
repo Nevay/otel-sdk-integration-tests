@@ -259,7 +259,7 @@ final class EnvResourceTest extends TestCase {
      * =========================================================================
      */
 
-    #[Group('resource')]
+    #[Group('resource'), Group('entities')]
     public function testEntitiesFromEnvironmentVariable(): void {
         $this->runOTel(
             static function (): void {
@@ -299,7 +299,7 @@ final class EnvResourceTest extends TestCase {
         self::assertSame(['custom.desc'], $refs[0]['descriptionKeys']);
     }
 
-    #[Group('resource')]
+    #[Group('resource'), Group('entities')]
     public function testEntityDuplicateUsesLastOccurrence(): void {
         $this->runOTel(
             static function (): void {
@@ -331,7 +331,7 @@ final class EnvResourceTest extends TestCase {
         self::assertCount(1, $refs);
     }
 
-    #[Group('resource')]
+    #[Group('resource'), Group('entities')]
     public function testEntityConflictingIdentityPreservesOnlyLast(): void {
         $this->runOTel(
             static function (): void {
@@ -363,7 +363,7 @@ final class EnvResourceTest extends TestCase {
         self::assertCount(1, $refs);
     }
 
-    #[Group('resource')]
+    #[Group('resource'), Group('entities')]
     public function testEntityMalformedDefinitionIsSkipped(): void {
         $this->runOTel(
             static function (): void {
@@ -395,7 +395,7 @@ final class EnvResourceTest extends TestCase {
         self::assertCount(1, $refs);
     }
 
-    #[Group('resource')]
+    #[Group('resource'), Group('entities')]
     public function testEntityWithoutSchemaUrlIsExported(): void {
         $this->runOTel(
             static function (): void {
@@ -430,7 +430,7 @@ final class EnvResourceTest extends TestCase {
         self::assertArrayNotHasKey('schemaUrl', $refs[0]);
     }
 
-    #[Group('resource')]
+    #[Group('resource'), Group('entities')]
     public function testEntityInvalidSchemaUrlIsIgnored(): void {
         $this->runOTel(
             static function (): void {
@@ -463,7 +463,7 @@ final class EnvResourceTest extends TestCase {
         self::assertArrayNotHasKey('schemaUrl', $refs[0]);
     }
 
-    #[Group('resource')]
+    #[Group('resource'), Group('entities')]
     public function testEntityAttributeValuesArePercentDecoded(): void {
         $this->runOTel(
             static function (): void {

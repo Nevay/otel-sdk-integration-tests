@@ -43,6 +43,7 @@ passable via `ARGS='--group env'`):
 - configuration mode: `env`, `config-file`
 - signal: `traces`, `metrics`, `logs`
 - `async`: tests whose server handlers use `Amp\delay`
+- feature: `prometheus` (pull exporter), `entities` (`OTEL_ENTITIES`)
 - SDK name (`tbachert`, `official`): tests that only apply to that specific
   SDK (vendor options, non-spec environment variables, implementation-dependent
   behavior). Each run excludes the other SDK's group.
