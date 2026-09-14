@@ -23,6 +23,7 @@ use Opentelemetry\Proto\Collector\Metrics\V1\ExportMetricsServiceResponse;
 use Opentelemetry\Proto\Collector\Trace\V1\ExportTraceServiceRequest;
 use Opentelemetry\Proto\Collector\Trace\V1\ExportTraceServiceResponse;
 use Psr\Log\NullLogger;
+use RuntimeException;
 use Symfony\Component\Filesystem\Path;
 use function Amp\ByteStream\buffer;
 use function Amp\ByteStream\getStderr;
