@@ -89,6 +89,8 @@ final class GrpcTest extends TestCase {
         $router = new Router($server, new NullLogger(), new DefaultErrorHandler());
 
         $router->addRoute('POST', 'opentelemetry.proto.collector.trace.v1.TraceService/Export', new ClosureRequestHandler(function (Request $request) use ($grpcStatus): Response {
+            $this->requestHeaders[] = $request->getHeaders();
+
             return self::captureGrpcBody(
                 $request,
                 $this->traces[],
@@ -221,6 +223,32 @@ final class GrpcTest extends TestCase {
             ['grpc-config-span'],
             $this->spanNames($this->traces[0]),
         );
+    }
+
+    #[Group('env'), Group('traces')]
+    public function testEnvGrpcProtocolSendsConfiguredHeadersAsMetadata(): void {
+        /*
+         * The OTLP exporter spec applies the configured headers to every
+         * export request; in gRPC mode they travel as metadata on the RPC.
+         */
+        $this->runOTel(
+            static function (): void {
+                Globals::tracerProvider()->getTracer('grpc-test')
+                    ->spanBuilder('grpc-headers')
+                    ->startSpan()
+                    ->end();
+            },
+            'OTEL_EXPORTER_OTLP_TRACES_PROTOCOL=grpc',
+            'OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=' . $this->grpcBaseUrl,
+            'OTEL_EXPORTER_OTLP_TRACES_CERTIFICATE=' . self::CERT,
+            'OTEL_EXPORTER_OTLP_TRACES_HEADERS=x-probe-header=probe-value,auth=grpc-token',
+        );
+
+        self::assertCount(1, $this->traces);
+
+        $headers = array_change_key_case($this->requestHeaders[0] ?? []);
+        self::assertSame(['probe-value'], $headers['x-probe-header'] ?? null);
+        self::assertSame(['grpc-token'], $headers['auth'] ?? null);
     }
 
     #[Group('env'), Group('traces')]
