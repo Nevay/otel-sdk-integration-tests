@@ -9,6 +9,7 @@ SDKS = tbachert official
 
 php:
 	$(PHP) sh
+# The container's PHP version can be overridden, e.g. `PHP_VERSION=8.4 make build`.
 build:
 	$(COMPOSE) build
 

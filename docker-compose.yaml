@@ -1,6 +1,9 @@
 services:
   php:
-    build: .
+    build:
+      context: .
+      args:
+        PHP_VERSION: ${PHP_VERSION:-8.5}
     working_dir: /php
     user: ${UID:-root}:${GID:-root}
     tty: true

@@ -1,4 +1,5 @@
-FROM php:8.5-alpine
+ARG PHP_VERSION=8.5
+FROM php:${PHP_VERSION}-alpine
 
 RUN --mount=from=mlocati/php-extension-installer,dst=/build/extension-installer,src=/usr/bin/install-php-extensions \
     set -eux; \

@@ -30,6 +30,13 @@ make test SDK=tbachert      # run the suite against tbachert/otel-sdk
 make test SDK=official      # run the suite against open-telemetry/sdk
 ```
 
+The test container runs on PHP 8.5 by default; the version can be overridden
+at build time (minimum supported: 8.4):
+
+```sh
+PHP_VERSION=8.4 make build
+```
+
 Tests can be selected with PHPUnit groups (`--group` / `--exclude-group`,
 passable via `ARGS='--group env'`):
 
