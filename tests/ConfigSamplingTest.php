@@ -1017,6 +1017,187 @@ final class ConfigSamplingTest extends TestCase {
         self::assertCount(1, $this->traces);
     }
 
+    #[Group('sampler')]
+    public function testParentThresholdSamplerInheritsRemoteParentThreshold(): void {
+        $output = $this->runOTelConfig(
+            <<<'YAML'
+            file_format: "1.2"
+
+            tracer_provider:
+              sampler:
+                composite/development:
+                  parent_threshold:
+                    root:
+                      probability:
+                        ratio: 0.5
+              processors:
+                - batch:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${env:OTEL_EXPORTER_OTLP_TRACES_ENDPOINT}
+            YAML,
+            static function (): void {
+                $tracer = Globals::tracerProvider()->getTracer('config-test');
+
+                /*
+                 * A consistent sampled remote parent: its threshold (0xc0...)
+                 * is satisfied by the trace ID's rightmost 56 bits (0xd0...),
+                 * so the child follows the parent and inherits its threshold
+                 * instead of the local sampler's.
+                 */
+                $above = SpanContext::createFromRemoteParent(
+                    '4193e569320548f7b7d0a8f5e4d3c2b1',
+                    '6e0c63258deeeff4',
+                    TraceFlags::SAMPLED | TraceFlags::RANDOM,
+                    (new TraceState())->with('ot', 'th:c'),
+                );
+
+                $child = $tracer
+                    ->spanBuilder('pt-above')
+                    ->setParent(Context::getCurrent()->withContextValue(Span::wrap($above)))
+                    ->startSpan();
+
+                self::emitSpanContext($child->getContext());
+                $child->end();
+
+                /*
+                 * An inconsistent parent: sampled, but with a threshold that
+                 * its own trace ID could not have satisfied (0xc0... >
+                 * 0xa0...). The threshold must be ignored and the decision
+                 * fall back to the parent's sampled flag.
+                 */
+                $mismatch = SpanContext::createFromRemoteParent(
+                    '4193e569320548f7b7a0a8f5e4d3c2b1',
+                    '6e0c63258deeeff4',
+                    TraceFlags::SAMPLED | TraceFlags::RANDOM,
+                    (new TraceState())->with('ot', 'th:c'),
+                );
+
+                $child = $tracer
+                    ->spanBuilder('pt-mismatch')
+                    ->setParent(Context::getCurrent()->withContextValue(Span::wrap($mismatch)))
+                    ->startSpan();
+
+                self::emitSpanContext($child->getContext());
+                $child->end();
+
+                /* A dropped remote parent without a threshold: dropped. */
+                $dropped = SpanContext::createFromRemoteParent(
+                    '4193e569320548f7b7d0a8f5e4d3c2b1',
+                    '6e0c63258deeeff4',
+                );
+
+                $child = $tracer
+                    ->spanBuilder('pt-parent-dropped')
+                    ->setParent(Context::getCurrent()->withContextValue(Span::wrap($dropped)))
+                    ->startSpan();
+
+                self::emitSpanContext($child->getContext());
+                $child->end();
+            },
+        );
+
+        [$aboveLine, $mismatchLine, $droppedLine] = array_values(array_filter(explode("\n", trim($output))));
+        $aboveContext = json_decode($aboveLine, true, 512, JSON_THROW_ON_ERROR);
+        $mismatchContext = json_decode($mismatchLine, true, 512, JSON_THROW_ON_ERROR);
+        $droppedContext = json_decode($droppedLine, true, 512, JSON_THROW_ON_ERROR);
+
+        /*
+         * The consistent parent's threshold is inherited verbatim - the
+         * child carries th:c, not the th:8 of the local probability sampler.
+         */
+        self::assertSame(TraceFlags::SAMPLED, $aboveContext['flags'] & TraceFlags::SAMPLED);
+        self::assertSame('th:c', $aboveContext['ot']);
+
+        /*
+         * The inconsistent parent's threshold is ignored and removed; the
+         * child is still sampled because the parent was.
+         */
+        self::assertSame(TraceFlags::SAMPLED, $mismatchContext['flags'] & TraceFlags::SAMPLED);
+        self::assertNull($mismatchContext['ot']);
+        self::assertStringContainsString(
+            'Mismatch between sampling threshold and sampled flag detected',
+            $this->lastStderr,
+        );
+
+        /* The child of the dropped parent is dropped. */
+        self::assertSame(0, $droppedContext['flags'] & TraceFlags::SAMPLED);
+
+        self::assertCount(1, $this->traces);
+        self::assertSame(
+            ['pt-above', 'pt-mismatch'],
+            $this->spanNames($this->traces[0]),
+        );
+    }
+
+    #[Group('sampler')]
+    public function testProbabilitySamplerIgnoresInvalidExplicitRandomness(): void {
+        $output = $this->runOTelConfig(
+            <<<'YAML'
+            file_format: "1.2"
+
+            tracer_provider:
+              sampler:
+                probability/development:
+                  ratio: 0.5
+              processors:
+                - batch:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${env:OTEL_EXPORTER_OTLP_TRACES_ENDPOINT}
+            YAML,
+            static function (): void {
+                /*
+                 * A remote parent with an invalid randomness value (16 hex
+                 * digits instead of exactly 14) whose trace ID's rightmost
+                 * 56 bits are above the threshold: the invalid value must be
+                 * ignored and the decision made from the trace ID.
+                 */
+                $remoteParent = SpanContext::createFromRemoteParent(
+                    '4193e569320548f7b7d0a8f5e4d3c2b1',
+                    '6e0c63258deeeff4',
+                    TraceFlags::SAMPLED | TraceFlags::RANDOM,
+                    (new TraceState())->with('ot', 'rv:0123456789abcdef'),
+                );
+
+                $child = Globals::tracerProvider()
+                    ->getTracer('config-test')
+                    ->spanBuilder('invalid-rv')
+                    ->setParent(Context::getCurrent()->withContextValue(Span::wrap($remoteParent)))
+                    ->startSpan();
+
+                self::emitSpanContext($child->getContext());
+                $child->end();
+            },
+        );
+
+        /*
+         * Had the invalid value (0x0123...) been used as randomness, the span
+         * would have been dropped; it was sampled from the trace ID's own
+         * bits instead, with the threshold alongside.
+         */
+        $context = json_decode(trim($output), true, 512, JSON_THROW_ON_ERROR);
+
+        self::assertSame(TraceFlags::SAMPLED, $context['flags'] & TraceFlags::SAMPLED);
+
+        $entries = array_flip(explode(';', (string) $context['ot']));
+
+        self::assertArrayHasKey('th:8', $entries);
+
+        /* The unrecognized value is passed through unmodified. */
+        self::assertArrayHasKey('rv:0123456789abcdef', $entries);
+        self::assertStringContainsString(
+            'Invalid TraceState.ot rv value',
+            $this->lastStderr,
+        );
+
+        self::assertCount(1, $this->traces);
+        self::assertSame(
+            ['invalid-rv'],
+            $this->spanNames($this->traces[0]),
+        );
+    }
+
     /**
      * Emits the given span context as a JSON line on stdout, for assertions
      * in the parent process.
