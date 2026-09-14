@@ -646,10 +646,10 @@ final class ConfigSamplingTest extends TestCase {
         /*
          * A ratio of one half maps to the rejection threshold 2**55, encoded
          * as `th:8` (trailing zeros are stripped). The threshold is written
-         * for every decision, sampled and dropped alike, so that downstream
-         * participants can reproduce the same decision; each decision must
-         * match the comparison of the trace ID's rightmost 56 bits of
-         * randomness with the threshold.
+         * for sampled decisions only — dropped spans carry no ot entry — so
+         * that downstream participants can reproduce the same decision; each
+         * decision must match the comparison of the trace ID's rightmost 56
+         * bits of randomness with the threshold.
          */
         $lines = array_values(array_filter(explode("\n", trim($output))));
 
@@ -657,8 +657,6 @@ final class ConfigSamplingTest extends TestCase {
 
         foreach ($lines as $line) {
             $context = json_decode($line, true, 512, JSON_THROW_ON_ERROR);
-
-            self::assertSame('ot=th:8', $context['tracestate']);
 
             $randomness = hexdec(substr($context['trace_id'], -14));
             $sampled = ($context['flags'] & TraceFlags::SAMPLED) !== 0;
@@ -668,6 +666,9 @@ final class ConfigSamplingTest extends TestCase {
                 $sampled,
                 sprintf('Decision for %s does not match the threshold.', $context['trace_id']),
             );
+
+            /* The threshold accompanies sampled decisions only. */
+            self::assertSame($sampled ? 'th:8' : null, $context['ot']);
         }
     }
 
@@ -892,7 +893,9 @@ final class ConfigSamplingTest extends TestCase {
          * ID's own bits: the span whose randomness is above the threshold is
          * sampled despite its trace ID, and the one below it is dropped
          * despite its trace ID. The randomness values are preserved in both
-         * outcomes, with the threshold alongside.
+         * outcomes (MUST NOT be modified); the threshold accompanies the
+         * sampled decision only, as the spec's CompositeSampler section
+         * requires removing `th` for negative decisions.
          */
         [$keptLine, $droppedLine] = array_values(array_filter(explode("\n", trim($output))));
         $keptContext = json_decode($keptLine, true, 512, JSON_THROW_ON_ERROR);
@@ -909,10 +912,11 @@ final class ConfigSamplingTest extends TestCase {
         self::assertSame('f7e6d5c4b3a29180a8f5e4d3c2b1a098', $droppedContext['trace_id']);
         self::assertSame(0, $droppedContext['flags'] & TraceFlags::SAMPLED);
 
-        $entries = array_flip(explode(';', (string) $droppedContext['ot']));
-
-        self::assertArrayHasKey('rv:0123456789abcd', $entries);
-        self::assertArrayHasKey('th:8', $entries);
+        /*
+         * Negative decision: the randomness value is preserved and no
+         * threshold may be written, so the ot entry stays as received.
+         */
+        self::assertSame('rv:0123456789abcd', $droppedContext['ot']);
 
         self::assertCount(1, $this->traces);
         self::assertSame(
@@ -1008,10 +1012,11 @@ final class ConfigSamplingTest extends TestCase {
 
         self::assertSame(0, $context['flags'] & TraceFlags::SAMPLED);
 
-        $entries = array_flip(explode(';', (string) $context['ot']));
-
-        self::assertArrayHasKey('rv:a0000000000000', $entries);
-        self::assertArrayHasKey('th:c', $entries);
+        /*
+         * Negative decision: the randomness value is preserved and no
+         * threshold may be written, so the ot entry stays as received.
+         */
+        self::assertSame('rv:a0000000000000', $context['ot']);
 
         /* The stricter participant exported nothing. */
         self::assertCount(1, $this->traces);

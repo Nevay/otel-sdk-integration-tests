@@ -57,11 +57,10 @@ Exact package versions pinned in `sdks/tbachert/composer.lock`.
 **Scope.** All stable environment variables from the specification's SDK
 configuration section, plus file-based configuration using the official
 [opentelemetry-configuration](https://github.com/open-telemetry/opentelemetry-configuration)
-data model (schema versions 1.0 through 1.2). Two implementation details go
-beyond the spec's wording: the rejection threshold is written to the TraceState
-`th` sub-key even for dropped decisions, and root spans whose trace IDs lack
-the random flag get a generated explicit `rv` value — a path that cannot be
-triggered through configuration.
+data model (schema versions 1.0 through 1.2). One implementation detail goes
+beyond the spec's wording: root spans whose trace IDs lack the random flag get a
+generated explicit `rv` value — a path that cannot be triggered through
+configuration.
 `OTEL_LOG_LEVEL` is applied to the SDK's internal logger: at `debug`,
 diagnostic messages appear on stderr; at `error`, even warnings (e.g. for an
 unrecognized `OTEL_TRACES_SAMPLER` value, which is logged and ignored in
