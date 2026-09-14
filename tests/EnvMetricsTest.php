@@ -86,7 +86,13 @@ final class EnvMetricsTest extends TestCase {
         );
     }
 
-    public function testMetricExportTimeout(): void {
+    #[Group('tbachert'), Group('async')]
+    public function testMetricExportTimeoutEnvVarDropsExportWhenCollectorIsSlow(): void {
+        /*
+         * The retry backoff after a timed-out export would otherwise keep
+         * the process alive for tens of seconds; bound the shutdown with the
+         * vendor-specific timeout so the test stays fast.
+         */
         $this->runOTel(
             static function (): void {
                 Globals::meterProvider()
@@ -95,9 +101,61 @@ final class EnvMetricsTest extends TestCase {
                     ->add(1);
             },
             'OTEL_METRIC_EXPORT_TIMEOUT=100',
+            'OTEL_EXPORTER_OTLP_METRICS_ENDPOINT=' . str_replace(
+                '/v1/metrics',
+                '/v1/slow',
+                $this->env['OTEL_EXPORTER_OTLP_METRICS_ENDPOINT'],
+            ),
+            'OTEL_PHP_SHUTDOWN_TIMEOUT=1000',
         );
 
-        self::assertIsArray($this->metrics);
+        /*
+         * The export was attempted... the slow route delays its response
+         * beyond the 100 ms export timeout...
+         */
+        self::assertGreaterThanOrEqual(1, $this->slowRequests);
+
+        /*
+         * ...so the data point was never delivered.
+         */
+        self::assertSame([], $this->metrics);
+    }
+
+    public function testInvalidExemplarFilterFallsBackToTraceBased(): void {
+        $this->runOTel(
+            static function (): void {
+                $tracer = Globals::tracerProvider()->getTracer('test');
+
+                $span = $tracer
+                    ->spanBuilder('exemplar-invalid-filter')
+                    ->startSpan();
+
+                $scope = $span->activate();
+
+                Globals::meterProvider()
+                    ->getMeter('test')
+                    ->createCounter('invalid-filter.counter')
+                    ->add(1);
+
+                $scope->detach();
+                $span->end();
+            },
+            'OTEL_METRICS_EXEMPLAR_FILTER=bogus-value',
+        );
+
+        self::assertNotEmpty($this->metrics);
+
+        /*
+         * An unknown filter value must not break startup; per the common
+         * configuration guidance it is ignored and the default (trace_based)
+         * applies: the measurement inside a sampled span becomes an exemplar.
+         */
+        $exemplars = $this->path(
+            $this->metrics[0],
+            '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "invalid-filter.counter")]..exemplars[*]',
+        );
+
+        self::assertCount(1, $exemplars);
     }
 
     public function testMetricsExemplarFilterAlwaysOff(): void {
