@@ -94,9 +94,11 @@ that is in scope of the official specification.
     - Per-signal endpoints (`OTEL_EXPORTER_OTLP_<signal>_ENDPOINT`) are passed
       to the transport factory as-is, while the factory requires a full gRPC
       method path; only the generic `OTEL_EXPORTER_OTLP_ENDPOINT` gets the
-      method appended. The specification says the gRPC endpoint option MUST
-      accept a URL with an `http`/`https` scheme (the usual `host:port` form),
-      so standard per-signal configuration aborts SDK initialization.
+      method appended. The as-is behavior is shared by all three signal
+      exporter factories (`SpanExporterFactory`, `MetricExporterFactory`,
+      `LogsExporterFactory`). The specification says the gRPC endpoint option
+      MUST accept a URL with an `http`/`https` scheme (the usual `host:port`
+      form), so standard per-signal configuration aborts SDK initialization.
     - End-to-end export is blocked by HTTP/2 interop in this environment: the
       C-core gRPC client (required by `transport-grpc`) and the amphp-based
       HTTP/2 server used by the suite's capture collector do not
@@ -107,17 +109,22 @@ detector is not implemented (upstream PR in progress).
 - **Exemplar filter values.** The SDK's known values for
   `OTEL_METRICS_EXEMPLAR_FILTER` are `with_sampled_trace`, `all`, and `none`
   instead of the spec's `trace_based`, `always_on`, and `always_off`; spec
-  values fall back to no exemplars.
+  values fall back to no exemplars. Tracked in
+  [open-telemetry/opentelemetry-php#2054](https://github.com/open-telemetry/opentelemetry-php/issues/2054).
 - **Global attribute limits.** `OTEL_ATTRIBUTE_COUNT_LIMIT` and
   `OTEL_ATTRIBUTE_VALUE_LENGTH_LIMIT` are declared but not applied (the
-  signal-specific `OTEL_SPAN_*` limits work).
+  signal-specific `OTEL_SPAN_*` limits work). Tracked in
+  [open-telemetry/opentelemetry-php#2055](https://github.com/open-telemetry/opentelemetry-php/issues/2055).
 - **Lenient handling of invalid configuration.** An unknown
   `OTEL_TRACES_SAMPLER` value or malformed `OTEL_RESOURCE_ATTRIBUTES`
   aborts SDK initialization instead of logging a warning and falling back to
   the default.
-- **TLS environment variables.** `OTEL_EXPORTER_OTLP_TRACES_CERTIFICATE` (and
-  the client certificate/key variables) are declared but not wired into the
-  exporter's TLS context.
+- **TLS environment variables (all signals).**
+  `OTEL_EXPORTER_OTLP[_<signal>]*_CERTIFICATE` and the client
+  certificate/key variables are declared but not applied for any signal:
+  the OTLP HTTP transport supports custom CA/client certificates, but none
+  of the three signal exporter factories reads the variables or passes them
+  to the transport factory.
 - **Prometheus exporter.** `prometheus` is a known value of
   `OTEL_METRICS_EXPORTER` and `OTEL_EXPORTER_PROMETHEUS_HOST/PORT` are spec
   (in-development) variables, but no exporter factory is registered for the
