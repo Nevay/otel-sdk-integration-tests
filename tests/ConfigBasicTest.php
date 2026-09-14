@@ -411,6 +411,52 @@ final class ConfigBasicTest extends TestCase {
     }
 
     #[Group('traces')]
+    public function testConfigFileNewerMinorFormatIsAcceptedWithWarning(): void {
+        $this->runOTelConfig(
+            <<<'YAML'
+            file_format: "1.3"
+
+            tracer_provider:
+              processors:
+                - batch:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${env:OTEL_EXPORTER_OTLP_TRACES_ENDPOINT}
+            YAML,
+            static function (): void {
+                $span = Globals::tracerProvider()
+                    ->getTracer('test')
+                    ->spanBuilder('newer-minor-format')
+                    ->startSpan();
+
+                $span->end();
+            },
+        );
+
+        /*
+         * A file_format whose minor version is ahead of the implemented one
+         * is still processed: the configuration applies and the span is
+         * exported. (Per the data model versioning policy, a major mismatch
+         * should produce an error; a newer minor should be detected and
+         * warned about while remaining usable.)
+         */
+        self::assertCount(1, $this->traces);
+        self::assertSame(
+            ['newer-minor-format'],
+            $this->spanNames($this->traces[0]),
+        );
+
+        /*
+         * The SDK reports the version mismatch as a diagnostic mentioning
+         * the file_format.
+         */
+        self::assertStringContainsString(
+            'file_format',
+            strtolower($this->lastStderr),
+        );
+    }
+
+    #[Group('traces')]
     /*
      * Vendor-specific: capture_code_attributes/development is not part of the
      * official opentelemetry-configuration data model; it is an experimental

@@ -289,6 +289,39 @@ final class EnvEndToEndTest extends TestCase {
     }
 
     #[Group('traces')]
+    public function testOtlpUserAgentHeaderIdentifiesExporterLanguageAndVersion(): void {
+        $this->runOTel(
+            static function (): void {
+                $span = Globals::tracerProvider()
+                    ->getTracer('test')
+                    ->spanBuilder('user-agent-span')
+                    ->startSpan();
+
+                $span->end();
+            },
+        );
+
+        self::assertNotEmpty($this->traces);
+
+        /*
+         * The OTLP exporter specification states that exporters SHOULD
+         * emit a User-Agent header identifying at minimum the exporter,
+         * the language of its implementation, and the version.
+         */
+        $headers = array_change_key_case($this->requestHeaders[0]);
+        self::assertArrayHasKey('user-agent', $headers);
+        self::assertCount(1, $headers['user-agent']);
+        /*
+         * The version component may be a composer dev identifier (e.g.
+         * "dev-main"), so only its presence is asserted.
+         */
+        self::assertMatchesRegularExpression(
+            '/otlp.*php.*\/\S+/i',
+            $headers['user-agent'][0],
+        );
+    }
+
+    #[Group('traces')]
     public function testPerSignalOtlpHeadersReplaceGenericHeaders(): void {
         $this->runOTel(
             static function (): void {
