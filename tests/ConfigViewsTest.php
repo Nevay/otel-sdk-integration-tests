@@ -1892,6 +1892,63 @@ final class ConfigViewsTest extends TestCase {
         self::assertContains('2', $values);
     }
 
+    public function testViewInstrumentNameSupportsWildcardPatterns(): void
+    {
+        $this->runOTelConfig(
+            <<<'YAML'
+            file_format: "1.2"
+
+            meter_provider:
+              readers:
+                - periodic:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
+
+              views:
+                - selector:
+                    instrument_name: "requests.*"
+                  stream:
+                    name: renamed.wildcard
+            YAML,
+            static function (): void {
+                $meter = Globals::meterProvider()->getMeter('config-test');
+
+                $meter
+                    ->createCounter('requests.total')
+                    ->add(1);
+
+                $meter
+                    ->createCounter('other.metric')
+                    ->add(2);
+            },
+        );
+
+        $payload = $this->metrics[0];
+
+        /*
+         * The wildcard pattern matched the instrument and renamed it...
+         */
+        self::assertCount(
+            1,
+            $this->path(
+                $payload,
+                '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "renamed.wildcard")]',
+            ),
+        );
+
+        /*
+         * ...while the non-matching instrument remains unchanged.
+         */
+        self::assertCount(
+            1,
+            $this->path(
+                $payload,
+                '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "other.metric")]',
+            ),
+        );
+    }
+
     public function testMatchAllDropViewCanBeUsedAsDefaultWithSpecificView(): void
     {
         $this->runOTelConfig(
