@@ -63,6 +63,14 @@ is implemented as a built-in `env` resource detector (active in env mode,
 selectable under `resource.detection/development` in config-file mode); entities
 are exported with OTLP as references into the resource attributes.
 
+**SDK-specific configuration.** Beyond the spec surface, this SDK exposes
+vendor options: non-spec environment variables (e.g.
+`OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE`), experimental config-file
+nodes under `distribution:` (e.g. `capture_code_attributes/development`), and
+implementation-specific behavior such as deferred batch exports. Tests that pin
+this surface are tagged with the group `tbachert` and are excluded from the
+official run.
+
 **Spec features not implemented by this SDK (gaps, not deviations):**
 
 - **Zipkin exporter** (`OTEL_EXPORTER_ZIPKIN_ENDPOINT`,
@@ -90,6 +98,14 @@ file-based tests are currently blocked. Tests tagged `tbachert` (options of
 tbachert/otel-sdk, non-spec environment variables, implementation-dependent
 timing) are excluded from this run, so every remaining failure pins behavior
 that is in scope of the official specification.
+
+**SDK-specific configuration.** Beyond the spec surface, this SDK exposes
+PHP-specific environment variables: `OTEL_PHP_TRACES_PROCESSOR` /
+`OTEL_PHP_LOGS_PROCESSOR` (processor selection), `OTEL_PHP_DETECTORS`
+(resource detector selection), `OTEL_PHP_LOG_DESTINATION` (self-diagnostic log
+destination), and `OTEL_PHP_INTERNAL_METRICS_ENABLED` (SDK self-instrumentation).
+`OfficialSpecificTest` covers these; the tests are tagged with the group
+`official` and are excluded from the tbachert run.
 
 **Currently failing groups:**
 

@@ -1,0 +1,177 @@
+<?php declare(strict_types=1);
+namespace Nevay\OTelTest;
+
+use OpenTelemetry\API\Globals;
+use PHPUnit\Framework\Attributes\Group;
+use PHPUnit\Framework\TestCase;
+
+/*
+ * =========================================================================
+ * Official SDK specific configuration surface
+ *
+ * Environment variables that are not part of the official specification but
+ * are implemented by open-telemetry/sdk. These tests are excluded from the
+ * tbachert run (group "official") and document the vendor-specific
+ * configuration surface of the official SDK.
+ * =========================================================================
+ */
+#[Group('env')]
+#[Group('official')]
+final class OfficialSpecificTest extends TestCase {
+    use OTelEndpointTrait;
+
+    #[Group('traces')]
+    public function testPhpTracesProcessorNoneDisablesSpanExport(): void {
+        $this->runOTel(
+            static function (): void {
+                $span = Globals::tracerProvider()
+                    ->getTracer('test')
+                    ->spanBuilder('processor-none')
+                    ->startSpan();
+
+                $span->end();
+            },
+            'OTEL_PHP_TRACES_PROCESSOR=none',
+        );
+
+        /*
+         * The no-op span processor never forwards spans to the exporter.
+         */
+        self::assertSame([], $this->traces);
+    }
+
+    #[Group('traces')]
+    public function testPhpDetectorsEnvVarRestrictsResourceDetectors(): void {
+        $emitSpan = static function (): void {
+            $span = Globals::tracerProvider()
+                ->getTracer('test')
+                ->spanBuilder('detectors')
+                ->startSpan();
+
+            $span->end();
+        };
+
+        /*
+         * By default the host and process detectors are active...
+         */
+        $this->runOTel($emitSpan);
+
+        $keys = $this->path(
+            $this->traces[0],
+            '$.resourceSpans[*].resource.attributes[*].key',
+        );
+        self::assertContains('host.id', $keys);
+        self::assertContains('process.pid', $keys);
+
+        /*
+         * ...but restricting the detector list to "env" drops them while
+         * the environment-derived service name remains.
+         */
+        $this->runOTel($emitSpan, 'OTEL_PHP_DETECTORS=env');
+
+        $keys = $this->path(
+            $this->traces[1],
+            '$.resourceSpans[*].resource.attributes[*].key',
+        );
+        self::assertNotContains('host.id', $keys);
+        self::assertNotContains('process.pid', $keys);
+        self::assertContains('service.name', $keys);
+    }
+
+    #[Group('traces')]
+    public function testPhpLogDestinationNoneSuppressesDiagnostics(): void {
+        $noop = static function (): void {
+            Globals::tracerProvider()->getTracer('test');
+        };
+
+        /*
+         * Control: an invalid sampler value aborts SDK initialization and
+         * the error is reported on stderr by default.
+         */
+        $this->runOTelExpectingInitError($noop, 'OTEL_TRACES_SAMPLER=bogus-value');
+
+        /*
+         * With the log destination set to "none" the same initialization
+         * error is suppressed (runOTel asserts the absence of the init
+         * error message on stderr).
+         */
+        $this->runOTel(
+            $noop,
+            'OTEL_TRACES_SAMPLER=bogus-value',
+            'OTEL_PHP_LOG_DESTINATION=none',
+        );
+    }
+
+    #[Group('traces'), Group('metrics')]
+    public function testPhpInternalMetricsEnvVarExportsSdkMetrics(): void {
+        $this->runOTel(
+            static function (): void {
+                $span = Globals::tracerProvider()
+                    ->getTracer('test')
+                    ->spanBuilder('internal-metrics')
+                    ->startSpan();
+
+                $span->end();
+            },
+            'OTEL_PHP_INTERNAL_METRICS_ENABLED=true',
+        );
+
+        /*
+         * The SDK records its own instrumentation (meter "io.opentelemetry.sdk")
+         * and exports it with the configured metrics exporter.
+         */
+        self::assertNotEmpty($this->metrics);
+
+        $names = [];
+        foreach ($this->metrics as $payload) {
+            $names = array_merge(
+                $names,
+                $this->path($payload, '$.resourceMetrics[*].scopeMetrics[*].metrics[*].name'),
+            );
+        }
+
+        self::assertContains('otel.sdk.span.started', $names);
+    }
+
+    #[Group('traces')]
+    /*
+     * OTEL_EVENT_ATTRIBUTE_COUNT_LIMIT is a specification variable, but only
+     * the official SDK implements it (tbachert/otel-sdk does not read it),
+     * so this test is restricted to the official run.
+     */
+    #[Group('official')]
+    public function testEventAttributeCountLimitEnvVarTruncatesSpanEvents(): void {
+        $this->runOTel(
+            static function (): void {
+                $span = Globals::tracerProvider()
+                    ->getTracer('test')
+                    ->spanBuilder('event-limit')
+                    ->startSpan();
+
+                $span->addEvent('limited', [
+                    'a' => 1,
+                    'b' => 2,
+                    'c' => 3,
+                    'd' => 4,
+                    'e' => 5,
+                ]);
+
+                $span->end();
+            },
+            'OTEL_EVENT_ATTRIBUTE_COUNT_LIMIT=2',
+        );
+
+        self::assertNotEmpty($this->traces);
+
+        /*
+         * Only the first two attributes (in insertion order) survive; the
+         * rest are dropped.
+         */
+        $keys = $this->path(
+            $this->traces[0],
+            '$.resourceSpans[*].scopeSpans[*].spans[?(@.name == "event-limit")].events[*].attributes[*].key',
+        );
+
+        self::assertSame(['a', 'b'], array_values($keys));
+    }
+}

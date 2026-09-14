@@ -289,6 +289,33 @@ final class EnvEndToEndTest extends TestCase {
     }
 
     #[Group('traces')]
+    public function testPerSignalOtlpHeadersReplaceGenericHeaders(): void {
+        $this->runOTel(
+            static function (): void {
+                $span = Globals::tracerProvider()
+                    ->getTracer('test')
+                    ->spanBuilder('header-precedence')
+                    ->startSpan();
+
+                $span->end();
+            },
+            'OTEL_EXPORTER_OTLP_HEADERS=generic=g1',
+            'OTEL_EXPORTER_OTLP_TRACES_HEADERS=specific=s1',
+        );
+
+        self::assertNotEmpty($this->traces);
+
+        $headers = array_change_key_case($this->requestHeaders[0]);
+
+        /*
+         * The per-signal variable takes precedence over the generic one:
+         * only the specific header is sent, not both.
+         */
+        self::assertSame(['s1'], $headers['specific']);
+        self::assertArrayNotHasKey('generic', $headers);
+    }
+
+    #[Group('traces')]
     public function testOtlpHttpGzipCompressionIsApplied(): void {
         $this->runOTel(
             static function (): void {
