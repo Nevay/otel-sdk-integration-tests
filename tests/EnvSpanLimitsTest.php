@@ -186,6 +186,41 @@ final class EnvSpanLimitsTest extends TestCase {
         self::assertCount(1, $events);
     }
 
+    public function testEventAttributeCountLimitEnvVarTruncatesSpanEvents(): void {
+        $this->runOTel(
+            static function (): void {
+                $span = Globals::tracerProvider()
+                    ->getTracer('test')
+                    ->spanBuilder('event-limit')
+                    ->startSpan();
+
+                $span->addEvent('limited', [
+                    'a' => 1,
+                    'b' => 2,
+                    'c' => 3,
+                    'd' => 4,
+                    'e' => 5,
+                ]);
+
+                $span->end();
+            },
+            'OTEL_EVENT_ATTRIBUTE_COUNT_LIMIT=2',
+        );
+
+        self::assertNotEmpty($this->traces);
+
+        /*
+         * Only the first two attributes (in insertion order) survive; the
+         * rest are dropped.
+         */
+        $keys = $this->path(
+            $this->traces[0],
+            '$.resourceSpans[*].scopeSpans[*].spans[?(@.name == "event-limit")].events[*].attributes[*].key',
+        );
+
+        self::assertSame(['a', 'b'], array_values($keys));
+    }
+
     public function testSpanLinkCountLimitEnvironmentVariable(): void
     {
         $this->runOTel(
