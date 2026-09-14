@@ -6,6 +6,7 @@ use OpenTelemetry\API\Trace\Span;
 use OpenTelemetry\API\Trace\SpanContext;
 use OpenTelemetry\API\Trace\SpanKind;
 use OpenTelemetry\API\Trace\TraceFlags;
+use OpenTelemetry\API\Trace\TraceState;
 use OpenTelemetry\Context\Context;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
@@ -763,17 +764,271 @@ final class ConfigSamplingTest extends TestCase {
         );
     }
 
+    #[Group('sampler')]
+    public function testProbabilitySamplerPreservesPropagatedExplicitRandomness(): void {
+        $output = $this->runOTelConfig(
+            <<<'YAML'
+            file_format: "1.2"
+
+            tracer_provider:
+              sampler:
+                probability/development:
+                  ratio: 0.5
+              processors:
+                - batch:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${env:OTEL_EXPORTER_OTLP_TRACES_ENDPOINT}
+            YAML,
+            static function (): void {
+                /*
+                 * A remote parent whose trace ID's rightmost 56 bits fall
+                 * below the threshold (0x1d4c... < 0x8000...) but which
+                 * carries an explicit randomness value above it.
+                 */
+                $remoteParent = SpanContext::createFromRemoteParent(
+                    '4193e569320548f7b71d4c5a750d504c',
+                    '6e0c63258deeeff4',
+                    TraceFlags::SAMPLED | TraceFlags::RANDOM,
+                    (new TraceState())->with('ot', 'rv:fd70a400000000'),
+                );
+
+                $child = Globals::tracerProvider()
+                    ->getTracer('config-test')
+                    ->spanBuilder('rv-child')
+                    ->setParent(Context::getCurrent()->withContextValue(Span::wrap($remoteParent)))
+                    ->startSpan();
+
+                self::emitSpanContext($child->getContext());
+                $child->end();
+            },
+        );
+
+        /*
+         * The explicit randomness value takes precedence over the trace ID's
+         * own bits as the source of randomness - the decision is positive
+         * here, while the trace ID alone would have been dropped - and SDKs
+         * and samplers must not overwrite it; the sampler adds its threshold
+         * alongside.
+         */
+        $context = json_decode(trim($output), true, 512, JSON_THROW_ON_ERROR);
+
+        self::assertSame('4193e569320548f7b71d4c5a750d504c', $context['trace_id']);
+        self::assertSame(TraceFlags::SAMPLED, $context['flags'] & TraceFlags::SAMPLED);
+
+        $entries = array_flip(explode(';', (string) $context['ot']));
+
+        self::assertArrayHasKey('rv:fd70a400000000', $entries);
+        self::assertArrayHasKey('th:8', $entries);
+
+        self::assertCount(1, $this->traces);
+        self::assertSame(
+            ['rv-child'],
+            $this->spanNames($this->traces[0]),
+        );
+    }
+
+    #[Group('sampler')]
+    public function testComposableProbabilitySamplerUsesPropagatedExplicitRandomness(): void {
+        $output = $this->runOTelConfig(
+            <<<'YAML'
+            file_format: "1.2"
+
+            tracer_provider:
+              sampler:
+                composite/development:
+                  probability:
+                    ratio: 0.5
+              processors:
+                - batch:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${env:OTEL_EXPORTER_OTLP_TRACES_ENDPOINT}
+            YAML,
+            static function (): void {
+                /*
+                 * Two remote parents whose trace IDs' rightmost 56 bits point
+                 * in opposite directions (0x1d4c... below, 0xf5e4... above
+                 * the threshold), while their explicit randomness values
+                 * point in the opposite direction again.
+                 */
+                $kept = SpanContext::createFromRemoteParent(
+                    '4193e569320548f7b71d4c5a750d504c',
+                    '6e0c63258deeeff4',
+                    TraceFlags::SAMPLED | TraceFlags::RANDOM,
+                    (new TraceState())->with('ot', 'rv:fd70a400000000'),
+                );
+
+                $dropped = SpanContext::createFromRemoteParent(
+                    'f7e6d5c4b3a29180a8f5e4d3c2b1a098',
+                    '6e0c63258deeeff4',
+                    TraceFlags::SAMPLED | TraceFlags::RANDOM,
+                    (new TraceState())->with('ot', 'rv:0123456789abcd'),
+                );
+
+                $tracer = Globals::tracerProvider()->getTracer('config-test');
+
+                $keptChild = $tracer
+                    ->spanBuilder('prob-rv-kept')
+                    ->setParent(Context::getCurrent()->withContextValue(Span::wrap($kept)))
+                    ->startSpan();
+
+                self::emitSpanContext($keptChild->getContext());
+                $keptChild->end();
+
+                $droppedChild = $tracer
+                    ->spanBuilder('prob-rv-dropped')
+                    ->setParent(Context::getCurrent()->withContextValue(Span::wrap($dropped)))
+                    ->startSpan();
+
+                self::emitSpanContext($droppedChild->getContext());
+                $droppedChild->end();
+            },
+        );
+
+        /*
+         * The composable form (wrapped in the composite sampler) makes both
+         * decisions from the explicit randomness value, not from the trace
+         * ID's own bits: the span whose randomness is above the threshold is
+         * sampled despite its trace ID, and the one below it is dropped
+         * despite its trace ID. The randomness values are preserved in both
+         * outcomes, with the threshold alongside.
+         */
+        [$keptLine, $droppedLine] = array_values(array_filter(explode("\n", trim($output))));
+        $keptContext = json_decode($keptLine, true, 512, JSON_THROW_ON_ERROR);
+        $droppedContext = json_decode($droppedLine, true, 512, JSON_THROW_ON_ERROR);
+
+        self::assertSame('4193e569320548f7b71d4c5a750d504c', $keptContext['trace_id']);
+        self::assertSame(TraceFlags::SAMPLED, $keptContext['flags'] & TraceFlags::SAMPLED);
+
+        $entries = array_flip(explode(';', (string) $keptContext['ot']));
+
+        self::assertArrayHasKey('rv:fd70a400000000', $entries);
+        self::assertArrayHasKey('th:8', $entries);
+
+        self::assertSame('f7e6d5c4b3a29180a8f5e4d3c2b1a098', $droppedContext['trace_id']);
+        self::assertSame(0, $droppedContext['flags'] & TraceFlags::SAMPLED);
+
+        $entries = array_flip(explode(';', (string) $droppedContext['ot']));
+
+        self::assertArrayHasKey('rv:0123456789abcd', $entries);
+        self::assertArrayHasKey('th:8', $entries);
+
+        self::assertCount(1, $this->traces);
+        self::assertSame(
+            ['prob-rv-kept'],
+            $this->spanNames($this->traces[0]),
+        );
+    }
+
+    #[Group('sampler')]
+    public function testComposableProbabilitySamplerConsistentAcrossThresholds(): void {
+        $makeSpan = static function (): void {
+            /*
+             * A remote parent whose trace ID's rightmost 56 bits fall below
+             * both thresholds (0x1d4c...), while its explicit randomness
+             * value sits between them: above the threshold of a ratio of one
+             * half (2**55) and below the threshold of a ratio of one quarter
+             * (3*2**54).
+             */
+            $remoteParent = SpanContext::createFromRemoteParent(
+                '4193e569320548f7b71d4c5a750d504c',
+                '6e0c63258deeeff4',
+                TraceFlags::SAMPLED | TraceFlags::RANDOM,
+                (new TraceState())->with('ot', 'rv:a0000000000000'),
+            );
+
+            $child = Globals::tracerProvider()
+                ->getTracer('config-test')
+                ->spanBuilder('prob-threshold')
+                ->setParent(Context::getCurrent()->withContextValue(Span::wrap($remoteParent)))
+                ->startSpan();
+
+            self::emitSpanContext($child->getContext());
+            $child->end();
+        };
+
+        /* A participant with the looser threshold keeps the span... */
+        $output = $this->runOTelConfig(
+            <<<'YAML'
+            file_format: "1.2"
+
+            tracer_provider:
+              sampler:
+                composite/development:
+                  probability:
+                    ratio: 0.5
+              processors:
+                - batch:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${env:OTEL_EXPORTER_OTLP_TRACES_ENDPOINT}
+            YAML,
+            $makeSpan,
+        );
+
+        $context = json_decode(trim($output), true, 512, JSON_THROW_ON_ERROR);
+
+        self::assertSame(TraceFlags::SAMPLED, $context['flags'] & TraceFlags::SAMPLED);
+
+        $entries = array_flip(explode(';', (string) $context['ot']));
+
+        self::assertArrayHasKey('rv:a0000000000000', $entries);
+        self::assertArrayHasKey('th:8', $entries);
+
+        self::assertCount(1, $this->traces);
+        self::assertSame(
+            ['prob-threshold'],
+            $this->spanNames($this->traces[0]),
+        );
+
+        /* ...while a participant with the stricter threshold drops it.
+         * Both decisions derive from the same explicit randomness value,
+         * which is what makes probability sampling consistent across
+         * participants with different thresholds. */
+        $output = $this->runOTelConfig(
+            <<<'YAML'
+            file_format: "1.2"
+
+            tracer_provider:
+              sampler:
+                composite/development:
+                  probability:
+                    ratio: 0.25
+              processors:
+                - batch:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${env:OTEL_EXPORTER_OTLP_TRACES_ENDPOINT}
+            YAML,
+            $makeSpan,
+        );
+
+        $context = json_decode(trim($output), true, 512, JSON_THROW_ON_ERROR);
+
+        self::assertSame(0, $context['flags'] & TraceFlags::SAMPLED);
+
+        $entries = array_flip(explode(';', (string) $context['ot']));
+
+        self::assertArrayHasKey('rv:a0000000000000', $entries);
+        self::assertArrayHasKey('th:c', $entries);
+
+        /* The stricter participant exported nothing. */
+        self::assertCount(1, $this->traces);
+    }
+
     /**
      * Emits the given span context as a JSON line on stdout, for assertions
      * in the parent process.
      */
     private static function emitSpanContext(object $spanContext): void {
+        $traceState = $spanContext->getTraceState();
+
         fwrite(STDOUT, json_encode([
             'trace_id' => $spanContext->getTraceId(),
             'flags' => $spanContext->getTraceFlags(),
-            'tracestate' => $spanContext->getTraceState() === null
-                ? null
-                : (string) $spanContext->getTraceState(),
+            'ot' => $traceState === null ? null : $traceState->get('ot'),
+            'tracestate' => $traceState === null ? null : (string) $traceState,
         ]) . "\n");
     }
 }

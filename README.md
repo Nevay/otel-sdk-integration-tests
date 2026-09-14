@@ -69,9 +69,10 @@ development status) is implemented in both its non-composable form
 `composite/development`): the rejection threshold is encoded in the
 OpenTelemetry TraceState `th` sub-key for every decision, sampled and dropped
 alike, and generated trace IDs carry the W3C Trace Context Level 2 random flag;
-the explicit `rv` randomness value is only inserted when a trace ID does not
-carry that flag (which cannot be configured through environment variables or
-the configuration file).
+a propagated explicit `rv` randomness value takes precedence over the trace
+ID's own bits as the source of randomness and is preserved unmodified; a new
+one is only inserted when a trace ID does not carry that flag (which cannot
+be configured through environment variables or the configuration file).
 
 **SDK-specific configuration.** Beyond the spec surface, this SDK exposes
 vendor options: non-spec environment variables (`OTEL_PHP_SHUTDOWN_TIMEOUT`,
