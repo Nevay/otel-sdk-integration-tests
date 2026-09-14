@@ -12,6 +12,10 @@ use Amp\Socket\BindContext;
 use Amp\Socket\Certificate;
 use Amp\Socket\InternetAddress;
 use Amp\Socket\ServerTlsContext;
+use Opentelemetry\Proto\Collector\Logs\V1\ExportLogsServiceRequest;
+use Opentelemetry\Proto\Collector\Logs\V1\ExportLogsServiceResponse;
+use Opentelemetry\Proto\Collector\Metrics\V1\ExportMetricsServiceRequest;
+use Opentelemetry\Proto\Collector\Metrics\V1\ExportMetricsServiceResponse;
 use Opentelemetry\Proto\Collector\Trace\V1\ExportTraceServiceRequest;
 use Opentelemetry\Proto\Collector\Trace\V1\ExportTraceServiceResponse;
 use OpenTelemetry\API\Globals;
@@ -81,6 +85,22 @@ final class TlsTest extends TestCase {
                 ExportTraceServiceResponse::class,
             );
         }));
+        $router->addRoute('POST', 'v1/metrics', new ClosureRequestHandler(function (Request $request): Response {
+            return self::captureRequestBody(
+                $request,
+                $this->metrics[],
+                ExportMetricsServiceRequest::class,
+                ExportMetricsServiceResponse::class,
+            );
+        }));
+        $router->addRoute('POST', 'v1/logs', new ClosureRequestHandler(function (Request $request): Response {
+            return self::captureRequestBody(
+                $request,
+                $this->logs[],
+                ExportLogsServiceRequest::class,
+                ExportLogsServiceResponse::class,
+            );
+        }));
 
         $tlsContext = (new ServerTlsContext())
             ->withDefaultCertificate(new Certificate(self::CERT, self::KEY));
@@ -126,6 +146,45 @@ final class TlsTest extends TestCase {
             ['tls-span'],
             $this->spanNames($this->traces[0]),
         );
+    }
+
+    #[Group('env'), Group('metrics')]
+    public function testMetricsCertificateEnvVarTrustsSelfSignedCollector(): void {
+        $this->runOTel(
+            static function (): void {
+                Globals::meterProvider()->getMeter('tls-test')
+                    ->createCounter('tls-metric')
+                    ->add(1);
+            },
+            'OTEL_EXPORTER_OTLP_METRICS_ENDPOINT=' . $this->tlsBaseUrl . '/v1/metrics',
+            'OTEL_EXPORTER_OTLP_METRICS_CERTIFICATE=' . self::CERT,
+        );
+
+        /*
+         * The per-signal certificate variable is honoured for metrics: the
+         * self-signed collector is trusted and the data point is exported.
+         */
+        self::assertCount(1, $this->metrics);
+    }
+
+    #[Group('env'), Group('logs')]
+    public function testLogsCertificateEnvVarTrustsSelfSignedCollector(): void {
+        $this->runOTel(
+            static function (): void {
+                Globals::loggerProvider()->getLogger('tls-test')
+                    ->logRecordBuilder()
+                    ->setBody('tls-log')
+                    ->emit();
+            },
+            'OTEL_EXPORTER_OTLP_LOGS_ENDPOINT=' . $this->tlsBaseUrl . '/v1/logs',
+            'OTEL_EXPORTER_OTLP_LOGS_CERTIFICATE=' . self::CERT,
+        );
+
+        /*
+         * The per-signal certificate variable is honoured for logs: the
+         * self-signed collector is trusted and the record is exported.
+         */
+        self::assertCount(1, $this->logs);
     }
 
     #[Group('config-file'), Group('traces')]
