@@ -231,6 +231,89 @@ final class GrpcTest extends TestCase {
         ]);
     }
 
+    #[Group('env'), Group('traces')]
+    public function testEnvGrpcInsecureEnvVarDialsPlaintext(): void {
+        /*
+         * A schemeless gRPC endpoint is secure by default; the per-signal
+         * insecure variable switches it to a plaintext (h2c) dial.
+         */
+        $this->assertPlaintextGrpcDial(static fn (int $port): array => [
+            'OTEL_EXPORTER_OTLP_TRACES_PROTOCOL' => 'grpc',
+            'OTEL_EXPORTER_OTLP_TRACES_ENDPOINT' => "127.0.0.1:$port",
+            'OTEL_EXPORTER_OTLP_TRACES_INSECURE' => 'true',
+        ]);
+    }
+
+    #[Group('env'), Group('traces')]
+    public function testEnvGrpcSchemelessEndpointIsSecureByDefault(): void {
+        $this->assertGrpcDial(
+            static fn (int $port): array => [
+                'OTEL_EXPORTER_OTLP_TRACES_PROTOCOL' => 'grpc',
+                'OTEL_EXPORTER_OTLP_TRACES_ENDPOINT' => "127.0.0.1:$port",
+            ],
+            "\x16\x03",
+        );
+    }
+
+    #[Group('env'), Group('traces')]
+    public function testGenericGrpcInsecureEnvVarDialsPlaintext(): void {
+        $this->assertPlaintextGrpcDial(static fn (int $port): array => [
+            'OTEL_EXPORTER_OTLP_TRACES_PROTOCOL' => 'grpc',
+            'OTEL_EXPORTER_OTLP_TRACES_ENDPOINT' => "127.0.0.1:$port",
+            'OTEL_EXPORTER_OTLP_INSECURE' => 'true',
+        ]);
+    }
+
+    #[Group('env'), Group('traces')]
+    public function testPerSignalGrpcInsecureOverridesGeneric(): void {
+        /*
+         * The per-signal variable takes precedence over the generic one, even
+         * when it explicitly disables insecure mode.
+         */
+        $this->assertGrpcDial(
+            static fn (int $port): array => [
+                'OTEL_EXPORTER_OTLP_TRACES_PROTOCOL' => 'grpc',
+                'OTEL_EXPORTER_OTLP_TRACES_ENDPOINT' => "127.0.0.1:$port",
+                'OTEL_EXPORTER_OTLP_INSECURE' => 'true',
+                'OTEL_EXPORTER_OTLP_TRACES_INSECURE' => 'false',
+            ],
+            "\x16\x03",
+        );
+    }
+
+    #[Group('env'), Group('metrics')]
+    public function testMetricsInsecureEnvVarDialsPlaintext(): void {
+        $this->assertPlaintextGrpcDial(
+            static fn (int $port): array => [
+                'OTEL_EXPORTER_OTLP_METRICS_PROTOCOL' => 'grpc',
+                'OTEL_EXPORTER_OTLP_METRICS_ENDPOINT' => "127.0.0.1:$port",
+                'OTEL_EXPORTER_OTLP_METRICS_INSECURE' => 'true',
+            ],
+            static function (): void {
+                Globals::meterProvider()->getMeter('grpc-test')
+                    ->createCounter('grpc-metric')
+                    ->add(1);
+            },
+        );
+    }
+
+    #[Group('env'), Group('logs')]
+    public function testLogsInsecureEnvVarDialsPlaintext(): void {
+        $this->assertPlaintextGrpcDial(
+            static fn (int $port): array => [
+                'OTEL_EXPORTER_OTLP_LOGS_PROTOCOL' => 'grpc',
+                'OTEL_EXPORTER_OTLP_LOGS_ENDPOINT' => "127.0.0.1:$port",
+                'OTEL_EXPORTER_OTLP_LOGS_INSECURE' => 'true',
+            ],
+            static function (): void {
+                Globals::loggerProvider()->getLogger('grpc-test')
+                    ->logRecordBuilder()
+                    ->setBody('grpc-log')
+                    ->emit();
+            },
+        );
+    }
+
     #[Group('config-file'), Group('traces')]
     public function testConfigFileInsecureGrpcExporter(): void {
         $configFile = null;
@@ -267,7 +350,22 @@ final class GrpcTest extends TestCase {
      * soon as the dial has been captured, because without a working h2c peer
      * it would only retry the export for ~30 seconds.
      */
-    private function assertPlaintextGrpcDial(Closure $configure): void {
+    private function assertPlaintextGrpcDial(Closure $configure, ?Closure $telemetry = null): void {
+        self::assertGrpcDial($configure, "PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n", $telemetry);
+    }
+
+    /**
+     * Runs the SDK in a child process against a raw TCP listener and asserts
+     * that the first bytes on the wire match the given prefix — either the
+     * HTTP/2 connection preface (plaintext h2c dial) or the start of a TLS
+     * ClientHello record (secure dial).
+     *
+     * A full export cannot be verified against a raw listener in this
+     * environment (see the class docblock); the child process is killed as
+     * soon as the dial has been captured, because without a working peer it
+     * would only retry the export for ~30 seconds.
+     */
+    private function assertGrpcDial(Closure $configure, string $expectedPrefix, ?Closure $telemetry = null): void {
         $server = (new ResourceServerSocketFactory())->listen(new InternetAddress('127.0.0.1', 0));
         $port = $server->getAddress()->getPort();
 
@@ -293,7 +391,7 @@ final class GrpcTest extends TestCase {
                 PHP_BINARY,
                 __DIR__ . '/../executeSerializedClosure.php',
                 $autoloadPath,
-                \Opis\Closure\serialize(static function (): void {
+                \Opis\Closure\serialize($telemetry ?? static function (): void {
                     Globals::tracerProvider()->getTracer('grpc-test')
                         ->spanBuilder('grpc-plaintext-span')
                         ->startSpan()
@@ -307,15 +405,16 @@ final class GrpcTest extends TestCase {
             /*
              * The first bytes on a plaintext h2c connection are the HTTP/2
              * connection preface; a TLS client would send a ClientHello
-             * record instead. (Only the preface is compared: read() may
-             * return a larger chunk that also contains the SETTINGS frame.)
+             * record (0x16 0x03) instead. (Only the prefix is compared:
+             * read() may return a larger chunk that also contains further
+             * frames or records.)
              */
-            self::assertSame(
-                "PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n",
-                substr((string)$captured->getFuture()->await(new TimeoutCancellation(15)), 0, 24),
+            self::assertStringStartsWith(
+                $expectedPrefix,
+                (string)$captured->getFuture()->await(new TimeoutCancellation(15)),
             );
         } catch (TimeoutException) {
-            self::fail('The gRPC exporter did not dial the plaintext endpoint');
+            self::fail('The gRPC exporter did not dial the endpoint');
         } finally {
             try {
                 $process->kill();

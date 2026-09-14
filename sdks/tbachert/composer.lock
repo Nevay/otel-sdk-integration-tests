@@ -4645,7 +4645,7 @@
             "dist": {
                 "type": "path",
                 "url": "../..",
-                "reference": "7e8a35ab114d5eee1631f19ca5361e86cdbd6625"
+                "reference": "6e448047a9ba1565c4ecbbbd628aeccc6a809e0e"
             },
             "require": {
                 "amphp/amp": "^3.0",
@@ -4657,6 +4657,8 @@
                 "amphp/http-server-router": "^2.0",
                 "amphp/process": "^2.1",
                 "amphp/socket": "^2.0",
+                "ext-openssl": "*",
+                "ext-zlib": "*",
                 "galbar/jsonpath": "^3.0",
                 "google/protobuf": "^5.0",
                 "open-telemetry/api": "^1.10",
@@ -4664,6 +4666,7 @@
                 "open-telemetry/extension-propagator-b3": "^1.2",
                 "open-telemetry/gen-otlp-protobuf": "^1.10",
                 "opis/closure": "^4.5",
+                "php": ">=8.4",
                 "phpunit/phpunit": "^13.3",
                 "psr/log": "^3.0",
                 "symfony/filesystem": "^8.1"
@@ -4674,6 +4677,9 @@
                     "Nevay\\OTelTest\\": "tests/"
                 }
             },
+            "license": [
+                "Apache-2.0"
+            ],
             "description": "SDK-agnostic OpenTelemetry SDK configuration compliance suite",
             "transport-options": {
                 "symlink": true,
@@ -5231,12 +5237,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/Nevay/otel-sdk-config.git",
-                "reference": "c71bfc2078b6d4beda9f71bafccc32e7d139b307"
+                "reference": "3ce6abd2c9ad4d909a6b8e88ab4e81df9a7e2895"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/Nevay/otel-sdk-config/zipball/c71bfc2078b6d4beda9f71bafccc32e7d139b307",
-                "reference": "c71bfc2078b6d4beda9f71bafccc32e7d139b307",
+                "url": "https://api.github.com/repos/Nevay/otel-sdk-config/zipball/3ce6abd2c9ad4d909a6b8e88ab4e81df9a7e2895",
+                "reference": "3ce6abd2c9ad4d909a6b8e88ab4e81df9a7e2895",
                 "shasum": ""
             },
             "require": {
@@ -5297,7 +5303,7 @@
                 "issues": "https://github.com/Nevay/otel-sdk-config/issues",
                 "source": "https://github.com/Nevay/otel-sdk-config/tree/main"
             },
-            "time": "2026-09-13T20:23:21+00:00"
+            "time": "2026-09-14T15:10:04+00:00"
         },
         {
             "name": "tbachert/otel-sdk-core",
