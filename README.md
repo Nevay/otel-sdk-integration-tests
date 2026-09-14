@@ -57,22 +57,11 @@ Exact package versions pinned in `sdks/tbachert/composer.lock`.
 **Scope.** All stable environment variables from the specification's SDK
 configuration section, plus file-based configuration using the official
 [opentelemetry-configuration](https://github.com/open-telemetry/opentelemetry-configuration)
-data model — this SDK accepts schema versions 1.0 through 1.2 (its `file_format`
-check) and uses the schema's `distribution:` extension point for vendor-specific
-options. The specification's experimental entity propagation (`OTEL_ENTITIES`)
-is implemented as a built-in `env` resource detector (active in env mode,
-selectable under `resource.detection/development` in config-file mode); entities
-are exported with OTLP as references into the resource attributes. The
-specification's consistent probability sampling (`ProbabilitySampler`,
-development status) is implemented in both its non-composable form
-(`probability/development`) and its composable form (under
-`composite/development`); the spec-mandated `th`/`rv` TraceState semantics are
-pinned by tests rather than documented here. Two implementation details go
+data model (schema versions 1.0 through 1.2). Two implementation details go
 beyond the spec's wording: the rejection threshold is written to the TraceState
 `th` sub-key even for dropped decisions, and root spans whose trace IDs lack
-the random flag get a generated explicit `rv` value (a spec-optional behavior)
-— a path that cannot be triggered through environment variables or the
-configuration file.
+the random flag get a generated explicit `rv` value — a path that cannot be
+triggered through configuration.
 `OTEL_LOG_LEVEL` is applied to the SDK's internal logger: at `debug`,
 diagnostic messages appear on stderr; at `error`, even warnings (e.g. for an
 unrecognized `OTEL_TRACES_SAMPLER` value, which is logged and ignored in
@@ -84,17 +73,12 @@ vendor options: non-spec environment variables (`OTEL_PHP_SHUTDOWN_TIMEOUT`,
 node that is not part of the official data model
 (`capture_code_attributes/development`), and vendor options under the schema's
 `distribution:` extension point (e.g. `shutdown_timeout`). SDK self-observability
-is filtered out by default but can be enabled through vendor-only development
-configurator nodes (`tracer_provider.tracer_configurator/development`,
-`meter_provider.meter_configurator/development`,
-`logger_provider.logger_configurator/development`) with `config.enabled: true`:
-the batch span processor then records a self-diagnostic span per export cycle
-and the OTLP exporters record the semconv-defined `otel.sdk.exporter.*`
-instruments, all marked with the scope attribute
-`php.otel.sdk.self_diagnostics`. `ConfigSelfObservabilityTest` pins the
-metrics side (semconv names and instrument types) and the disabled-by-default
-state; tests that pin this surface are tagged with the group `tbachert` and
-are excluded from the official run.
+is off by default; the vendor-only `*_configurator/development` nodes enable it
+per signal via `config.enabled: true`, marking all such telemetry with the scope
+attribute `php.otel.sdk.self_diagnostics` (`ConfigSelfObservabilityTest` pins
+the metrics side, semconv names and instrument types).
+Tests that pin this surface are tagged with the group `tbachert` and are
+excluded from the official run.
 
 **Spec features not implemented by this SDK (gaps, not deviations):**
 
