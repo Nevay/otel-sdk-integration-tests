@@ -4,14 +4,14 @@
   "repositories": [
     {
       "type": "path",
-      "url": "../../tests",
+      "url": "../..",
       "options": {
         "symlink": true
       }
     }
   ],
   "require": {
-    "tbachert/otel-test-harness": "*"
+    "tbachert/otel-test": "*"
   },
   "require-dev": {
     "tbachert/otel-sdk": "^0.1.0@dev"

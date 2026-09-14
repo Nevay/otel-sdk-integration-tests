@@ -1,6 +1,6 @@
 {
-  "name": "tbachert/otel-test-harness",
-  "description": "SDK-agnostic OpenTelemetry SDK configuration test suite",
+  "name": "tbachert/otel-test",
+  "description": "SDK-agnostic OpenTelemetry SDK configuration compliance suite",
   "require": {
     "amphp/amp": "^3.0",
     "amphp/byte-stream": "^2.0",
@@ -24,9 +24,16 @@
   },
   "autoload": {
     "psr-4": {
-      "Nevay\\OTelTest\\": "./"
+      "Nevay\\OTelTest\\": "tests/"
     }
   },
+  "prefer-stable": true,
   "minimum-stability": "dev",
-  "prefer-stable": true
+  "config": {
+    "sort-packages": true,
+    "allow-plugins": {
+      "php-http/discovery": false,
+      "tbachert/spi": true
+    }
+  }
 }

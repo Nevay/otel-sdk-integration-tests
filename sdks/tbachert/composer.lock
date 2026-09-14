@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "ca81b507b6bccd3621ddf192753dfe91",
+    "content-hash": "4d7727b98f7727327efd2f774120fd84",
     "packages": [
         {
             "name": "amphp/amp",
@@ -4640,12 +4640,12 @@
             "time": "2026-05-26T12:45:58+00:00"
         },
         {
-            "name": "tbachert/otel-test-harness",
+            "name": "tbachert/otel-test",
             "version": "dev-main",
             "dist": {
                 "type": "path",
-                "url": "../../tests",
-                "reference": "fdf02749464476957c5cd00cf220dd4d62c0abbb"
+                "url": "../..",
+                "reference": "7e8a35ab114d5eee1631f19ca5361e86cdbd6625"
             },
             "require": {
                 "amphp/amp": "^3.0",
@@ -4671,10 +4671,10 @@
             "type": "library",
             "autoload": {
                 "psr-4": {
-                    "Nevay\\OTelTest\\": "./"
+                    "Nevay\\OTelTest\\": "tests/"
                 }
             },
-            "description": "SDK-agnostic OpenTelemetry SDK configuration test suite",
+            "description": "SDK-agnostic OpenTelemetry SDK configuration compliance suite",
             "transport-options": {
                 "symlink": true,
                 "relative": true
