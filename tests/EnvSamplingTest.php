@@ -237,15 +237,19 @@ final class EnvSamplingTest extends TestCase {
     public function testJaegerRemoteRateLimitingStrategyLimitsSpans(): void {
         /*
          * maxTracesPerSecond=1 gives the token bucket a cost of one second per
-         * trace and a capacity of one. Waiting past one full second after the
-         * strategy is applied puts the first span back in budget; the second
-         * span, emitted immediately after, must be dropped until the next
-         * second elapses.
+         * trace and a capacity of one, with the debit starting at the moment
+         * the strategy is applied (t_c). The first span must come at least one
+         * second after t_c to be in budget; once it is sampled, the debit sits
+         * exactly at its arrival time, so the immediately following span is
+         * dropped and the third needs another full second. (t_c lags closure
+         * start by only the first poll tick — ~50 ms plus 50 ms per failed
+         * poll — regardless of how slow initialization is, which bounds the
+         * required margins.)
          */
         $this->runJaegerRemoteSampling(
             JaegerSamplingServer::rateLimitingStrategy(1),
             static function (): void {
-                \Amp\delay(1.5);
+                \Amp\delay(1.3);
 
                 Globals::tracerProvider()->getTracer('test')
                     ->spanBuilder('rl-first')
@@ -255,10 +259,18 @@ final class EnvSamplingTest extends TestCase {
                     ->spanBuilder('rl-second')
                     ->startSpan()
                     ->end();
+
+                // One more second: the bucket must refill and sampling resumes.
+                \Amp\delay(1.05);
+
+                Globals::tracerProvider()->getTracer('test')
+                    ->spanBuilder('rl-third')
+                    ->startSpan()
+                    ->end();
             },
         );
 
-        self::assertSpanNames(['rl-first']);
+        self::assertSpanNames(['rl-first', 'rl-third']);
     }
 
     public function testJaegerRemoteInitialSamplerAppliesWhileBackendUnreachable(): void {
