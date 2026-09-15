@@ -331,6 +331,187 @@ final class ConfigMetricReaderTest extends TestCase {
         self::assertStringNotContainsString('_requests_total', $exposition);
     }
 
+    /*
+     * =========================================================================
+     * Prometheus escaping schemes (content negotiation)
+     * =========================================================================
+     */
+
+    #[Group('metrics'), Group('prometheus')]
+    public function testPrometheusEscapingUnderscoresReplacesNonLegacyCharacters(): void {
+        $port = 39470;
+
+        $exposition = $this->runOTelConfig(
+            <<<'YAML'
+            file_format: "1.2"
+
+            meter_provider:
+              readers:
+                - pull:
+                    exporter:
+                      prometheus/development:
+                        host: 127.0.0.1
+                        port: ${OTEL_EXPORTER_PROMETHEUS_PORT}
+                        translation_strategy: no_translation/development
+            YAML,
+            static function () use ($port): void {
+                Globals::meterProvider()
+                    ->getMeter('prom-test')
+                    ->createCounter("a\xC3\xA9.b\xE2\x82\xAC_x")
+                    ->add(1, ["l\xC3\xA9bel" => 'v']);
+
+                $client = HttpClientBuilder::buildDefault();
+                $request = new Request('http://127.0.0.1:' . $port . '/metrics');
+                $request->setHeader('accept', 'text/plain;version=1.0.0;charset=utf-8;escaping=underscores');
+
+                echo (string) $client->request($request)->getBody();
+            },
+            'OTEL_EXPORTER_PROMETHEUS_PORT=' . $port,
+        );
+
+        /*
+         * The underscores scheme replaces each character outside the legacy
+         * character set with a single underscore: the two-byte é and the
+         * three-byte € are each consumed as one character and collapse to a
+         * single underscore, and consecutive non-legacy characters (dot,
+         * underscore) merge into the same one. Label names are escaped with
+         * the same scheme.
+         */
+        self::assertStringContainsString('# TYPE a_b_x counter', $exposition);
+        self::assertStringContainsString('a_b_x{l_bel="v",otel_scope_name="prom-test"} 1', $exposition);
+    }
+
+    #[Group('metrics'), Group('prometheus')]
+    public function testPrometheusEscapingDotsSchemeEscapesDotsAndUnderscores(): void {
+        $port = 39471;
+
+        $exposition = $this->runOTelConfig(
+            <<<'YAML'
+            file_format: "1.2"
+
+            meter_provider:
+              readers:
+                - pull:
+                    exporter:
+                      prometheus/development:
+                        host: 127.0.0.1
+                        port: ${OTEL_EXPORTER_PROMETHEUS_PORT}
+                        translation_strategy: no_translation/development
+            YAML,
+            static function () use ($port): void {
+                Globals::meterProvider()
+                    ->getMeter('prom-test')
+                    ->createCounter("a\xC3\xA9.b\xE2\x82\xAC_x")
+                    ->add(1, ["l\xC3\xA9bel" => 'v']);
+
+                $client = HttpClientBuilder::buildDefault();
+                $request = new Request('http://127.0.0.1:' . $port . '/metrics');
+                $request->setHeader('accept', 'text/plain;version=1.0.0;charset=utf-8;escaping=dots');
+
+                echo (string) $client->request($request)->getBody();
+            },
+            'OTEL_EXPORTER_PROMETHEUS_PORT=' . $port,
+        );
+
+        /*
+         * The dots scheme replaces dots with _dot_, existing underscores with
+         * double underscores, and other non-legacy characters (é, €) with a
+         * single underscore. No collapsing happens, so the dot following é
+         * yields adjacent underscores. The scheme applies to label names as
+         * well, including the reserved scope labels.
+         */
+        self::assertStringContainsString('# TYPE a__dot_b___x counter', $exposition);
+        self::assertStringContainsString('a__dot_b___x{l_bel="v",otel__scope__name="prom-test"} 1', $exposition);
+    }
+
+    #[Group('metrics'), Group('prometheus')]
+    public function testPrometheusEscapingValuesSchemeEncodesCodePoints(): void {
+        $port = 39472;
+
+        $exposition = $this->runOTelConfig(
+            <<<'YAML'
+            file_format: "1.2"
+
+            meter_provider:
+              readers:
+                - pull:
+                    exporter:
+                      prometheus/development:
+                        host: 127.0.0.1
+                        port: ${OTEL_EXPORTER_PROMETHEUS_PORT}
+                        translation_strategy: no_translation/development
+            YAML,
+            static function () use ($port): void {
+                Globals::meterProvider()
+                    ->getMeter('prom-test')
+                    ->createCounter("a\xC3\xA9.b\xE2\x82\xAC_x")
+                    ->add(1, ["l\xC3\xA9bel" => 'v']);
+
+                $client = HttpClientBuilder::buildDefault();
+                $request = new Request('http://127.0.0.1:' . $port . '/metrics');
+                $request->setHeader('accept', 'text/plain;version=1.0.0;charset=utf-8;escaping=values');
+
+                echo (string) $client->request($request)->getBody();
+            },
+            'OTEL_EXPORTER_PROMETHEUS_PORT=' . $port,
+        );
+
+        /*
+         * The values scheme prefixes the name with U__, encodes each
+         * non-legacy character as its Unicode code point in hexadecimal
+         * surrounded by underscores (é is U+00E9, dot U+002E, € U+20AC),
+         * and doubles existing underscores. The spec does not mandate a hex
+         * case, so the assertion is case-insensitive.
+         */
+        self::assertMatchesRegularExpression(
+            '/# TYPE U__a_[eE]9__2[eE]_b_20[aA][cC]___x counter\n'
+            . 'U__a_[eE]9__2[eE]_b_20[aA][cC]___x\{U__l_e9_bel="v",U__otel__scope__name="prom-test"\} 1/',
+            $exposition,
+        );
+    }
+
+    #[Group('metrics'), Group('prometheus')]
+    public function testPrometheusEscapingAllowUtf8PreservesValidUtf8Names(): void {
+        $port = 39473;
+
+        $exposition = $this->runOTelConfig(
+            <<<'YAML'
+            file_format: "1.2"
+
+            meter_provider:
+              readers:
+                - pull:
+                    exporter:
+                      prometheus/development:
+                        host: 127.0.0.1
+                        port: ${OTEL_EXPORTER_PROMETHEUS_PORT}
+                        translation_strategy: no_translation/development
+            YAML,
+            static function () use ($port): void {
+                Globals::meterProvider()
+                    ->getMeter('prom-test')
+                    ->createCounter("a\xC3\xA9.b\xE2\x82\xAC_x")
+                    ->add(1, ["l\xC3\xA9bel" => 'v']);
+
+                $client = HttpClientBuilder::buildDefault();
+                $request = new Request('http://127.0.0.1:' . $port . '/metrics');
+                $request->setHeader('accept', 'text/plain;version=1.0.0;charset=utf-8;escaping=allow-utf-8');
+
+                echo (string) $client->request($request)->getBody();
+            },
+            'OTEL_EXPORTER_PROMETHEUS_PORT=' . $port,
+        );
+
+        /*
+         * The allow-utf-8 scheme passes valid UTF-8 names through unaltered.
+         * Names outside the legacy character set are exposed in the quoted
+         * UTF-8 name form of the text format, both for metric names and for
+         * label names; legacy names such as the scope label stay unquoted.
+         */
+        self::assertStringContainsString('# TYPE "aé.b€_x" counter', $exposition);
+        self::assertStringContainsString('{"aé.b€_x","lébel"="v",otel_scope_name="prom-test"} 1', $exposition);
+    }
+
     #[Group('metrics')]
     public function testExporterDefaultBase2ExponentialHistogramAggregation(): void {
         $this->runOTelConfig(<<<'YAML'
