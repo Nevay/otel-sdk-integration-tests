@@ -189,9 +189,7 @@ final class TlsTest extends TestCase {
 
     #[Group('config-file'), Group('traces')]
     public function testConfigFileCaFileTrustsSelfSignedCollector(): void {
-        $caFile = self::CERT;
-
-        $this->runOTelConfig(<<<YAML
+        $this->runOTelConfig(<<<'YAML'
             file_format: "1.2"
 
             tracer_provider:
@@ -199,15 +197,18 @@ final class TlsTest extends TestCase {
                 - batch:
                     exporter:
                       otlp_http:
-                        endpoint: {$this->tlsBaseUrl}/v1/traces
+                        endpoint: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT}
                         tls:
-                          ca_file: {$caFile}
+                          ca_file: ${OTEL_EXPORTER_OTLP_TRACES_CERTIFICATE}
         YAML, static function (): void {
             Globals::tracerProvider()->getTracer('tls-test')
                 ->spanBuilder('tls-config-span')
                 ->startSpan()
                 ->end();
-        });
+        },
+            'OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=' . $this->tlsBaseUrl . '/v1/traces',
+            'OTEL_EXPORTER_OTLP_TRACES_CERTIFICATE=' . self::CERT,
+        );
 
         self::assertCount(1, $this->traces);
         self::assertSame(
@@ -224,7 +225,7 @@ final class TlsTest extends TestCase {
          * nothing is exported. (The shutdown timeout bounds the exporter's
          * retry backoff.)
          */
-        $this->runOTelConfig(<<<YAML
+        $this->runOTelConfig(<<<'YAML'
             file_format: "1.2"
 
             distribution:
@@ -236,13 +237,15 @@ final class TlsTest extends TestCase {
                 - batch:
                     exporter:
                       otlp_http:
-                        endpoint: {$this->tlsBaseUrl}/v1/traces
+                        endpoint: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT}
         YAML, static function (): void {
             Globals::tracerProvider()->getTracer('tls-test')
                 ->spanBuilder('tls-untrusted')
                 ->startSpan()
                 ->end();
-        });
+        },
+            'OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=' . $this->tlsBaseUrl . '/v1/traces',
+        );
 
         self::assertSame([], $this->traces);
         self::assertStringContainsString(
@@ -280,11 +283,7 @@ final class TlsTest extends TestCase {
 
     #[Group('config-file'), Group('traces')]
     public function testConfigFileClientCertificateIsPresentedAndVerified(): void {
-        $caFile = self::CERT;
-        $clientCert = self::CERT;
-        $clientKey = self::KEY;
-
-        $this->runOTelConfig(<<<YAML
+        $this->runOTelConfig(<<<'YAML'
             file_format: "1.2"
 
             tracer_provider:
@@ -292,17 +291,22 @@ final class TlsTest extends TestCase {
                 - batch:
                     exporter:
                       otlp_http:
-                        endpoint: {$this->mtlsBaseUrl}/v1/traces
+                        endpoint: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT}
                         tls:
-                          ca_file: {$caFile}
-                          cert_file: {$clientCert}
-                          key_file: {$clientKey}
+                          ca_file: ${OTEL_EXPORTER_OTLP_TRACES_CERTIFICATE}
+                          cert_file: ${OTEL_EXPORTER_OTLP_TRACES_CLIENT_CERTIFICATE}
+                          key_file: ${OTEL_EXPORTER_OTLP_TRACES_CLIENT_KEY}
         YAML, static function (): void {
             Globals::tracerProvider()->getTracer('tls-test')
                 ->spanBuilder('mtls-config-span')
                 ->startSpan()
                 ->end();
-        });
+        },
+            'OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=' . $this->mtlsBaseUrl . '/v1/traces',
+            'OTEL_EXPORTER_OTLP_TRACES_CERTIFICATE=' . self::CERT,
+            'OTEL_EXPORTER_OTLP_TRACES_CLIENT_CERTIFICATE=' . self::CERT,
+            'OTEL_EXPORTER_OTLP_TRACES_CLIENT_KEY=' . self::KEY,
+        );
 
         self::assertCount(1, $this->traces);
         self::assertSame(
@@ -321,9 +325,7 @@ final class TlsTest extends TestCase {
          * sees a plain socket disconnect rather than a TLS error.
          * (The shutdown timeout bounds the exporter's retry backoff.)
          */
-        $caFile = self::CERT;
-
-        $this->runOTelConfig(<<<YAML
+        $this->runOTelConfig(<<<'YAML'
             file_format: "1.2"
 
             distribution:
@@ -335,15 +337,18 @@ final class TlsTest extends TestCase {
                 - batch:
                     exporter:
                       otlp_http:
-                        endpoint: {$this->mtlsBaseUrl}/v1/traces
+                        endpoint: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT}
                         tls:
-                          ca_file: {$caFile}
+                          ca_file: ${OTEL_EXPORTER_OTLP_TRACES_CERTIFICATE}
         YAML, static function (): void {
             Globals::tracerProvider()->getTracer('tls-test')
                 ->spanBuilder('mtls-rejected')
                 ->startSpan()
                 ->end();
-        });
+        },
+            'OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=' . $this->mtlsBaseUrl . '/v1/traces',
+            'OTEL_EXPORTER_OTLP_TRACES_CERTIFICATE=' . self::CERT,
+        );
 
         self::assertSame([], $this->traces);
         self::assertStringContainsString(

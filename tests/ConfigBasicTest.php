@@ -594,7 +594,7 @@ final class ConfigBasicTest extends TestCase {
         /*
          * The default level (info) reports the export failure as a warning.
          */
-        $this->runOTelConfig(<<<YAML
+        $this->runOTelConfig(<<<'YAML'
             file_format: "1.2"
 
             tracer_provider:
@@ -602,15 +602,15 @@ final class ConfigBasicTest extends TestCase {
                 - batch:
                     exporter:
                       otlp_http:
-                        endpoint: {$failEndpoint}
-        YAML, $emitSpan);
+                        endpoint: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT}
+        YAML, $emitSpan, 'OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=' . $failEndpoint);
 
         self::assertStringContainsString('Export failure', $this->lastStderr);
 
         /*
          * At level error the warning is suppressed.
          */
-        $this->runOTelConfig(<<<YAML
+        $this->runOTelConfig(<<<'YAML'
             file_format: "1.2"
             log_level: error
 
@@ -619,8 +619,8 @@ final class ConfigBasicTest extends TestCase {
                 - batch:
                     exporter:
                       otlp_http:
-                        endpoint: {$failEndpoint}
-        YAML, $emitSpan);
+                        endpoint: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT}
+        YAML, $emitSpan, 'OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=' . $failEndpoint);
 
         self::assertStringNotContainsString('Export failure', $this->lastStderr);
     }

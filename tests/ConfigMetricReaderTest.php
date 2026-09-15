@@ -139,7 +139,7 @@ final class ConfigMetricReaderTest extends TestCase {
         $port = 39465;
 
         $exposition = $this->runOTelConfig(
-            str_replace('{PORT}', (string) $port, <<<'YAML'
+            <<<'YAML'
             file_format: "1.2"
 
             meter_provider:
@@ -148,8 +148,8 @@ final class ConfigMetricReaderTest extends TestCase {
                     exporter:
                       prometheus/development:
                         host: 127.0.0.1
-                        port: {PORT}
-            YAML),
+                        port: ${OTEL_EXPORTER_PROMETHEUS_PORT}
+            YAML,
             static function () use ($port): void {
                 Globals::meterProvider()
                     ->getMeter('prom-test')
@@ -168,6 +168,7 @@ final class ConfigMetricReaderTest extends TestCase {
 
                 echo (string) $response->getBody();
             },
+            'OTEL_EXPORTER_PROMETHEUS_PORT=' . $port,
         );
 
         /*
@@ -189,7 +190,7 @@ final class ConfigMetricReaderTest extends TestCase {
         $port = 39467;
 
         $exposition = $this->runOTelConfig(
-            str_replace('{PORT}', (string) $port, <<<'YAML'
+            <<<'YAML'
             file_format: "1.2"
 
             resource:
@@ -203,10 +204,10 @@ final class ConfigMetricReaderTest extends TestCase {
                     exporter:
                       prometheus/development:
                         host: 127.0.0.1
-                        port: {PORT}
+                        port: ${OTEL_EXPORTER_PROMETHEUS_PORT}
                         scope_info_enabled: false
                         target_info_enabled/development: false
-            YAML),
+            YAML,
             static function () use ($port): void {
                 Globals::meterProvider()
                     ->getMeter('prom-opt')
@@ -224,6 +225,7 @@ final class ConfigMetricReaderTest extends TestCase {
 
                 echo (string) $response->getBody();
             },
+            'OTEL_EXPORTER_PROMETHEUS_PORT=' . $port,
         );
 
         self::assertStringContainsString('# TYPE opt_counter_requests_total counter', $exposition);
@@ -245,7 +247,7 @@ final class ConfigMetricReaderTest extends TestCase {
         $port = 39468;
 
         $exposition = $this->runOTelConfig(
-            str_replace('{PORT}', (string) $port, <<<'YAML'
+            <<<'YAML'
             file_format: "1.2"
 
             meter_provider:
@@ -254,10 +256,10 @@ final class ConfigMetricReaderTest extends TestCase {
                     exporter:
                       prometheus/development:
                         host: 127.0.0.1
-                        port: {PORT}
+                        port: ${OTEL_EXPORTER_PROMETHEUS_PORT}
                         resource_constant_labels:
                           included: [service.name]
-            YAML),
+            YAML,
             static function () use ($port): void {
                 Globals::meterProvider()
                     ->getMeter('prom-test')
@@ -275,6 +277,7 @@ final class ConfigMetricReaderTest extends TestCase {
 
                 echo (string) $response->getBody();
             },
+            'OTEL_EXPORTER_PROMETHEUS_PORT=' . $port,
         );
 
         /*
@@ -292,7 +295,7 @@ final class ConfigMetricReaderTest extends TestCase {
         $port = 39469;
 
         $exposition = $this->runOTelConfig(
-            str_replace('{PORT}', (string) $port, <<<'YAML'
+            <<<'YAML'
             file_format: "1.2"
 
             meter_provider:
@@ -301,9 +304,9 @@ final class ConfigMetricReaderTest extends TestCase {
                     exporter:
                       prometheus/development:
                         host: 127.0.0.1
-                        port: {PORT}
+                        port: ${OTEL_EXPORTER_PROMETHEUS_PORT}
                         translation_strategy: no_translation/development
-            YAML),
+            YAML,
             static function () use ($port): void {
                 Globals::meterProvider()
                     ->getMeter('prom-test')
@@ -321,6 +324,7 @@ final class ConfigMetricReaderTest extends TestCase {
 
                 echo (string) $response->getBody();
             },
+            'OTEL_EXPORTER_PROMETHEUS_PORT=' . $port,
         );
 
         /*

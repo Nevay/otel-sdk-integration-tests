@@ -198,9 +198,7 @@ final class GrpcTest extends TestCase {
 
     #[Group('config-file'), Group('traces')]
     public function testConfigFileGrpcExporterExportsSpans(): void {
-        $caFile = self::CERT;
-
-        $this->runOTelConfig(<<<YAML
+        $this->runOTelConfig(<<<'YAML'
             file_format: "1.2"
 
             tracer_provider:
@@ -208,15 +206,18 @@ final class GrpcTest extends TestCase {
                 - batch:
                     exporter:
                       otlp_grpc:
-                        endpoint: {$this->grpcBaseUrl}
+                        endpoint: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT}
                         tls:
-                          ca_file: {$caFile}
+                          ca_file: ${OTEL_EXPORTER_OTLP_TRACES_CERTIFICATE}
         YAML, static function (): void {
             Globals::tracerProvider()->getTracer('grpc-test')
                 ->spanBuilder('grpc-config-span')
                 ->startSpan()
                 ->end();
-        });
+        },
+            'OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=' . $this->grpcBaseUrl,
+            'OTEL_EXPORTER_OTLP_TRACES_CERTIFICATE=' . self::CERT,
+        );
 
         self::assertCount(1, $this->traces);
         self::assertSame(
@@ -348,7 +349,7 @@ final class GrpcTest extends TestCase {
 
         $this->assertPlaintextGrpcDial(static function (int $port) use (&$configFile): array {
             $configFile = sys_get_temp_dir() . '/otel-test-grpc-insecure-' . uniqid() . '.yaml';
-            file_put_contents($configFile, <<<YAML
+            file_put_contents($configFile, <<<'YAML'
                 file_format: "1.2"
 
                 tracer_provider:
@@ -356,12 +357,15 @@ final class GrpcTest extends TestCase {
                     - batch:
                         exporter:
                           otlp_grpc:
-                            endpoint: 127.0.0.1:$port
+                            endpoint: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT}
                             tls:
                               insecure: true
             YAML);
 
-            return ['OTEL_CONFIG_FILE' => $configFile];
+            return [
+                'OTEL_CONFIG_FILE' => $configFile,
+                'OTEL_EXPORTER_OTLP_TRACES_ENDPOINT' => '127.0.0.1:' . $port,
+            ];
         });
 
         @unlink($configFile ?? '');
