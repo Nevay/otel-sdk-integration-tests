@@ -1203,6 +1203,36 @@ final class ConfigSamplingTest extends TestCase {
         );
     }
 
+    public function testJaegerRemoteSamplerDialsPlaintextEndpoint(): void
+    {
+        $configFile = '';
+        $this->assertPlaintextGrpcDial(
+            static function (int $port) use (&$configFile): array {
+                $configFile = sys_get_temp_dir() . '/otel-test-jaeger-' . uniqid() . '.yaml';
+                file_put_contents($configFile, <<<YAML
+                file_format: "1.2"
+
+                tracer_provider:
+                  sampler:
+                    jaeger_remote/development:
+                      endpoint: http://127.0.0.1:$port
+                      interval: 50
+                YAML);
+
+                return ['OTEL_CONFIG_FILE' => $configFile];
+            },
+            static function (): void {
+                /*
+                 * Keep the event loop alive past the first 50 ms poll tick;
+                 * no span is needed — the sampler polls on its own timer.
+                 */
+                \Amp\delay(0.5);
+            },
+        );
+
+        @unlink($configFile);
+    }
+
     /**
      * Emits the given span context as a JSON line on stdout, for assertions
      * in the parent process.

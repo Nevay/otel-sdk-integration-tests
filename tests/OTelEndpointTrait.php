@@ -9,13 +9,18 @@ use Amp\Http\Server\RequestHandler\ClosureRequestHandler;
 use Amp\Http\Server\Response;
 use Amp\Http\Server\Router;
 use Amp\Http\Server\SocketHttpServer;
+use Amp\DeferredFuture;
 use Amp\Process\Process;
 use Amp\Process\ProcessException;
 use Amp\Socket\InternetAddress;
+use Amp\Socket\ResourceServerSocketFactory;
+use Amp\TimeoutCancellation;
+use Amp\TimeoutException;
 use Closure;
 use Composer\InstalledVersions;
 use Google\Protobuf\PrintOptions;
 use JsonPath\JsonObject;
+use Opentelemetry\API\Globals;
 use Opentelemetry\Proto\Collector\Logs\V1\ExportLogsServiceRequest;
 use Opentelemetry\Proto\Collector\Logs\V1\ExportLogsServiceResponse;
 use Opentelemetry\Proto\Collector\Metrics\V1\ExportMetricsServiceRequest;
@@ -25,6 +30,8 @@ use Opentelemetry\Proto\Collector\Trace\V1\ExportTraceServiceResponse;
 use Psr\Log\NullLogger;
 use RuntimeException;
 use Symfony\Component\Filesystem\Path;
+use Throwable;
+use function Amp\async;
 use function Amp\ByteStream\buffer;
 use function Amp\ByteStream\getStderr;
 use function Amp\ByteStream\pipe;
@@ -333,6 +340,85 @@ trait OTelEndpointTrait {
                 : $this->runOTel($closure, ...$env, OTEL_CONFIG_FILE: $configFile);
         } finally {
             deleteFile($configFile);
+        }
+    }
+
+    /**
+     * Dials a plaintext gRPC endpoint and asserts that the first bytes on the
+     * connection are the HTTP/2 connection preface. This is the strongest
+     * verification possible for plaintext (h2c prior knowledge) gRPC in this
+     * environment: no gRPC server here can serve prior-knowledge h2c, so full
+     * round trips cannot be exercised. The child process is killed as soon as
+     * the dial has been captured.
+     */
+    protected function assertPlaintextGrpcDial(Closure $configure, ?Closure $telemetry = null): void {
+        $this->assertGrpcDial($configure, "PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n", $telemetry);
+    }
+
+    /**
+     * Starts a child process that is expected to dial a gRPC endpoint and
+     * asserts the transport on the wire: the plaintext HTTP/2 connection
+     * preface or the TLS ClientHello record. See assertPlaintextGrpcDial for
+     * why this stops at the dial.
+     */
+    protected function assertGrpcDial(Closure $configure, string $expectedPrefix, ?Closure $telemetry = null): void {
+        $server = (new ResourceServerSocketFactory())->listen(new InternetAddress('127.0.0.1', 0));
+        $port = $server->getAddress()->getPort();
+
+        $captured = new DeferredFuture();
+        async(static function () use ($server, $captured): void {
+            try {
+                $connection = $server->accept();
+
+                $bytes = '';
+                while (strlen($bytes) < 24 && null !== ($chunk = $connection->read())) {
+                    $bytes .= $chunk;
+                }
+
+                $captured->complete($bytes);
+            } catch (Throwable $exception) {
+                $captured->error($exception);
+            }
+        });
+
+        $autoloadPath = Path::makeAbsolute('vendor/autoload.php', InstalledVersions::getRootPackage()['install_path']);
+        $process = Process::start(
+            command: [
+                PHP_BINARY,
+                __DIR__ . '/../executeSerializedClosure.php',
+                $autoloadPath,
+                \Opis\Closure\serialize($telemetry ?? static function (): void {
+                    Globals::tracerProvider()->getTracer('grpc-test')
+                        ->spanBuilder('grpc-plaintext-span')
+                        ->startSpan()
+                        ->end();
+                }),
+            ],
+            environment: ['OTEL_PHP_AUTOLOAD_ENABLED' => 'true', ...$this->env, ...$configure($port)],
+        );
+
+        try {
+            /*
+             * The first bytes on a plaintext h2c connection are the HTTP/2
+             * connection preface; a TLS client would send a ClientHello
+             * record (0x16 0x03) instead. (Only the prefix is compared:
+             * read() may return a larger chunk that also contains further
+             * frames or records.)
+             */
+            self::assertStringStartsWith(
+                $expectedPrefix,
+                (string)$captured->getFuture()->await(new TimeoutCancellation(15)),
+            );
+        } catch (TimeoutException) {
+            self::fail('The gRPC client did not dial the endpoint');
+        } finally {
+            try {
+                $process->kill();
+            } catch (Throwable) {
+                // The process may have exited on its own already.
+            }
+
+            $server->close();
         }
     }
 

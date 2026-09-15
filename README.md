@@ -97,10 +97,13 @@ format has been verified manually against a reference collector
 verifies the plaintext dial itself (the HTTP/2 connection preface on the wire)
 instead.
 
-The `jaeger_remote` sampler is implemented (env mode and config file), but
-its strategy client hard-codes a default TLS context: it cannot be pointed
-at the suite's self-signed test server without modifying the container's
-system trust store, so it is not covered by tests.
+The `jaeger_remote` sampler is implemented (env mode and config file) and
+covered at the dial level, under the same testability note as the gRPC
+exporters: a plaintext (`http://`) endpoint makes the sampler poll the
+sampling service over h2c prior-knowledge HTTP/2, which the suite verifies
+against a raw TCP listener. An `https://` endpoint would use default
+certificate verification and thus cannot reach the suite's self-signed test
+server without modifying the container's system trust store.
 
 ### [`open-telemetry/sdk`](https://github.com/open-telemetry/opentelemetry-php)
 

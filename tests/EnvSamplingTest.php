@@ -162,4 +162,20 @@ final class EnvSamplingTest extends TestCase {
 
         self::assertSpanNames(['kept-child']);
     }
+
+    public function testJaegerRemoteSamplerDialsPlaintextEndpoint(): void {
+        $this->assertPlaintextGrpcDial(
+            static fn (int $port): array => [
+                'OTEL_TRACES_SAMPLER' => 'jaeger_remote',
+                'OTEL_TRACES_SAMPLER_ARG' => 'endpoint=http://127.0.0.1:' . $port . ',pollingIntervalMs=50,initialSamplingRate=0',
+            ],
+            static function (): void {
+                /*
+                 * Keep the event loop alive past the first 50 ms poll tick;
+                 * no span is needed — the sampler polls on its own timer.
+                 */
+                \Amp\delay(0.5);
+            },
+        );
+    }
 }
