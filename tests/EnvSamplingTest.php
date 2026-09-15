@@ -1,6 +1,7 @@
 <?php declare(strict_types=1);
 namespace Nevay\OTelTest;
 
+use Closure;
 use OpenTelemetry\API\Globals;
 use OpenTelemetry\API\Trace\Span;
 use OpenTelemetry\API\Trace\SpanContext;
@@ -177,5 +178,123 @@ final class EnvSamplingTest extends TestCase {
                 \Amp\delay(0.5);
             },
         );
+    }
+
+    /*
+     * =========================================================================
+     * Jaeger remote sampling strategies (full round trip against an in-process
+     * h2c gRPC peer serving the Jaeger remote sampling API)
+     * =========================================================================
+     */
+
+    #[Group('async')]
+    public function testJaegerRemoteProbabilityStrategyIsApplied(): void {
+        $this->runJaegerRemoteSampling(
+            JaegerSamplingServer::probabilityStrategy(1.0),
+            static function (): void {
+                // Wait past the first successful poll (~50 ms).
+                \Amp\delay(0.3);
+
+                /*
+                 * The initial sampling rate is 0, so this span can only be
+                 * exported if the remote PROBABILITY strategy (rate 1.0) was
+                 * fetched and applied.
+                 */
+                Globals::tracerProvider()->getTracer('test')
+                    ->spanBuilder('remote-sampled')
+                    ->startSpan()
+                    ->end();
+            },
+        );
+
+        self::assertSpanNames(['remote-sampled']);
+    }
+
+    #[Group('async')]
+    public function testJaegerRemotePerOperationStrategyMatchesSpanNames(): void {
+        $this->runJaegerRemoteSampling(
+            JaegerSamplingServer::operationsStrategy(0.0, ['kept' => 1.0]),
+            static function (): void {
+                \Amp\delay(0.3);
+
+                foreach (['kept', 'dropped'] as $name) {
+                    Globals::tracerProvider()->getTracer('test')
+                        ->spanBuilder($name)
+                        ->startSpan()
+                        ->end();
+                }
+            },
+        );
+
+        /*
+         * The OPERATIONS strategy matches per operation (span name): 'kept'
+         * is sampled at rate 1.0, 'dropped' falls back to the default of 0.
+         */
+        self::assertSpanNames(['kept']);
+    }
+
+    #[Group('async')]
+    public function testJaegerRemoteRateLimitingStrategyLimitsSpans(): void {
+        /*
+         * maxTracesPerSecond=1 gives the token bucket a cost of one second per
+         * trace and a capacity of one. Waiting past one full second after the
+         * strategy is applied puts the first span back in budget; the second
+         * span, emitted immediately after, must be dropped until the next
+         * second elapses.
+         */
+        $this->runJaegerRemoteSampling(
+            JaegerSamplingServer::rateLimitingStrategy(1),
+            static function (): void {
+                \Amp\delay(1.5);
+
+                Globals::tracerProvider()->getTracer('test')
+                    ->spanBuilder('rl-first')
+                    ->startSpan()
+                    ->end();
+                Globals::tracerProvider()->getTracer('test')
+                    ->spanBuilder('rl-second')
+                    ->startSpan()
+                    ->end();
+            },
+        );
+
+        self::assertSpanNames(['rl-first']);
+    }
+
+    public function testJaegerRemoteInitialSamplerAppliesWhileBackendUnreachable(): void {
+        $this->runOTel(
+            static function (): void {
+                // Let a few polls fail against the closed port.
+                \Amp\delay(0.3);
+
+                /*
+                 * initialSamplingRate=1: while the backend cannot be reached,
+                 * the initial sampler keeps sampling everything.
+                 */
+                Globals::tracerProvider()->getTracer('test')
+                    ->spanBuilder('initial-sampled')
+                    ->startSpan()
+                    ->end();
+            },
+            'OTEL_TRACES_SAMPLER=jaeger_remote',
+            'OTEL_TRACES_SAMPLER_ARG=endpoint=http://127.0.0.1:1,pollingIntervalMs=50,initialSamplingRate=1',
+        );
+
+        self::assertSpanNames(['initial-sampled']);
+    }
+
+    private function runJaegerRemoteSampling(string $strategy, Closure $telemetry): void {
+        $server = new JaegerSamplingServer($strategy);
+        $port = $server->start();
+
+        try {
+            $this->runOTel(
+                $telemetry,
+                'OTEL_TRACES_SAMPLER=jaeger_remote',
+                'OTEL_TRACES_SAMPLER_ARG=endpoint=http://127.0.0.1:' . $port . ',pollingIntervalMs=50,initialSamplingRate=0',
+            );
+        } finally {
+            $server->stop();
+        }
     }
 }

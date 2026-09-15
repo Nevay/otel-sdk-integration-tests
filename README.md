@@ -97,11 +97,12 @@ format has been verified manually against a reference collector
 verifies the plaintext dial itself (the HTTP/2 connection preface on the wire)
 instead.
 
-The `jaeger_remote` sampler is implemented (env mode and config file) and
-covered at the dial level, under the same testability note as the gRPC
-exporters: a plaintext (`http://`) endpoint makes the sampler poll the
-sampling service over h2c prior-knowledge HTTP/2, which the suite verifies
-against a raw TCP listener. An `https://` endpoint would use default
+The `jaeger_remote` sampler is implemented (env mode and config file).
+Plaintext (`http://`) endpoints are covered end to end: the suite runs an
+in-process h2c gRPC peer (see `JaegerSamplingServer`) serving the Jaeger
+remote sampling API, and verifies all three strategy types (probability,
+rate limiting, per-operation) plus the initial-sampler fallback while the
+backend is unreachable. An `https://` endpoint would use default
 certificate verification and thus cannot reach the suite's self-signed test
 server without modifying the container's system trust store.
 
