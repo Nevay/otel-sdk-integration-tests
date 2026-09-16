@@ -1,4 +1,4 @@
-# otel-test
+# otel-integration-tests
 
 Integration tests for OpenTelemetry SDK configuration: every test verifies
 behavior driven exclusively by standard OpenTelemetry environment variables or
@@ -19,7 +19,7 @@ failure guard.
 ## Running the tests
 
 The repository root is itself a Composer package (the compliance suite,
-`tbachert/otel-test`). Each SDK is a separate project under `sdks/`, pulling
+`tbachert/otel-integration-tests`). Each SDK is a separate project under `sdks/`, pulling
 in the suite through a local path repository to the repository root, so both
 SDKs can be installed side by side — and external projects can require the
 suite the same way:

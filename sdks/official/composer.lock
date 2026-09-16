@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "6e3a7280e440e5ee3176eeeab6d323c5",
+    "content-hash": "c15e2d096f9e1f8b1a166e219eb2dd64",
     "packages": [
         {
             "name": "amphp/amp",
@@ -4641,12 +4641,12 @@
             "time": "2026-05-26T12:45:58+00:00"
         },
         {
-            "name": "tbachert/otel-test",
+            "name": "tbachert/otel-integration-tests",
             "version": "dev-main",
             "dist": {
                 "type": "path",
                 "url": "../..",
-                "reference": "c03f525f39dc8e3b3abcc239d186d75dc0dfe186"
+                "reference": "39a567c716f744b62a69b3ac037cb22dd02b8427"
             },
             "require": {
                 "amphp/amp": "^3.0",
@@ -4681,7 +4681,7 @@
             "license": [
                 "Apache-2.0"
             ],
-            "description": "SDK-agnostic OpenTelemetry SDK configuration compliance suite",
+            "description": "SDK-agnostic integration tests for OpenTelemetry PHP SDK configuration",
             "transport-options": {
                 "symlink": true,
                 "relative": true

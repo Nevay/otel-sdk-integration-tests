@@ -1,6 +1,6 @@
 {
-  "name": "tbachert/otel-test-tbachert",
-  "description": "Run the otel-test suite against tbachert/otel-sdk",
+  "name": "tbachert/otel-integration-tests-tbachert",
+  "description": "Run the otel-integration-tests suite against tbachert/otel-sdk",
   "repositories": [
     {
       "type": "path",
@@ -11,7 +11,7 @@
     }
   ],
   "require": {
-    "tbachert/otel-test": "*"
+    "tbachert/otel-integration-tests": "*"
   },
   "require-dev": {
     "tbachert/otel-sdk": "^0.1.0@dev"

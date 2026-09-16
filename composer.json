@@ -1,6 +1,6 @@
 {
-  "name": "tbachert/otel-test",
-  "description": "SDK-agnostic OpenTelemetry SDK configuration compliance suite",
+  "name": "tbachert/otel-integration-tests",
+  "description": "SDK-agnostic integration tests for OpenTelemetry PHP SDK configuration",
   "license": "Apache-2.0",
   "require": {
     "amphp/amp": "^3.0",

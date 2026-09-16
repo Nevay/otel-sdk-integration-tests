@@ -1,6 +1,6 @@
 {
-  "name": "tbachert/otel-test-official",
-  "description": "Run the otel-test suite against open-telemetry/sdk",
+  "name": "tbachert/otel-integration-tests-official",
+  "description": "Run the otel-integration-tests suite against open-telemetry/sdk",
   "repositories": [
     {
       "type": "path",
@@ -11,7 +11,7 @@
     }
   ],
   "require": {
-    "tbachert/otel-test": "*"
+    "tbachert/otel-integration-tests": "*"
   },
   "require-dev": {
     "open-telemetry/exporter-otlp": "^1.4",
