@@ -4,6 +4,7 @@ namespace Nevay\OTelTest;
 use OpenTelemetry\API\Globals;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
+use function Amp\delay;
 
 #[Group('config-file'), Group('metrics')]
 final class ConfigViewsTest extends TestCase {
@@ -732,6 +733,107 @@ final class ConfigViewsTest extends TestCase {
                 '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "requests")].sum.dataPoints[*].attributes[?(@.key == "http.status_code")]',
             ),
         );
+    }
+
+    #[Group('async')]
+    public function testMetricsViewCanFilterAttributes(): void
+    {
+        $output = $this->runOTelConfig(
+            <<<'YAML'
+            file_format: "1.2"
+
+            meter_provider:
+              readers:
+                - periodic:
+                    interval: 250
+                    exporter:
+                      otlp_http:
+                        endpoint: ${env:OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
+
+              views:
+                - selector:
+                    instrument_name: test.requests
+                  stream:
+                    attribute_keys:
+                      included:
+                        - http.method
+            YAML,
+            static function (): void {
+                $meter = Globals::meterProvider()->getMeter(
+                    'view-test',
+                    '1.0.0',
+                );
+
+                $counter = $meter->createCounter(
+                    'test.requests',
+                    'requests',
+                );
+
+                $counter->add(1, [
+                    'http.method' => 'GET',
+                    'http.route' => '/users',
+                    'http.status_code' => 200,
+                ]);
+
+                $counter->add(2, [
+                    'http.method' => 'GET',
+                    'http.route' => '/orders',
+                    'http.status_code' => 200,
+                ]);
+
+                $counter->add(4, [
+                    'http.method' => 'POST',
+                    'http.route' => '/users',
+                    'http.status_code' => 201,
+                ]);
+
+                delay(0.4);
+
+                echo 'done';
+            },
+        );
+
+        self::assertSame('done', $output);
+        self::assertNotEmpty($this->metrics);
+
+        $payload = $this->metrics[array_key_last($this->metrics)];
+
+        $dataPoints = $this->dataPoints(
+            $payload,
+            'test.requests',
+        );
+
+        self::assertCount(2, $dataPoints);
+
+        self::assertSame(
+            '3',
+            $this->dataPoint(
+                $payload,
+                'test.requests',
+                ['http.method' => 'GET'],
+            )['asInt'],
+        );
+
+        self::assertSame(
+            '4',
+            $this->dataPoint(
+                $payload,
+                'test.requests',
+                ['http.method' => 'POST'],
+            )['asInt'],
+        );
+
+        foreach ($dataPoints as $dataPoint) {
+            $attributeNames = array_map(
+                static fn (array $attribute): string => $attribute['key'],
+                $dataPoint['attributes'] ?? [],
+            );
+
+            self::assertSame(
+                ['http.method'],
+                $attributeNames,
+            );
+        }
     }
 
     public function testViewAttributeKeysSupportIncludeAndExcludePatterns(): void

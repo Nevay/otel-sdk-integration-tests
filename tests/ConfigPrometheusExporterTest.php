@@ -8,7 +8,7 @@ use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 
 #[Group('config-file'), Group('metrics'), Group('prometheus')]
-final class ConfigPrometheusReaderTest extends TestCase {
+final class ConfigPrometheusExporterTest extends TestCase {
     use OTelEndpointTrait;
 
     public function testPrometheusReaderServesMetricsOnConfiguredPort(): void {

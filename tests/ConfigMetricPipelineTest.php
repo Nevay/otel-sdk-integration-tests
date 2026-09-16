@@ -8,7 +8,7 @@ use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 
 #[Group('config-file'), Group('metrics')]
-final class MetricsPipelineTest extends TestCase {
+final class ConfigMetricPipelineTest extends TestCase {
     use OTelEndpointTrait;
 
     /*

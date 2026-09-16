@@ -192,6 +192,295 @@ final class ConfigMetricReaderTest extends TestCase {
     }
 
     #[Group('metrics')]
+    /*
+     * =========================================================================
+     * Temporality
+     * =========================================================================
+     */
+
+    #[Group('async')]
+    public function testMetricsExporterUsesCumulativeTemporality(): void
+    {
+        $output = $this->runOTelConfig(
+            <<<'YAML'
+            file_format: "1.2"
+
+            meter_provider:
+              readers:
+                - periodic:
+                    interval: 300
+                    exporter:
+                      otlp_http:
+                        endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
+                        temporality_preference: cumulative
+            YAML,
+            static function (): void {
+                $meter = Globals::meterProvider()->getMeter(
+                    'temporality-test',
+                    '1.0.0',
+                );
+
+                $counter = $meter->createCounter(
+                    'test.requests',
+                    'requests',
+                );
+
+                $counter->add(5);
+
+                delay(0.5);
+
+                $counter->add(3);
+
+                delay(0.5);
+
+                echo 'done';
+            },
+        );
+
+        self::assertSame('done', $output);
+
+        self::assertGreaterThanOrEqual(
+            2,
+            count($this->metrics),
+            'Expected multiple periodic metric exports.',
+        );
+
+        $exports = [];
+
+        foreach ($this->metrics as $payload) {
+            $dataPoints = $this->dataPoints(
+                $payload,
+                'test.requests',
+            );
+
+            if ($dataPoints !== []) {
+                $exports[] = $dataPoints[0];
+            }
+        }
+
+        $exports = $this->sortByCollectionTime($exports);
+
+        self::assertGreaterThanOrEqual(
+            2,
+            count($exports),
+            'Expected the metric to be exported in multiple collection cycles.',
+        );
+
+        self::assertSame(
+            '5',
+            $exports[0]['asInt'],
+        );
+
+        self::assertSame(
+            '8',
+            $exports[array_key_last($exports)]['asInt'],
+        );
+
+        /*
+         * Cumulative counter values must never decrease between exports.
+         */
+        $previous = null;
+
+        foreach ($exports as $export) {
+            $value = (int) $export['asInt'];
+
+            if ($previous !== null) {
+                self::assertGreaterThanOrEqual(
+                    $previous,
+                    $value,
+                    'Cumulative counter value decreased between exports.',
+                );
+            }
+
+            $previous = $value;
+        }
+    }
+
+    #[Group('async')]
+    public function testMetricsExporterUsesDeltaTemporality(): void
+    {
+        $output = $this->runOTelConfig(
+            <<<'YAML'
+            file_format: "1.2"
+
+            meter_provider:
+              readers:
+                - periodic:
+                    interval: 300
+                    exporter:
+                      otlp_http:
+                        endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
+                        temporality_preference: delta
+            YAML,
+            static function (): void {
+                $meter = Globals::meterProvider()->getMeter(
+                    'temporality-test',
+                    '1.0.0',
+                );
+
+                $counter = $meter->createCounter(
+                    'test.requests',
+                    'requests',
+                );
+
+                $counter->add(5);
+
+                delay(0.5);
+
+                $counter->add(3);
+
+                delay(0.5);
+
+                echo 'done';
+            },
+        );
+
+        self::assertSame('done', $output);
+
+        self::assertGreaterThanOrEqual(
+            2,
+            count($this->metrics),
+            'Expected multiple periodic metric exports.',
+        );
+
+        $exports = [];
+
+        foreach ($this->metrics as $payload) {
+            $dataPoints = $this->dataPoints(
+                $payload,
+                'test.requests',
+            );
+
+            if ($dataPoints !== []) {
+                $exports[] = $dataPoints[0];
+            }
+        }
+
+        $exports = $this->sortByCollectionTime($exports);
+
+        self::assertGreaterThanOrEqual(
+            2,
+            count($exports),
+            'Expected the metric to be exported in multiple collection cycles.',
+        );
+
+        self::assertSame(
+            '5',
+            $exports[0]['asInt'],
+        );
+
+        self::assertSame(
+            '3',
+            $exports[1]['asInt'],
+        );
+
+        /*
+         * The sum of all delta exports must equal the total recorded,
+         * i.e. no data was lost between collection cycles.
+         */
+        self::assertSame(
+            8,
+            array_sum(
+                array_map(
+                    static fn (array $dataPoint): int => (int) $dataPoint['asInt'],
+                    $exports,
+                ),
+            ),
+        );
+    }
+
+    #[Group('async')]
+    public function testMetricsCumulativeTemporalityPreservesStartTimestamp(): void
+    {
+        $output = $this->runOTelConfig(
+            <<<'YAML'
+            file_format: "1.2"
+
+            meter_provider:
+              readers:
+                - periodic:
+                    interval: 300
+                    exporter:
+                      otlp_http:
+                        endpoint: ${env:OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
+                        temporality_preference: cumulative
+            YAML,
+            static function (): void {
+                $meter = Globals::meterProvider()->getMeter(
+                    'temporality-test',
+                    '1.0.0',
+                );
+
+                $counter = $meter->createCounter(
+                    'test.requests',
+                    'requests',
+                );
+
+                $counter->add(5);
+
+                delay(0.5);
+
+                $counter->add(3);
+
+                delay(0.5);
+
+                echo 'done';
+            },
+        );
+
+        self::assertSame('done', $output);
+
+        $exports = [];
+
+        foreach ($this->metrics as $payload) {
+            $points = $this->dataPoints(
+                $payload,
+                'test.requests',
+            );
+
+            if ($points !== []) {
+                $exports[] = $points[0];
+            }
+        }
+
+        $exports = $this->sortByCollectionTime($exports);
+
+        self::assertGreaterThanOrEqual(2, count($exports));
+
+        $first = $exports[0];
+        $last = $exports[array_key_last($exports)];
+
+        self::assertSame(
+            '5',
+            $first['asInt'],
+        );
+
+        self::assertSame(
+            '8',
+            $last['asInt'],
+        );
+
+        self::assertArrayHasKey(
+            'startTimeUnixNano',
+            $first,
+        );
+
+        self::assertArrayHasKey(
+            'startTimeUnixNano',
+            $last,
+        );
+
+        self::assertSame(
+            $first['startTimeUnixNano'],
+            $last['startTimeUnixNano'],
+        );
+
+        self::assertLessThan(
+            (int) $last['timeUnixNano'],
+            (int) $first['startTimeUnixNano'],
+        );
+    }
+
     public function testReaderCardinalityLimitBucketsOverflowSeries(): void {
         $this->runOTelConfig(<<<'YAML'
             file_format: "1.2"
@@ -233,6 +522,78 @@ final class ConfigMetricReaderTest extends TestCase {
             '2',
             (string) $this->path($this->metrics[0], $base . '.dataPoints[2].asInt')[0],
         );
+    }
+
+    #[Group('async')]
+    public function testReaderCardinalityLimitsApplyPerInstrumentType(): void {
+        /*
+         * The reader-level cardinality limits apply per instrument type:
+         * the counter is limited to one attribute set (plus the overflow
+         * aggregation), while the up-down counter keeps its default limit
+         * and reports all three of its attribute sets.
+         */
+        $this->runOTelConfig(
+            <<<'YAML'
+            file_format: "1.2"
+
+            meter_provider:
+              readers:
+                - periodic:
+                    interval: 250
+                    cardinality_limits:
+                      counter: 1
+                    exporter:
+                      otlp_http:
+                        endpoint: ${env:OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
+            YAML,
+            static function (): void {
+                $meter = Globals::meterProvider()->getMeter('cardinality-test');
+
+                $counter = $meter->createCounter('test.limited.counter', 'requests');
+                $counter->add(1, ['request.id' => 'request-1']);
+                $counter->add(2, ['request.id' => 'request-2']);
+
+                $upDownCounter = $meter->createUpDownCounter('test.unlimited.updown', 'balance');
+                foreach (['a', 'b', 'c'] as $id) {
+                    $upDownCounter->add(1, ['bucket' => $id]);
+                }
+
+                delay(0.4);
+
+                echo 'done';
+            },
+        );
+
+        self::assertNotEmpty($this->metrics);
+
+        $payload = $this->metrics[array_key_last($this->metrics)];
+
+        $limited = $this->dataPoints($payload, 'test.limited.counter');
+        self::assertCount(
+            2,
+            $limited,
+            'Expected one regular series and one overflow series.',
+        );
+
+        $overflow = 0;
+        foreach ($limited as $dataPoint) {
+            foreach ($dataPoint['attributes'] ?? [] as $attribute) {
+                if (
+                    $attribute['key'] === 'otel.metric.overflow'
+                    && $this->attributeValue($attribute['value']) === true
+                ) {
+                    $overflow++;
+                }
+            }
+        }
+
+        self::assertSame(1, $overflow);
+
+        /*
+         * The up-down counter is not subject to the counter limit.
+         */
+        $unlimited = $this->dataPoints($payload, 'test.unlimited.updown');
+        self::assertCount(3, $unlimited);
     }
 
     /*
