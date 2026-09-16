@@ -6,6 +6,7 @@ use Amp\Http\Client\Request;
 use OpenTelemetry\API\Globals;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
+use function Amp\delay;
 
 #[Group('env'), Group('metrics')]
 final class EnvMetricsTest extends TestCase {
@@ -318,5 +319,25 @@ final class EnvMetricsTest extends TestCase {
         );
 
         self::assertGreaterThanOrEqual(2, count($this->metrics));
+    }
+
+    /**
+     * OTEL_METRICS_EXPORTER=console must export metrics to stdout.
+     */
+    public function testMetricsConsoleExporterWritesToStdout(): void
+    {
+        $output = $this->runOTel(
+            static function (): void {
+                $meter = Globals::meterProvider()->getMeter('probe');
+
+                $counter = $meter->createCounter('probe_counter', 'count');
+                $counter->add(42);
+
+                delay(0.3);
+            },
+            'OTEL_METRICS_EXPORTER=console',
+        );
+
+        self::assertStringContainsString('probe_counter', $output);
     }
 }

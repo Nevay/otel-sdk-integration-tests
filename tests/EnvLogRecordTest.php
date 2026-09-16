@@ -325,4 +325,55 @@ final class EnvLogRecordTest extends TestCase {
             $body,
         );
     }
+
+    /**
+     * A limit of zero means "no items allowed": with
+     * OTEL_LOGRECORD_ATTRIBUTE_COUNT_LIMIT=0 no attributes may be exported on
+     * the log record.
+     */
+    public function testZeroAttributeCountLimitDropsAllAttributes(): void
+    {
+        $this->runOTel(
+            static function (): void {
+                $record = new LogRecord('zero-attrs');
+
+                $record->setAttributes([
+                    'a1' => '1',
+                    'a2' => '2',
+                ]);
+
+                Globals::loggerProvider()
+                    ->getLogger('probe')
+                    ->emit($record);
+            },
+            'OTEL_LOGRECORD_ATTRIBUTE_COUNT_LIMIT=0',
+        );
+
+        self::assertCount(
+            0,
+            $this->path(
+                $this->logs[0],
+                '$.resourceLogs[*].scopeLogs[*].logRecords[?(@.body.stringValue == "zero-attrs")].attributes[*]',
+            ),
+        );
+    }
+
+    /**
+     * OTEL_LOGS_EXPORTER=console must export log records to stdout.
+     */
+    public function testLogsConsoleExporterWritesToStdout(): void
+    {
+        $output = $this->runOTel(
+            static function (): void {
+                $record = new LogRecord('probe-log-body');
+
+                Globals::loggerProvider()
+                    ->getLogger('probe')
+                    ->emit($record);
+            },
+            'OTEL_LOGS_EXPORTER=console',
+        );
+
+        self::assertStringContainsString('probe-log-body', $output);
+    }
 }

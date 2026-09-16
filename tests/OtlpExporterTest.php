@@ -735,4 +735,104 @@ final class OtlpExporterTest extends TestCase {
         self::assertGreaterThanOrEqual(1, $this->slowRequests);
         self::assertSame([], $this->logs);
     }
+
+    /**
+     * An empty OTEL_TRACES_EXPORTER must be treated as unset, so the
+     * default (otlp) exporter is used and the span is exported.
+     */
+    public function testEmptyTracesExporterEnvironmentVariableFallsBackToOtlp(): void
+    {
+        $this->runOTel(
+            static function (): void {
+                $span = Globals::tracerProvider()
+                    ->getTracer('probe')
+                    ->spanBuilder('probe')
+                    ->startSpan();
+
+                $span->end();
+            },
+            'OTEL_TRACES_EXPORTER=',
+        );
+
+        self::assertNotEmpty($this->traces);
+    }
+
+    /**
+     * Enum environment variables SHOULD be interpreted in a case-insensitive
+     * manner: OTEL_TRACES_EXPORTER=OTLP must select the OTLP exporter, so
+     * the span is exported.
+     * 
+     * open-telemetry/sdk currently matches exporter names case-sensitively
+     * and fails initialization for unrecognized values.
+     */
+    public function testTracesExporterEnvironmentVariableIsCaseInsensitive(): void
+    {
+        $this->runOTel(
+            static function (): void {
+                $span = Globals::tracerProvider()
+                    ->getTracer('probe')
+                    ->spanBuilder('probe')
+                    ->startSpan();
+
+                $span->end();
+            },
+            'OTEL_TRACES_EXPORTER=OTLP',
+        );
+
+        self::assertNotEmpty($this->traces);
+    }
+
+    /**
+     * An unrecognized OTEL_EXPORTER_OTLP_PROTOCOL must be warned about and
+     * gracefully ignored, so the default transport (http/protobuf) is used.
+     * 
+     * Both SDKs currently fail initialization instead.
+     */
+    public function testUnrecognizedProtocolFallsBackToDefault(): void
+    {
+        $this->runOTel(
+            static function (): void {
+                $span = Globals::tracerProvider()
+                    ->getTracer('probe')
+                    ->spanBuilder('probe')
+                    ->startSpan();
+
+                $span->end();
+            },
+            'OTEL_EXPORTER_OTLP_PROTOCOL=carrier-pigeon',
+        );
+
+        self::assertNotEmpty($this->traces);
+        self::assertContains(
+            'application/x-protobuf',
+            array_column($this->requestHeaders, 'content-type'),
+        );
+    }
+
+    /**
+     * OTEL_EXPORTER_OTLP_HEADERS uses the W3C baggage format, so values are
+     * percent encoded: x-probe=a%20b must arrive as "a b".
+     */
+    public function testExporterHeadersDecodePercentEncodedValues(): void
+    {
+        $this->runOTel(
+            static function (): void {
+                $span = Globals::tracerProvider()
+                    ->getTracer('probe')
+                    ->spanBuilder('probe')
+                    ->startSpan();
+
+                $span->end();
+            },
+            'OTEL_EXPORTER_OTLP_TRACES_HEADERS=x-probe=a%20b',
+        );
+
+        self::assertNotEmpty($this->traces);
+        $values = $this->requestHeaders[0]['x-probe'] ?? [];
+        if (is_array($values)) {
+            $values = $values[0] ?? null;
+        }
+
+        self::assertSame('a b', $values);
+    }
 }

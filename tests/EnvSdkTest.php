@@ -260,4 +260,105 @@ final class EnvSdkTest extends TestCase {
          */
         self::assertSame([], $this->traces);
     }
+
+    /**
+     * Boolean environment variables are only true for the case-insensitive
+     * string "true": OTEL_SDK_DISABLED=1 must NOT disable the SDK, so the
+     * span is exported.
+     */
+    public function testSdkDisabledDoesNotAcceptOneAsTrue(): void
+    {
+        $this->runOTel(
+            static function (): void {
+                $span = Globals::tracerProvider()
+                    ->getTracer('probe')
+                    ->spanBuilder('probe')
+                    ->startSpan();
+
+                $span->end();
+            },
+            'OTEL_SDK_DISABLED=1',
+        );
+
+        self::assertNotEmpty($this->traces);
+    }
+
+    /**
+     * Boolean environment variables are case-insensitive: OTEL_SDK_DISABLED=TRUE
+     * disables the SDK, so nothing is exported.
+     */
+    public function testSdkDisabledAcceptsCaseInsensitiveTrue(): void
+    {
+        $this->runOTel(
+            static function (): void {
+                $span = Globals::tracerProvider()
+                    ->getTracer('probe')
+                    ->spanBuilder('probe')
+                    ->startSpan();
+
+                $span->end();
+            },
+            'OTEL_SDK_DISABLED=TRUE',
+        );
+
+        self::assertEmpty($this->traces);
+    }
+
+    /**
+     * OTEL_SDK_DISABLED disables the telemetry signals, but it has no effect
+     * on propagators: a traceparent round-trip must still work.
+     */
+    public function testDisabledSdkDoesNotDisablePropagators(): void
+    {
+        $carrierJson = $this->runOTel(
+            static function (): void {
+                $incoming = [
+                    'traceparent' => '00-11111111111111112222222222222222-3333333333333333-01',
+                ];
+
+                $context = Globals::propagator()->extract($incoming);
+
+                $carrier = [];
+                Globals::propagator()->inject($carrier, null, $context);
+
+                echo json_encode($carrier);
+            },
+            'OTEL_SDK_DISABLED=true',
+        );
+
+        $carrier = json_decode($carrierJson, true, 512, JSON_THROW_ON_ERROR);
+
+        self::assertArrayHasKey('traceparent', $carrier);
+        self::assertStringContainsString(
+            '11111111111111112222222222222222',
+            $carrier['traceparent'],
+        );
+    }
+
+    /**
+     * OTEL_LOG_LEVEL=none disables the SDK internal logger: an
+     * initialization error (unrecognized OTLP protocol) must not be written
+     * to stderr.
+     * 
+     * tbachert/otel-sdk currently logs initialization errors through a
+     * dedicated logger that ignores OTEL_LOG_LEVEL, and does not recognize
+     * "none" as a level.
+     */
+    public function testLogLevelNoneSuppressesSelfDiagnostics(): void
+    {
+        $this->runOTel(
+            static function (): void {
+                // Any Globals access triggers SDK initialization, which
+                // fails on the unrecognized protocol value.
+                Globals::tracerProvider();
+            },
+            'OTEL_EXPORTER_OTLP_PROTOCOL=carrier-pigeon',
+            'OTEL_LOG_LEVEL=none',
+        );
+
+        self::assertStringNotContainsString(
+            'initialization',
+            strtolower($this->lastStderr),
+        );
+    }
 }

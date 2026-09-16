@@ -498,4 +498,123 @@ final class EnvPropagatorTest extends TestCase {
 
         self::assertSame([], $this->traces);
     }
+
+    /**
+     * OTEL_PROPAGATORS defaults to tracecontext,baggage: without any
+     * configuration, an active baggage entry must be injected next to the
+     * traceparent header.
+     */
+    public function testDefaultPropagatorsInjectBaggageWithoutConfiguration(): void
+    {
+        $carrierJson = $this->runOTel(
+            static function (): void {
+                $span = Globals::tracerProvider()
+                    ->getTracer('probe')
+                    ->spanBuilder('probe')
+                    ->startSpan();
+
+                $scope = $span->activate();
+
+                $context = Baggage::fromContext(Context::getCurrent())
+                    ->toBuilder()
+                    ->set('user', 'bob')
+                    ->build()
+                    ->storeInContext(Context::getCurrent());
+
+                $carrier = [];
+                Globals::propagator()->inject($carrier, null, $context);
+
+                $scope->detach();
+                $span->end();
+
+                echo json_encode($carrier);
+            },
+        );
+
+        $carrier = json_decode($carrierJson, true, 512, JSON_THROW_ON_ERROR);
+
+        self::assertArrayHasKey('traceparent', $carrier);
+        self::assertArrayHasKey('baggage', $carrier);
+        self::assertStringContainsString('user=bob', $carrier['baggage']);
+    }
+
+    /**
+     * An empty OTEL_PROPAGATORS must be treated as unset, so the default
+     * propagators (tracecontext,baggage) apply.
+     */
+    public function testEmptyPropagatorsEnvironmentVariableFallsBackToDefaults(): void
+    {
+        $carrierJson = $this->runOTel(
+            static function (): void {
+                $span = Globals::tracerProvider()
+                    ->getTracer('probe')
+                    ->spanBuilder('probe')
+                    ->startSpan();
+
+                $scope = $span->activate();
+
+                $context = Baggage::fromContext(Context::getCurrent())
+                    ->toBuilder()
+                    ->set('user', 'bob')
+                    ->build()
+                    ->storeInContext(Context::getCurrent());
+
+                $carrier = [];
+                Globals::propagator()->inject($carrier, null, $context);
+
+                $scope->detach();
+                $span->end();
+
+                echo json_encode($carrier);
+            },
+            'OTEL_PROPAGATORS=',
+        );
+
+        $carrier = json_decode($carrierJson, true, 512, JSON_THROW_ON_ERROR);
+
+        self::assertArrayHasKey('traceparent', $carrier);
+        self::assertArrayHasKey('baggage', $carrier);
+    }
+
+    /**
+     * Enum environment variables SHOULD be interpreted in a case-insensitive
+     * manner: OTEL_PROPAGATORS=BAGGAGE must register the baggage propagator
+     * (and only it).
+     * 
+     * open-telemetry/sdk currently matches propagator names case-sensitively
+     * and falls back to a no-op propagator for unrecognized values.
+     */
+    public function testPropagatorsEnvironmentVariableIsCaseInsensitive(): void
+    {
+        $carrierJson = $this->runOTel(
+            static function (): void {
+                $span = Globals::tracerProvider()
+                    ->getTracer('probe')
+                    ->spanBuilder('probe')
+                    ->startSpan();
+
+                $scope = $span->activate();
+
+                $context = Baggage::fromContext(Context::getCurrent())
+                    ->toBuilder()
+                    ->set('user', 'bob')
+                    ->build()
+                    ->storeInContext(Context::getCurrent());
+
+                $carrier = [];
+                Globals::propagator()->inject($carrier, null, $context);
+
+                $scope->detach();
+                $span->end();
+
+                echo json_encode($carrier);
+            },
+            'OTEL_PROPAGATORS=BAGGAGE',
+        );
+
+        $carrier = json_decode($carrierJson, true, 512, JSON_THROW_ON_ERROR);
+
+        self::assertArrayHasKey('baggage', $carrier);
+        self::assertArrayNotHasKey('traceparent', $carrier);
+    }
 }

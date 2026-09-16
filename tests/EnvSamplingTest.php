@@ -309,4 +309,25 @@ final class EnvSamplingTest extends TestCase {
             $server->stop();
         }
     }
+
+    /**
+     * An empty OTEL_TRACES_SAMPLER must be treated as unset, so the default
+     * sampler (parentbased_always_on) samples root spans.
+     */
+    public function testEmptySamplerEnvironmentVariableFallsBackToDefault(): void
+    {
+        $this->runOTel(
+            static function (): void {
+                $span = Globals::tracerProvider()
+                    ->getTracer('probe')
+                    ->spanBuilder('probe')
+                    ->startSpan();
+
+                $span->end();
+            },
+            'OTEL_TRACES_SAMPLER=',
+        );
+
+        self::assertNotEmpty($this->traces);
+    }
 }

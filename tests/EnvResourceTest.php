@@ -487,4 +487,60 @@ final class EnvResourceTest extends TestCase {
         self::assertSame('x,y', $this->resourceAttribute($this->traces[0], 'custom.other'));
         self::assertSame('a=b[c]', $this->resourceAttribute($this->traces[0], 'custom.desc'));
     }
+
+    /**
+     * An empty OTEL_SERVICE_NAME must be treated as unset, so the SDK's
+     * default service name derivation applies (the composer root package
+     * for tbachert/otel-sdk, unknown_service:<language> for the reference
+     * SDK).
+     */
+    public function testEmptyServiceNameEnvironmentVariableFallsBackToDefault(): void
+    {
+        $this->runOTel(
+            static function (): void {
+                $span = Globals::tracerProvider()
+                    ->getTracer('probe')
+                    ->spanBuilder('probe')
+                    ->startSpan();
+
+                $span->end();
+            },
+            'OTEL_SERVICE_NAME=',
+        );
+
+        self::assertContains(
+            $this->resourceAttribute($this->traces[0], 'service.name'),
+            [
+                InstalledVersions::getRootPackage()['name'],
+                'unknown_service:php',
+            ],
+        );
+    }
+
+    /**
+     * OTEL_RESOURCE_ATTRIBUTES: "," and "=" in keys and values MUST be
+     * percent encoded, so a%3Db=c%2Cd is the pair with key "a=b" and value
+     * "c,d".
+     * 
+     * Both SDKs currently only percent-decode the value, not the key.
+     */
+    public function testResourceAttributesDecodePercentEncodedKeys(): void
+    {
+        $this->runOTel(
+            static function (): void {
+                $span = Globals::tracerProvider()
+                    ->getTracer('probe')
+                    ->spanBuilder('probe')
+                    ->startSpan();
+
+                $span->end();
+            },
+            'OTEL_RESOURCE_ATTRIBUTES=a%3Db=c%2Cd',
+        );
+
+        self::assertSame(
+            'c,d',
+            $this->resourceAttribute($this->traces[0], 'a=b'),
+        );
+    }
 }

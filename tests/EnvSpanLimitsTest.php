@@ -258,4 +258,96 @@ final class EnvSpanLimitsTest extends TestCase {
             ),
         );
     }
+
+    /**
+     * Numeric environment variables: an unparseable value must be treated as
+     * unset, so the default span attribute count limit (128) applies and all
+     * three attributes are exported.
+     * 
+     * open-telemetry/sdk currently fails initialization instead of ignoring
+     * the value.
+     */
+    public function testUnparseableAttributeCountLimitFallsBackToDefault(): void
+    {
+        $this->runOTel(
+            static function (): void {
+                $span = Globals::tracerProvider()
+                    ->getTracer('probe')
+                    ->spanBuilder('probe')
+                    ->setAttribute('a', '1')
+                    ->setAttribute('b', '2')
+                    ->setAttribute('c', '3')
+                    ->startSpan();
+
+                $span->end();
+            },
+            'OTEL_SPAN_ATTRIBUTE_COUNT_LIMIT=abc',
+        );
+
+        self::assertCount(3, $this->spanAttributes('probe'));
+    }
+
+    /**
+     * A limit of zero means "no items allowed": with
+     * OTEL_SPAN_LINK_COUNT_LIMIT=0 no links may be exported.
+     */
+    public function testZeroLinkCountLimitDropsAllLinks(): void
+    {
+        $this->runOTel(
+            static function (): void {
+                $tracer = Globals::tracerProvider()->getTracer('probe');
+
+                $source = $tracer->spanBuilder('source')->startSpan();
+                $context = $source->getContext();
+                $source->end();
+
+                $builder = $tracer->spanBuilder('zero-links');
+                $builder->addLink($context);
+                $builder->addLink($context);
+
+                $builder->startSpan()->end();
+            },
+            'OTEL_SPAN_LINK_COUNT_LIMIT=0',
+            'OTEL_TRACES_SAMPLER=always_on',
+        );
+
+        self::assertCount(
+            0,
+            $this->path(
+                $this->combinedTracePayload(),
+                '$.resourceSpans[*].scopeSpans[*].spans[?(@.name == "zero-links")].links[*]',
+            ),
+        );
+    }
+
+    /**
+     * A limit of zero means "no items allowed": with
+     * OTEL_SPAN_EVENT_COUNT_LIMIT=0 no events may be exported.
+     */
+    public function testZeroEventCountLimitDropsAllEvents(): void
+    {
+        $this->runOTel(
+            static function (): void {
+                $span = Globals::tracerProvider()
+                    ->getTracer('probe')
+                    ->spanBuilder('zero-events')
+                    ->startSpan();
+
+                $span->addEvent('event-1');
+                $span->addEvent('event-2');
+
+                $span->end();
+            },
+            'OTEL_SPAN_EVENT_COUNT_LIMIT=0',
+            'OTEL_TRACES_SAMPLER=always_on',
+        );
+
+        self::assertCount(
+            0,
+            $this->path(
+                $this->combinedTracePayload(),
+                '$.resourceSpans[*].scopeSpans[*].spans[?(@.name == "zero-events")].events[*]',
+            ),
+        );
+    }
 }
