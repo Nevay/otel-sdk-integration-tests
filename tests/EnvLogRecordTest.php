@@ -16,34 +16,6 @@ final class EnvLogRecordTest extends TestCase {
      * =========================================================================
      */
 
-    public function testLogRecordAttributeCountLimitEnvironmentVariable(): void
-    {
-        $this->runOTel(
-            static function (): void {
-                $record = new LogRecord('environment.log.attribute.count');
-
-                $record->setAttributes([
-                    'test.attribute.1' => 'one',
-                    'test.attribute.2' => 'two',
-                    'test.attribute.3' => 'three',
-                    'test.attribute.4' => 'four',
-                ]);
-
-                Globals::loggerProvider()
-                    ->getLogger('environment-test')
-                    ->emit($record);
-            },
-            'OTEL_LOGRECORD_ATTRIBUTE_COUNT_LIMIT=2',
-        );
-
-        $attributes = $this->path(
-            $this->logs[0],
-            '$.resourceLogs[*].scopeLogs[*].logRecords[?(@.body.stringValue == "environment.log.attribute.count")].attributes[*]',
-        );
-
-        self::assertCount(2, $attributes);
-    }
-
     public function testLogRecordAttributeCountLimit(): void {
         $this->runOTel(
             static function (): void {
@@ -208,7 +180,19 @@ final class EnvLogRecordTest extends TestCase {
         self::assertNotEmpty($this->logs);
     }
 
+    #[Group('async')]
     public function testBlrpExportTimeout(): void {
+        /*
+         * OTEL_BLRP_EXPORT_TIMEOUT bounds each log export attempt in
+         * milliseconds. The /v1/slow route answers 500 ms after the request,
+         * beyond the 100 ms timeout, so the export is cancelled and the
+         * record dropped.
+         *
+         * OTEL_PHP_SHUTDOWN_TIMEOUT is a tbachert/otel-sdk vendor variable
+         * that bounds that SDK's retry backoff after the timed-out export;
+         * open-telemetry/sdk ignores it and completes its shutdown on its
+         * own within a second.
+         */
         $this->runOTel(
             static function (): void {
                 Globals::loggerProvider()
@@ -216,9 +200,43 @@ final class EnvLogRecordTest extends TestCase {
                     ->emit(new LogRecord('timeout-log'));
             },
             'OTEL_BLRP_EXPORT_TIMEOUT=100',
+            'OTEL_EXPORTER_OTLP_LOGS_ENDPOINT=' . $this->baseUrl . '/v1/slow',
+            'OTEL_PHP_SHUTDOWN_TIMEOUT=1000',
         );
 
-        self::assertIsArray($this->logs);
+        /*
+         * The export was attempted... the slow route delays its response
+         * beyond the 100 ms timeout...
+         */
+        self::assertGreaterThanOrEqual(1, $this->slowRequests);
+
+        /*
+         * ...so the record was never delivered.
+         */
+        self::assertSame([], $this->logs);
+    }
+
+    #[Group('async')]
+    public function testLogsOtlpTimeoutEnvVarDropsExportWhenCollectorIsSlow(): void {
+        /*
+         * The per-signal OTEL_EXPORTER_OTLP_LOGS_TIMEOUT bounds each log
+         * export attempt in milliseconds (the signal-agnostic variable is
+         * covered by EnvEdgeCasesTest). Same setup as the BLRP timeout test
+         * above, so a collector slower than the bound drops the record.
+         */
+        $this->runOTel(
+            static function (): void {
+                Globals::loggerProvider()
+                    ->getLogger('test')
+                    ->emit(new LogRecord('otlp-timeout-log'));
+            },
+            'OTEL_EXPORTER_OTLP_LOGS_TIMEOUT=100',
+            'OTEL_EXPORTER_OTLP_LOGS_ENDPOINT=' . $this->baseUrl . '/v1/slow',
+            'OTEL_PHP_SHUTDOWN_TIMEOUT=1000',
+        );
+
+        self::assertGreaterThanOrEqual(1, $this->slowRequests);
+        self::assertSame([], $this->logs);
     }
 
     /*

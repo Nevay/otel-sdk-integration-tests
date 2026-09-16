@@ -343,7 +343,7 @@ final class EnvEndToEndTest extends TestCase {
                     ->setBody('generic-headers-log')
                     ->emit();
             },
-            'OTEL_EXPORTER_OTLP_HEADERS=generic=g1',
+            'OTEL_EXPORTER_OTLP_HEADERS=auth=secret-token,x-custom=v1',
         );
 
         self::assertNotEmpty($this->traces);
@@ -351,16 +351,17 @@ final class EnvEndToEndTest extends TestCase {
         self::assertNotEmpty($this->logs);
 
         /*
-         * The signal-agnostic header is sent with every export, whatever the
-         * signal (exports may arrive in any order, so check them all).
+         * The signal-agnostic headers are sent with every export, whatever
+         * the signal (exports may arrive in any order, so check them all).
+         * Header values are multi-value lists.
          */
         self::assertCount(3, $this->requestHeaders);
 
         foreach ($this->requestHeaders as $headers) {
-            self::assertSame(
-                ['g1'],
-                array_change_key_case($headers)['generic'],
-            );
+            $headers = array_change_key_case($headers);
+
+            self::assertSame(['secret-token'], $headers['auth']);
+            self::assertSame(['v1'], $headers['x-custom']);
         }
     }
 
@@ -404,31 +405,6 @@ final class EnvEndToEndTest extends TestCase {
                 array_change_key_case($headers)['content-encoding'],
             );
         }
-    }
-
-    #[Group('traces')]
-    public function testOtlpRequestHeadersAreSentToCollector(): void {
-        $this->runOTel(
-            static function (): void {
-                $span = Globals::tracerProvider()
-                    ->getTracer('test')
-                    ->spanBuilder('headers-span')
-                    ->startSpan();
-
-                $span->end();
-            },
-            'OTEL_EXPORTER_OTLP_HEADERS=auth=secret-token,x-custom=v1',
-        );
-
-        self::assertNotEmpty($this->traces);
-
-        $headers = array_change_key_case($this->requestHeaders[0]);
-
-        /*
-         * Header values are multi-value lists.
-         */
-        self::assertSame(['secret-token'], $headers['auth']);
-        self::assertSame(['v1'], $headers['x-custom']);
     }
 
     #[Group('traces')]
@@ -569,29 +545,4 @@ final class EnvEndToEndTest extends TestCase {
         self::assertSame(['gzip'], $headers['content-encoding']);
     }
 
-    #[Group('traces')]
-    public function testOtlpHttpGzipCompressionIsApplied(): void {
-        $this->runOTel(
-            static function (): void {
-                $span = Globals::tracerProvider()
-                    ->getTracer('test')
-                    ->spanBuilder('gzip-span')
-                    ->startSpan();
-
-                $span->end();
-            },
-            'OTEL_EXPORTER_OTLP_COMPRESSION=gzip',
-        );
-
-        self::assertNotEmpty($this->traces);
-
-        /*
-         * The request body is gzip-compressed and marked as such; the fake
-         * collector decodes it before parsing.
-         */
-        $headers = array_change_key_case($this->requestHeaders[0]);
-        self::assertSame(['gzip'], $headers['content-encoding']);
-
-        self::assertContains('gzip-span', $this->spanNames($this->traces[0]));
-    }
 }

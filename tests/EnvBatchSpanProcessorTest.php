@@ -75,7 +75,19 @@ final class EnvBatchSpanProcessorTest extends TestCase {
         self::assertGreaterThan(0, $exported);
     }
 
+    #[Group('async')]
     public function testBspExportTimeout(): void {
+        /*
+         * OTEL_BSP_EXPORT_TIMEOUT bounds each span export attempt in
+         * milliseconds. The /v1/slow route answers 500 ms after the request,
+         * beyond the 100 ms timeout, so the export is cancelled and the span
+         * dropped.
+         *
+         * OTEL_PHP_SHUTDOWN_TIMEOUT is a tbachert/otel-sdk vendor variable
+         * that bounds that SDK's retry backoff after the timed-out export;
+         * open-telemetry/sdk ignores it and completes its shutdown on its
+         * own within a second.
+         */
         $this->runOTel(
             static function (): void {
                 $span = Globals::tracerProvider()
@@ -86,13 +98,20 @@ final class EnvBatchSpanProcessorTest extends TestCase {
                 $span->end();
             },
             'OTEL_BSP_EXPORT_TIMEOUT=100',
-            'OTEL_BSP_SCHEDULE_DELAY=60000',
-            'OTEL_TRACES_SAMPLER=always_on',
+            'OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=' . $this->baseUrl . '/v1/slow',
+            'OTEL_PHP_SHUTDOWN_TIMEOUT=1000',
         );
 
-        // The important assertion here is that the SDK remains operational
-        // and the export call does not cause the process to hang indefinitely.
-        self::assertIsArray($this->traces);
+        /*
+         * The export was attempted... the slow route delays its response
+         * beyond the 100 ms timeout...
+         */
+        self::assertGreaterThanOrEqual(1, $this->slowRequests);
+
+        /*
+         * ...so the span was never delivered.
+         */
+        self::assertSame([], $this->traces);
     }
 
     public function testBspScheduleDelayDoesNotLoseSpansAfterFlush(): void {

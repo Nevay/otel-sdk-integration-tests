@@ -2,9 +2,6 @@
 namespace Nevay\OTelTest;
 
 use OpenTelemetry\API\Globals;
-use OpenTelemetry\API\Trace\Span;
-use OpenTelemetry\API\Trace\SpanContext;
-use OpenTelemetry\API\Trace\TraceFlags;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 
@@ -17,33 +14,6 @@ final class EnvSpanLimitsTest extends TestCase {
      * Attribute limits
      * =========================================================================
      */
-
-    public function testAttributeValueLengthLimitEnvironmentVariable(): void
-    {
-        $this->runOTel(
-            static function (): void {
-                $span = Globals::tracerProvider()
-                    ->getTracer('environment-test')
-                    ->spanBuilder('environment.attribute.value.length')
-                    ->startSpan();
-
-                $span->setAttribute(
-                    'test.attribute',
-                    '1234567890',
-                );
-
-                $span->end();
-            },
-            'OTEL_ATTRIBUTE_VALUE_LENGTH_LIMIT=5',
-        );
-
-        $value = $this->path(
-            $this->traces[0],
-            '$.resourceSpans[*].scopeSpans[*].spans[?(@.name == "environment.attribute.value.length")].attributes[?(@.key == "test.attribute")].value.stringValue',
-        );
-
-        self::assertSame(['12345'], $value);
-    }
 
     public function testSpanAttributeValueLengthLimitOverridesGlobalLimit(): void
     {
@@ -75,35 +45,6 @@ final class EnvSpanLimitsTest extends TestCase {
         );
 
         self::assertSame(['12345'], $value);
-    }
-
-    public function testAttributeCountLimitEnvironmentVariable(): void
-    {
-        $this->runOTel(
-            static function (): void {
-                $span = Globals::tracerProvider()
-                    ->getTracer('environment-test')
-                    ->spanBuilder('environment.attribute.count')
-                    ->startSpan();
-
-                $span->setAttributes([
-                    'test.attribute.1' => 'one',
-                    'test.attribute.2' => 'two',
-                    'test.attribute.3' => 'three',
-                    'test.attribute.4' => 'four',
-                ]);
-
-                $span->end();
-            },
-            'OTEL_ATTRIBUTE_COUNT_LIMIT=2',
-        );
-
-        $attributes = $this->path(
-            $this->traces[0],
-            '$.resourceSpans[*].scopeSpans[*].spans[?(@.name == "environment.attribute.count")].attributes[*]',
-        );
-
-        self::assertCount(2, $attributes);
     }
 
     public function testAttributeCountLimit(): void {
@@ -159,105 +100,6 @@ final class EnvSpanLimitsTest extends TestCase {
      * Span limits
      * =========================================================================
      */
-
-    public function testSpanEventCountLimitEnvironmentVariable(): void
-    {
-        $this->runOTel(
-            static function (): void {
-                $span = Globals::tracerProvider()
-                    ->getTracer('environment-test')
-                    ->spanBuilder('environment.event.count')
-                    ->startSpan();
-
-                $span->addEvent('event.one');
-                $span->addEvent('event.two');
-                $span->addEvent('event.three');
-
-                $span->end();
-            },
-            'OTEL_SPAN_EVENT_COUNT_LIMIT=1',
-        );
-
-        $events = $this->path(
-            $this->traces[0],
-            '$.resourceSpans[*].scopeSpans[*].spans[?(@.name == "environment.event.count")].events[*]',
-        );
-
-        self::assertCount(1, $events);
-    }
-
-    public function testEventAttributeCountLimitEnvVarTruncatesSpanEvents(): void {
-        $this->runOTel(
-            static function (): void {
-                $span = Globals::tracerProvider()
-                    ->getTracer('test')
-                    ->spanBuilder('event-limit')
-                    ->startSpan();
-
-                $span->addEvent('limited', [
-                    'a' => 1,
-                    'b' => 2,
-                    'c' => 3,
-                    'd' => 4,
-                    'e' => 5,
-                ]);
-
-                $span->end();
-            },
-            'OTEL_EVENT_ATTRIBUTE_COUNT_LIMIT=2',
-        );
-
-        self::assertNotEmpty($this->traces);
-
-        /*
-         * Only the first two attributes (in insertion order) survive; the
-         * rest are dropped.
-         */
-        $keys = $this->path(
-            $this->traces[0],
-            '$.resourceSpans[*].scopeSpans[*].spans[?(@.name == "event-limit")].events[*].attributes[*].key',
-        );
-
-        self::assertSame(['a', 'b'], array_values($keys));
-    }
-
-    public function testSpanLinkCountLimitEnvironmentVariable(): void
-    {
-        $this->runOTel(
-            static function (): void {
-                $tracer = Globals::tracerProvider()
-                    ->getTracer('environment-test');
-
-                $spanContextOne = SpanContext::create(
-                    '0123456789abcdef0123456789abcdef',
-                    '0123456789abcdef',
-                    TraceFlags::SAMPLED,
-                );
-
-                $spanContextTwo = SpanContext::create(
-                    'fedcba9876543210fedcba9876543210',
-                    'fedcba9876543210',
-                    TraceFlags::SAMPLED,
-                );
-
-                $span = $tracer
-                    ->spanBuilder('environment.link.count')
-                    ->addLink($spanContextOne)
-                    ->addLink($spanContextTwo)
-                    ->startSpan();
-
-                $span->end();
-            },
-            'OTEL_SPAN_LINK_COUNT_LIMIT=1',
-        );
-
-        $links = $this->path(
-            $this->traces[0],
-            '$.resourceSpans[*].scopeSpans[*].spans[?(@.name == "environment.link.count")].links[*]',
-        );
-
-        self::assertCount(1, $links);
-    }
 
     public function testSpanAttributeCountLimit(): void {
         $this->runOTel(
@@ -366,13 +208,16 @@ final class EnvSpanLimitsTest extends TestCase {
             'OTEL_TRACES_SAMPLER=always_on',
         );
 
-        self::assertCount(
-            2,
-            $this->path(
-                $this->traces[0],
-                '$.resourceSpans[*].scopeSpans[*].spans[?(@.name == "event-attributes")].events[0].attributes[*]',
-            ),
+        /*
+         * Only the first two attributes (in insertion order) survive; the
+         * rest are dropped.
+         */
+        $keys = $this->path(
+            $this->traces[0],
+            '$.resourceSpans[*].scopeSpans[*].spans[?(@.name == "event-attributes")].events[0].attributes[*].key',
         );
+
+        self::assertSame(['a1', 'a2'], array_values($keys));
     }
 
     public function testLinkAttributeCountLimit(): void {

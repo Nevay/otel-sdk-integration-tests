@@ -388,4 +388,28 @@ final class EnvEdgeCasesTest extends TestCase {
          */
         self::assertSame([], $this->traces);
     }
+
+    #[Group('async')]
+    public function testTracesOtlpTimeoutEnvVarDropsExportWhenCollectorIsSlow(): void {
+        /*
+         * The per-signal OTEL_EXPORTER_OTLP_TRACES_TIMEOUT bounds each trace
+         * export attempt in milliseconds (the signal-agnostic variable is
+         * covered above). Same setup, so a collector slower than the bound
+         * drops the span.
+         */
+        $this->runOTel(
+            static function (): void {
+                Globals::tracerProvider()->getTracer('test')
+                    ->spanBuilder('otlp-timeout-traces')
+                    ->startSpan()
+                    ->end();
+            },
+            'OTEL_EXPORTER_OTLP_TRACES_TIMEOUT=100',
+            'OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=' . $this->baseUrl . '/v1/slow',
+            'OTEL_PHP_SHUTDOWN_TIMEOUT=1000',
+        );
+
+        self::assertGreaterThanOrEqual(1, $this->slowRequests);
+        self::assertSame([], $this->traces);
+    }
 }

@@ -281,6 +281,49 @@ final class TlsTest extends TestCase {
         );
     }
 
+    #[Group('env'), Group('metrics')]
+    public function testMetricsClientCertificateIsPresentedAndVerified(): void {
+        /*
+         * The per-signal client certificate variables for metrics: the
+         * collector requires a client certificate signed by the fixture CA.
+         */
+        $this->runOTel(
+            static function (): void {
+                Globals::meterProvider()->getMeter('tls-test')
+                    ->createCounter('mtls-metric')
+                    ->add(1);
+            },
+            'OTEL_EXPORTER_OTLP_METRICS_ENDPOINT=' . $this->mtlsBaseUrl . '/v1/metrics',
+            'OTEL_EXPORTER_OTLP_METRICS_CERTIFICATE=' . self::CERT,
+            'OTEL_EXPORTER_OTLP_METRICS_CLIENT_CERTIFICATE=' . self::CERT,
+            'OTEL_EXPORTER_OTLP_METRICS_CLIENT_KEY=' . self::KEY,
+        );
+
+        self::assertCount(1, $this->metrics);
+    }
+
+    #[Group('env'), Group('logs')]
+    public function testLogsClientCertificateIsPresentedAndVerified(): void {
+        /*
+         * The per-signal client certificate variables for logs: the collector
+         * requires a client certificate signed by the fixture CA.
+         */
+        $this->runOTel(
+            static function (): void {
+                Globals::loggerProvider()->getLogger('tls-test')
+                    ->logRecordBuilder()
+                    ->setBody('mtls-log')
+                    ->emit();
+            },
+            'OTEL_EXPORTER_OTLP_LOGS_ENDPOINT=' . $this->mtlsBaseUrl . '/v1/logs',
+            'OTEL_EXPORTER_OTLP_LOGS_CERTIFICATE=' . self::CERT,
+            'OTEL_EXPORTER_OTLP_LOGS_CLIENT_CERTIFICATE=' . self::CERT,
+            'OTEL_EXPORTER_OTLP_LOGS_CLIENT_KEY=' . self::KEY,
+        );
+
+        self::assertCount(1, $this->logs);
+    }
+
     #[Group('config-file'), Group('traces')]
     public function testConfigFileClientCertificateIsPresentedAndVerified(): void {
         $this->runOTelConfig(<<<'YAML'

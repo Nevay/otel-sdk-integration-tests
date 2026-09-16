@@ -65,28 +65,7 @@ final class EnvMetricsTest extends TestCase {
         self::assertSame([], $this->metrics);
     }
 
-    public function testMetricExportInterval(): void {
-        $this->runOTel(
-            static function (): void {
-                Globals::meterProvider()
-                    ->getMeter('test')
-                    ->createCounter('test.counter')
-                    ->add(1);
-            },
-            'OTEL_METRIC_EXPORT_INTERVAL=100',
-        );
-
-        self::assertNotEmpty($this->metrics);
-
-        self::assertNotEmpty(
-            $this->path(
-                $this->metrics[0],
-                '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "test.counter")]',
-            ),
-        );
-    }
-
-    #[Group('tbachert'), Group('async')]
+    #[Group('async')]
     public function testMetricExportTimeoutEnvVarDropsExportWhenCollectorIsSlow(): void {
         /*
          * The retry backoff after a timed-out export would otherwise keep
@@ -118,6 +97,36 @@ final class EnvMetricsTest extends TestCase {
         /*
          * ...so the data point was never delivered.
          */
+        self::assertSame([], $this->metrics);
+    }
+
+    #[Group('async')]
+    public function testMetricsOtlpTimeoutEnvVarDropsExportWhenCollectorIsSlow(): void {
+        /*
+         * The per-signal OTEL_EXPORTER_OTLP_METRICS_TIMEOUT bounds each
+         * metrics export attempt in milliseconds (the signal-agnostic
+         * variable is covered by EnvEdgeCasesTest). The /v1/slow route
+         * answers 500 ms after the request, beyond the 100 ms timeout, so
+         * the export is cancelled and the data point dropped.
+         *
+         * OTEL_PHP_SHUTDOWN_TIMEOUT is a tbachert/otel-sdk vendor variable
+         * that bounds that SDK's retry backoff after the timed-out export;
+         * open-telemetry/sdk ignores it and completes its shutdown on its
+         * own within a second.
+         */
+        $this->runOTel(
+            static function (): void {
+                Globals::meterProvider()
+                    ->getMeter('test')
+                    ->createCounter('otlp-timeout.counter')
+                    ->add(1);
+            },
+            'OTEL_EXPORTER_OTLP_METRICS_TIMEOUT=100',
+            'OTEL_EXPORTER_OTLP_METRICS_ENDPOINT=' . $this->baseUrl . '/v1/slow',
+            'OTEL_PHP_SHUTDOWN_TIMEOUT=1000',
+        );
+
+        self::assertGreaterThanOrEqual(1, $this->slowRequests);
         self::assertSame([], $this->metrics);
     }
 
