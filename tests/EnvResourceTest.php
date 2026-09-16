@@ -522,7 +522,8 @@ final class EnvResourceTest extends TestCase {
      * percent encoded, so a%3Db=c%2Cd is the pair with key "a=b" and value
      * "c,d".
      * 
-     * Both SDKs currently only percent-decode the value, not the key.
+     * Both SDKs currently only percent-decode the value, not the key — as do
+     * the Go, Java, Python and .NET SDKs; only the JS SDK decodes keys.
      */
     public function testResourceAttributesDecodePercentEncodedKeys(): void
     {
