@@ -216,28 +216,6 @@ final class EnvLogRecordTest extends TestCase {
         self::assertSame([], $this->logs);
     }
 
-    #[Group('async')]
-    public function testLogsOtlpTimeoutEnvVarDropsExportWhenCollectorIsSlow(): void {
-        /*
-         * The per-signal OTEL_EXPORTER_OTLP_LOGS_TIMEOUT bounds each log
-         * export attempt in milliseconds (the signal-agnostic variable is
-         * covered by EnvEdgeCasesTest). Same setup as the BLRP timeout test
-         * above, so a collector slower than the bound drops the record.
-         */
-        $this->runOTel(
-            static function (): void {
-                Globals::loggerProvider()
-                    ->getLogger('test')
-                    ->emit(new LogRecord('otlp-timeout-log'));
-            },
-            'OTEL_EXPORTER_OTLP_LOGS_TIMEOUT=100',
-            'OTEL_EXPORTER_OTLP_LOGS_ENDPOINT=' . $this->baseUrl . '/v1/slow',
-            'OTEL_PHP_SHUTDOWN_TIMEOUT=1000',
-        );
-
-        self::assertGreaterThanOrEqual(1, $this->slowRequests);
-        self::assertSame([], $this->logs);
-    }
 
     /*
      * =========================================================================

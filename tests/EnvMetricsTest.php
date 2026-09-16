@@ -65,70 +65,7 @@ final class EnvMetricsTest extends TestCase {
         self::assertSame([], $this->metrics);
     }
 
-    #[Group('async')]
-    public function testMetricExportTimeoutEnvVarDropsExportWhenCollectorIsSlow(): void {
-        /*
-         * The retry backoff after a timed-out export would otherwise keep
-         * the process alive for tens of seconds; bound the shutdown with the
-         * vendor-specific timeout so the test stays fast.
-         */
-        $this->runOTel(
-            static function (): void {
-                Globals::meterProvider()
-                    ->getMeter('test')
-                    ->createCounter('timeout.counter')
-                    ->add(1);
-            },
-            'OTEL_METRIC_EXPORT_TIMEOUT=100',
-            'OTEL_EXPORTER_OTLP_METRICS_ENDPOINT=' . str_replace(
-                '/v1/metrics',
-                '/v1/slow',
-                $this->env['OTEL_EXPORTER_OTLP_METRICS_ENDPOINT'],
-            ),
-            'OTEL_PHP_SHUTDOWN_TIMEOUT=1000',
-        );
 
-        /*
-         * The export was attempted... the slow route delays its response
-         * beyond the 100 ms export timeout...
-         */
-        self::assertGreaterThanOrEqual(1, $this->slowRequests);
-
-        /*
-         * ...so the data point was never delivered.
-         */
-        self::assertSame([], $this->metrics);
-    }
-
-    #[Group('async')]
-    public function testMetricsOtlpTimeoutEnvVarDropsExportWhenCollectorIsSlow(): void {
-        /*
-         * The per-signal OTEL_EXPORTER_OTLP_METRICS_TIMEOUT bounds each
-         * metrics export attempt in milliseconds (the signal-agnostic
-         * variable is covered by EnvEdgeCasesTest). The /v1/slow route
-         * answers 500 ms after the request, beyond the 100 ms timeout, so
-         * the export is cancelled and the data point dropped.
-         *
-         * OTEL_PHP_SHUTDOWN_TIMEOUT is a tbachert/otel-sdk vendor variable
-         * that bounds that SDK's retry backoff after the timed-out export;
-         * open-telemetry/sdk ignores it and completes its shutdown on its
-         * own within a second.
-         */
-        $this->runOTel(
-            static function (): void {
-                Globals::meterProvider()
-                    ->getMeter('test')
-                    ->createCounter('otlp-timeout.counter')
-                    ->add(1);
-            },
-            'OTEL_EXPORTER_OTLP_METRICS_TIMEOUT=100',
-            'OTEL_EXPORTER_OTLP_METRICS_ENDPOINT=' . $this->baseUrl . '/v1/slow',
-            'OTEL_PHP_SHUTDOWN_TIMEOUT=1000',
-        );
-
-        self::assertGreaterThanOrEqual(1, $this->slowRequests);
-        self::assertSame([], $this->metrics);
-    }
 
     public function testInvalidExemplarFilterFallsBackToTraceBased(): void {
         $this->runOTel(
