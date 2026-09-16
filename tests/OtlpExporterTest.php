@@ -148,6 +148,55 @@ final class OtlpExporterTest extends TestCase {
             $this->path($this->logs[0], '$.resourceLogs[*].scopeLogs[*].logRecords[*].body.stringValue'),
         );
     }
+    public function testOtlpProtocolEnvironmentVariableIsCaseInsensitive(): void {
+        /*
+         * Enum environment variables SHOULD be interpreted in a
+         * case-insensitive manner: an uppercase protocol value must select
+         * the same wire format as its lowercase spelling (the harness
+         * default is http/json).
+         *
+         * open-telemetry/sdk currently matches protocol names case-
+         * sensitively and fails initialization for unrecognized values.
+         */
+        $this->runOTel(
+            static function (): void {
+                Globals::tracerProvider()
+                    ->getTracer('test')
+                    ->spanBuilder('upper-proto.span')
+                    ->startSpan()
+                    ->end();
+
+                Globals::meterProvider()
+                    ->getMeter('test')
+                    ->createCounter('upper-proto.counter')
+                    ->add(7);
+
+                Globals::loggerProvider()
+                    ->getLogger('test')
+                    ->logRecordBuilder()
+                    ->setBody('upper-proto-log')
+                    ->emit();
+            },
+            'OTEL_EXPORTER_OTLP_PROTOCOL=HTTP/PROTOBUF',
+        );
+
+        self::assertNotEmpty($this->traces);
+        self::assertNotEmpty($this->metrics);
+        self::assertNotEmpty($this->logs);
+
+        /*
+         * The collector re-serializes protobuf messages to JSON, so byte
+         * fields appear as base64 of the raw 16/8 byte ids.
+         */
+        $span = $this->path(
+            $this->traces[0],
+            '$.resourceSpans[*].scopeSpans[*].spans[?(@.name == "upper-proto.span")]',
+        );
+
+        self::assertCount(1, $span);
+        self::assertSame(16, strlen(base64_decode($span[0]['traceId'])));
+        self::assertSame(8, strlen(base64_decode($span[0]['spanId'])));
+    }
     /*
      * =========================================================================
      * Headers
@@ -785,8 +834,8 @@ final class OtlpExporterTest extends TestCase {
     /**
      * An unrecognized OTEL_EXPORTER_OTLP_PROTOCOL must be warned about and
      * gracefully ignored, so the default transport (http/protobuf) is used.
-     * 
-     * Both SDKs currently fail initialization instead.
+     *
+     * open-telemetry/sdk currently fails initialization instead.
      */
     public function testUnrecognizedProtocolFallsBackToDefault(): void
     {
@@ -803,10 +852,13 @@ final class OtlpExporterTest extends TestCase {
         );
 
         self::assertNotEmpty($this->traces);
-        self::assertContains(
-            'application/x-protobuf',
-            array_column($this->requestHeaders, 'content-type'),
-        );
+
+        foreach ($this->requestHeaders as $headers) {
+            self::assertSame(
+                ['application/x-protobuf'],
+                array_change_key_case($headers)['content-type'],
+            );
+        }
     }
 
     /**

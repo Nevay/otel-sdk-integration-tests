@@ -74,7 +74,9 @@ configuration.
 `OTEL_LOG_LEVEL` is applied to the SDK's internal logger: at `debug`,
 diagnostic messages appear on stderr; at `error`, even warnings (e.g. for an
 unrecognized `OTEL_TRACES_SAMPLER` value, which is logged and ignored in
-favour of the default sampler) are suppressed.
+favour of the default sampler) are suppressed. The one exception is the
+autoload bootstrap's init-error fallback: when SDK initialization itself
+throws, that error is logged by a dedicated logger that ignores the level.
 
 **SDK-specific configuration.** Beyond the spec surface, this SDK exposes
 vendor options: non-spec environment variables (`OTEL_PHP_SHUTDOWN_TIMEOUT`,
@@ -133,8 +135,9 @@ PHP-specific environment variables: `OTEL_PHP_TRACES_PROCESSOR` /
 destination), and `OTEL_PHP_INTERNAL_METRICS_ENABLED` (SDK self-instrumentation).
 `OfficialSpecificTest` covers these; the tests are tagged with the group
 `official` and are excluded from the tbachert run. The spec variable
-`OTEL_LOG_LEVEL` is declared (with its known values) but not applied to the
-SDK's log output.
+`OTEL_LOG_LEVEL` is applied to the SDK's self-diagnostic log output, which
+respects the level for warnings and initialization errors alike (`none`
+suppresses all of it).
 
 **Currently failing groups:**
 
@@ -175,9 +178,15 @@ detector is not implemented; no upstream issue or PR tracks it yet.
   signal-specific `OTEL_SPAN_*` limits work). Tracked in
   [open-telemetry/opentelemetry-php#2055](https://github.com/open-telemetry/opentelemetry-php/issues/2055).
 - **Lenient handling of invalid configuration.** An unknown
-  `OTEL_TRACES_SAMPLER` value or malformed `OTEL_RESOURCE_ATTRIBUTES`
-  aborts SDK initialization instead of logging a warning and falling back to
-  the default.
+  `OTEL_TRACES_SAMPLER` value, a non-numeric `OTEL_TRACES_SAMPLER_ARG`,
+  unparseable numeric limits (e.g. `OTEL_SPAN_ATTRIBUTE_COUNT_LIMIT=abc`), or
+  malformed `OTEL_RESOURCE_ATTRIBUTES` abort SDK initialization instead of
+  logging a warning and falling back to the default. Enum values are also
+  matched case-sensitively, against the spec's case-insensitivity guidance:
+  uppercase spellings of exporter, sampler and protocol names (e.g.
+  `OTEL_TRACES_EXPORTER=OTLP`, `OTEL_TRACES_SAMPLER=PARENTBASED_ALWAYS_ON`,
+  `OTEL_EXPORTER_OTLP_PROTOCOL=HTTP/PROTOBUF`) abort initialization, and
+  `OTEL_PROPAGATORS=BAGGAGE` silently drops the propagator.
 - **TLS environment variables (all signals).**
   `OTEL_EXPORTER_OTLP[_<signal>]*_CERTIFICATE` and the client
   certificate/key variables are declared but not applied for any signal:

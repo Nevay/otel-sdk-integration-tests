@@ -339,10 +339,14 @@ final class EnvSdkTest extends TestCase {
      * OTEL_LOG_LEVEL=none disables the SDK internal logger: an
      * initialization error (unrecognized OTLP protocol) must not be written
      * to stderr.
-     * 
-     * tbachert/otel-sdk currently logs initialization errors through a
-     * dedicated logger that ignores OTEL_LOG_LEVEL, and does not recognize
-     * "none" as a level.
+     *
+     * open-telemetry/sdk logs the initialization error through its level-
+     * aware logger, so this test proves that "none" suppresses it.
+     * tbachert/otel-sdk handles an unrecognized protocol gracefully (warning
+     * plus default transport), so no initialization error occurs and the
+     * assertion holds trivially; note that its dedicated init-error logger
+     * in the autoload bootstrap still ignores OTEL_LOG_LEVEL whenever an
+     * initialization error does occur.
      */
     public function testLogLevelNoneSuppressesSelfDiagnostics(): void
     {

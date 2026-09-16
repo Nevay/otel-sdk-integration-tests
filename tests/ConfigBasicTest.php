@@ -797,4 +797,70 @@ final class ConfigBasicTest extends TestCase {
 
         self::assertSame([], $this->traces);
     }
+
+    /**
+     * When OTEL_CONFIG_FILE is set, all other environment variables besides
+     * those referenced in the configuration file for substitution MUST be
+     * ignored: a hostile environment (console exporter, always_off sampler,
+     * disabled SDK, extra resource attributes) must not change the
+     * file-configured behavior.
+     */
+    public function testConfigFileModeIgnoresOtherEnvironmentVariables(): void {
+        $this->runOTelConfig(
+            <<<YAML
+            file_format: "1.2"
+
+            resource:
+              attributes:
+                - name: service.name
+                  value: env-ignore-service
+
+            tracer_provider:
+              processors:
+                - batch:
+                    exporter:
+                      otlp_http:
+                        endpoint: {$this->baseUrl}/v1/traces
+            YAML,
+            static function (): void {
+                $span = Globals::tracerProvider()
+                    ->getTracer('config-test')
+                    ->spanBuilder('env-ignore')
+                    ->startSpan();
+
+                $span->end();
+            },
+            'OTEL_TRACES_EXPORTER=console',
+            'OTEL_TRACES_SAMPLER=always_off',
+            'OTEL_SDK_DISABLED=true',
+            'OTEL_RESOURCE_ATTRIBUTES=env.leak=yes',
+        );
+
+        /*
+         * The file-configured pipeline still exports: the console exporter,
+         * always_off sampler and disabled SDK from the environment had no
+         * effect.
+         */
+        self::assertNotEmpty($this->traces);
+
+        self::assertSame(
+            'env-ignore-service',
+            $this->resourceAttribute(
+                $this->traces[0],
+                'service.name',
+            ),
+        );
+
+        /*
+         * OTEL_RESOURCE_ATTRIBUTES from the environment must not leak into
+         * the file-configured resource.
+         */
+        self::assertSame(
+            [],
+            $this->path(
+                $this->traces[0],
+                '$.resourceSpans[*].resource.attributes[?(@.key == "env.leak")].value.*',
+            ),
+        );
+    }
 }

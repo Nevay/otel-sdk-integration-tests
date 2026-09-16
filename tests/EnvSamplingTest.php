@@ -330,4 +330,66 @@ final class EnvSamplingTest extends TestCase {
 
         self::assertNotEmpty($this->traces);
     }
+
+    /**
+     * Enum environment variables SHOULD be interpreted in a case-insensitive
+     * manner: an uppercase OTEL_TRACES_SAMPLER value must select the same
+     * sampler as its lowercase spelling, so root spans are sampled.
+     *
+     * open-telemetry/sdk currently matches sampler names case-sensitively
+     * and fails initialization for unrecognized values.
+     */
+    public function testSamplerEnvironmentVariableIsCaseInsensitive(): void
+    {
+        $this->runOTel(
+            static function (): void {
+                $span = Globals::tracerProvider()
+                    ->getTracer('test')
+                    ->spanBuilder('upper-sampler')
+                    ->startSpan();
+
+                $span->end();
+            },
+            'OTEL_TRACES_SAMPLER=PARENTBASED_ALWAYS_ON',
+        );
+
+        self::assertNotEmpty($this->traces);
+    }
+
+    /**
+     * OTEL_TRACES_SAMPLER_ARG: invalid or unrecognized input must be logged
+     * and otherwise ignored, i.e., the implementation must behave as if the
+     * variable were not set. For traceidratio the default sampling
+     * probability is 1.0, so all root spans are sampled.
+     *
+     * open-telemetry/sdk currently fails initialization on a non-numeric
+     * value instead of ignoring it.
+     */
+    public function testInvalidSamplerArgumentFallsBackToDefaultSampling(): void
+    {
+        $this->runOTel(
+            static function (): void {
+                for ($i = 0; $i < 25; $i++) {
+                    Globals::tracerProvider()
+                        ->getTracer('test')
+                        ->spanBuilder("ratio-{$i}")
+                        ->startSpan()
+                        ->end();
+                }
+            },
+            'OTEL_TRACES_SAMPLER=traceidratio',
+            'OTEL_TRACES_SAMPLER_ARG=bogus',
+        );
+
+        $spans = 0;
+        foreach ($this->traces as $payload) {
+            foreach ((array) \json_decode($payload, true)['resourceSpans'] ?? [] as $resourceSpan) {
+                foreach ($resourceSpan['scopeSpans'][0]['spans'] ?? [] as $span) {
+                    $spans++;
+                }
+            }
+        }
+
+        self::assertSame(25, $spans);
+    }
 }
