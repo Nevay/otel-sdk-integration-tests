@@ -526,4 +526,91 @@ final class ConfigLoggerConfiguratorTest extends TestCase {
         self::assertContains('no-context', $bodies);
         self::assertNotContains('unsampled', $bodies);
     }
+
+    public function testLoggerConfiguratorDefaultConfigAppliesMinimumSeverityAndTraceBased(): void
+    {
+        /*
+         * The default_config sub-options apply to every logger that does not
+         * override them: here, records below ERROR are dropped and records
+         * from unsampled traces are dropped as well.
+         */
+        $this->runOTelConfig(
+            <<<'YAML'
+            file_format: "1.2"
+
+            logger_provider:
+              logger_configurator/development:
+                default_config:
+                  minimum_severity: error
+                  trace_based: true
+
+              processors:
+                - batch:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${OTEL_EXPORTER_OTLP_LOGS_ENDPOINT}
+            YAML,
+            static function (): void {
+                $logger = Globals::loggerProvider()
+                    ->getLogger('default-config.logger');
+
+                $sampledSpan = \OpenTelemetry\API\Trace\Span::wrap(
+                    SpanContext::create(
+                        str_repeat('c', 32),
+                        str_repeat('d', 16),
+                        TraceFlags::SAMPLED,
+                    ),
+                );
+
+                $scope = $sampledSpan->activate();
+
+                /* Below the minimum severity -> dropped. */
+                $logger->emit(
+                    (new LogRecord('info-in-sampled-span'))
+                        ->setSeverityNumber(9),
+                );
+
+                /* Above the minimum severity, sampled trace -> kept. */
+                $logger->emit(
+                    (new LogRecord('error-in-sampled-span'))
+                        ->setSeverityNumber(17),
+                );
+
+                $scope->detach();
+
+                $unsampledSpan = \OpenTelemetry\API\Trace\Span::wrap(
+                    SpanContext::create(
+                        str_repeat('a', 32),
+                        str_repeat('b', 16),
+                    ),
+                );
+
+                $scope = $unsampledSpan->activate();
+
+                /* From an unsampled trace -> dropped. */
+                $logger->emit(
+                    (new LogRecord('error-in-unsampled-span'))
+                        ->setSeverityNumber(17),
+                );
+
+                $scope->detach();
+
+                /* No trace context at all -> kept. */
+                $logger->emit(
+                    (new LogRecord('error-no-context'))
+                        ->setSeverityNumber(17),
+                );
+            },
+        );
+
+        $bodies = $this->path(
+            $this->logs[0],
+            '$.resourceLogs[*].scopeLogs[*].logRecords[*].body.stringValue',
+        );
+
+        self::assertSame(
+            ['error-in-sampled-span', 'error-no-context'],
+            $bodies,
+        );
+    }
 }

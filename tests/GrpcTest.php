@@ -371,6 +371,71 @@ final class GrpcTest extends TestCase {
         @unlink($configFile ?? '');
     }
 
+    #[Group('config-file'), Group('metrics')]
+    public function testConfigFileGrpcExporterExportsMetrics(): void {
+        $this->runOTelConfig(<<<'YAML'
+            file_format: "1.2"
+
+            meter_provider:
+              readers:
+                - periodic:
+                    interval: 60000
+                    exporter:
+                      otlp_grpc:
+                        endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
+                        tls:
+                          ca_file: ${OTEL_EXPORTER_OTLP_METRICS_CERTIFICATE}
+        YAML, static function (): void {
+            Globals::meterProvider()
+                ->getMeter('grpc-test')
+                ->createCounter('grpc-config-metric', 'requests')
+                ->add(1);
+        },
+            'OTEL_EXPORTER_OTLP_METRICS_ENDPOINT=' . $this->grpcBaseUrl,
+            'OTEL_EXPORTER_OTLP_METRICS_CERTIFICATE=' . self::CERT,
+        );
+
+        self::assertNotEmpty($this->metrics);
+        self::assertNotEmpty(
+            $this->path(
+                $this->metrics[0],
+                '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "grpc-config-metric")]',
+            ),
+        );
+    }
+
+    #[Group('config-file'), Group('logs')]
+    public function testConfigFileGrpcExporterExportsLogs(): void {
+        $this->runOTelConfig(<<<'YAML'
+            file_format: "1.2"
+
+            logger_provider:
+              processors:
+                - batch:
+                    exporter:
+                      otlp_grpc:
+                        endpoint: ${OTEL_EXPORTER_OTLP_LOGS_ENDPOINT}
+                        tls:
+                          ca_file: ${OTEL_EXPORTER_OTLP_LOGS_CERTIFICATE}
+        YAML, static function (): void {
+            Globals::loggerProvider()
+                ->getLogger('grpc-test')
+                ->emit(new LogRecord('grpc-config-log'));
+        },
+            'OTEL_EXPORTER_OTLP_LOGS_ENDPOINT=' . $this->grpcBaseUrl,
+            'OTEL_EXPORTER_OTLP_LOGS_CERTIFICATE=' . self::CERT,
+        );
+
+        self::assertNotEmpty($this->logs);
+        self::assertContains(
+            'grpc-config-log',
+            $this->path(
+                $this->logs[0],
+                '$.resourceLogs[*].scopeLogs[*].logRecords[*].body.stringValue',
+            ),
+        );
+    }
+
     #[Group('env'), Group('traces')]
     public function testEnvGrpcGzipCompressionIsApplied(): void {
         $this->runOTel(

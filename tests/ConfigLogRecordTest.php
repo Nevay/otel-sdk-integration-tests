@@ -147,6 +147,57 @@ final class ConfigLogRecordTest extends TestCase {
         );
     }
 
+    public function testLogRecordAttributeValueDepthLimit(): void {
+        /*
+         * With a depth limit of one, arrays inside attribute values are
+         * replaced by empty arrays; scalar entries of the same array are
+         * kept.
+         */
+        $this->runOTelConfig(
+            <<<'YAML'
+            file_format: "1.2"
+
+            logger_provider:
+              limits:
+                attribute_value_depth_limit: 1
+
+              processors:
+                - batch:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${OTEL_EXPORTER_OTLP_LOGS_ENDPOINT}
+            YAML,
+            static function (): void {
+                $record = new LogRecord('depth-limit-log');
+
+                $record->setAttributes([
+                    'nested' => ['a' => ['b' => 'c'], 's' => 'keep'],
+                ]);
+
+                Globals::loggerProvider()
+                    ->getLogger('config-test')
+                    ->emit($record);
+            },
+        );
+
+        $base = '$.resourceLogs[*].scopeLogs[*].logRecords[?(@.body.stringValue == "depth-limit-log")].attributes[?(@.key == "nested")].value.kvlistValue.values';
+
+        self::assertSame(
+            ['a', 's'],
+            $this->path($this->logs[0], $base . '[*].key'),
+        );
+
+        self::assertSame(
+            [['key' => 'a', 'value' => ['arrayValue' => []]]],
+            $this->path($this->logs[0], $base . '[0]'),
+        );
+
+        self::assertSame(
+            ['keep'],
+            $this->path($this->logs[0], $base . '[1].value.stringValue'),
+        );
+    }
+
     #[Group('async')]
     public function testSimpleLogRecordProcessorExportsOnEmit(): void
     {
@@ -264,5 +315,231 @@ final class ConfigLogRecordTest extends TestCase {
 
         self::assertCount(1, $logRecords);
         self::assertSame('bridge.event', $logRecords[0]['eventName']);
+    }
+
+    /*
+     * =========================================================================
+     * otlp_http exporter options (logs)
+     * =========================================================================
+     */
+
+    public function testOtlpHttpExporterHeadersAreSentToCollector(): void {
+        $this->runOTelConfig(
+            <<<'YAML'
+            file_format: "1.2"
+
+            logger_provider:
+              processors:
+                - batch:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${env:OTEL_EXPORTER_OTLP_LOGS_ENDPOINT}
+                        headers:
+                          - name: auth
+                            value: config-token
+                          - name: x-custom
+                            value: v2
+            YAML,
+            static function (): void {
+                Globals::loggerProvider()
+                    ->getLogger('config-test')
+                    ->emit(new LogRecord('config-headers'));
+            },
+        );
+
+        self::assertNotEmpty($this->logs);
+
+        $headers = array_change_key_case($this->requestHeaders[0]);
+        self::assertSame(['config-token'], $headers['auth']);
+        self::assertSame(['v2'], $headers['x-custom']);
+    }
+
+    public function testOtlpHttpGzipCompressionIsApplied(): void {
+        $this->runOTelConfig(
+            <<<'YAML'
+            file_format: "1.2"
+
+            logger_provider:
+              processors:
+                - batch:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${env:OTEL_EXPORTER_OTLP_LOGS_ENDPOINT}
+                        compression: gzip
+            YAML,
+            static function (): void {
+                Globals::loggerProvider()
+                    ->getLogger('config-test')
+                    ->emit(new LogRecord('config-gzip'));
+            },
+        );
+
+        self::assertNotEmpty($this->logs);
+
+        $headers = array_change_key_case($this->requestHeaders[0]);
+        self::assertSame(['gzip'], $headers['content-encoding']);
+
+        self::assertContains(
+            'config-gzip',
+            $this->path(
+                $this->logs[0],
+                '$.resourceLogs[*].scopeLogs[*].logRecords[*].body.stringValue',
+            ),
+        );
+    }
+
+    public function testOtlpHttpEncodingJsonIsApplied(): void {
+        $this->runOTelConfig(
+            <<<'YAML'
+            file_format: "1.2"
+
+            logger_provider:
+              processors:
+                - batch:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${env:OTEL_EXPORTER_OTLP_LOGS_ENDPOINT}
+                        encoding: json
+            YAML,
+            static function (): void {
+                Globals::loggerProvider()
+                    ->getLogger('config-test')
+                    ->emit(new LogRecord('config-json'));
+            },
+        );
+
+        self::assertNotEmpty($this->logs);
+
+        $headers = array_change_key_case($this->requestHeaders[0]);
+        self::assertSame(['application/json'], $headers['content-type']);
+    }
+
+    public function testOtlpHttpTimeoutDropsExportWhenCollectorIsSlow(): void {
+        /*
+         * OTEL_PHP_SHUTDOWN_TIMEOUT is a tbachert/otel-sdk vendor variable
+         * that bounds that SDK's retry backoff after the timed-out export;
+         * open-telemetry/sdk ignores it and completes its shutdown on its
+         * own within a second.
+         */
+        $this->runOTelConfig(
+            <<<'YAML'
+            file_format: "1.2"
+
+            logger_provider:
+              processors:
+                - batch:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${env:OTEL_EXPORTER_OTLP_LOGS_ENDPOINT}
+                        timeout: 300
+            YAML,
+            static function (): void {
+                Globals::loggerProvider()
+                    ->getLogger('config-test')
+                    ->emit(new LogRecord('config-timeout'));
+            },
+            'OTEL_EXPORTER_OTLP_LOGS_ENDPOINT=' . str_replace(
+                '/v1/logs',
+                '/v1/slow',
+                $this->env['OTEL_EXPORTER_OTLP_LOGS_ENDPOINT'],
+            ),
+            'OTEL_PHP_SHUTDOWN_TIMEOUT=1000',
+        );
+
+        /*
+         * The export was attempted... the slow route delays its response
+         * beyond the 300 ms timeout, so the payload is dropped and the
+         * process still shuts down cleanly.
+         */
+        self::assertGreaterThanOrEqual(1, $this->slowRequests);
+        self::assertSame([], $this->logs);
+    }
+
+    public function testOtlpHttpMaxRequestSizeBlocksOversizedExports(): void {
+        $this->runOTelConfig(
+            <<<'YAML'
+            file_format: "1.2"
+
+            logger_provider:
+              processors:
+                - batch:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${env:OTEL_EXPORTER_OTLP_LOGS_ENDPOINT}
+                        max_request_size: 1
+            YAML,
+            static function (): void {
+                Globals::loggerProvider()
+                    ->getLogger('config-test')
+                    ->emit(new LogRecord('config-oversized'));
+            },
+        );
+
+        self::assertSame([], $this->logs);
+        self::assertStringContainsString(
+            'maximum request size',
+            strtolower($this->lastStderr),
+        );
+    }
+
+    public function testOtlpHttpMaxResponseSizeRejectsLargeResponses(): void {
+        /*
+         * Unlike max_request_size, the request is sent; the exporter only
+         * rejects the collector's response body once it exceeds the
+         * configured limit. (JSON encoding is used so that the empty
+         * response body is larger than one byte.)
+         */
+        $this->runOTelConfig(
+            <<<'YAML'
+            file_format: "1.2"
+
+            logger_provider:
+              processors:
+                - batch:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${env:OTEL_EXPORTER_OTLP_LOGS_ENDPOINT}
+                        encoding: json
+                        max_response_size: 1
+            YAML,
+            static function (): void {
+                Globals::loggerProvider()
+                    ->getLogger('config-test')
+                    ->emit(new LogRecord('config-oversized-response'));
+            },
+        );
+
+        self::assertStringContainsString(
+            'buffer length limit',
+            strtolower($this->lastStderr),
+        );
+    }
+
+    public function testConsoleExporterWritesLogsToStdout(): void {
+        $output = $this->runOTelConfig(
+            <<<'YAML'
+            file_format: "1.2"
+
+            logger_provider:
+              processors:
+                - batch:
+                    exporter:
+                      console:
+            YAML,
+            static function (): void {
+                Globals::loggerProvider()
+                    ->getLogger('config-test')
+                    ->emit(new LogRecord('console-log'));
+            },
+        );
+
+        /*
+         * The specification leaves the console exporter's output format
+         * unspecified ("can vary between implementations"), so we only pin
+         * down that the record reaches stdout and does not go to the OTLP
+         * HTTP collector.
+         */
+        self::assertStringContainsString('console-log', $output);
+        self::assertSame([], $this->logs);
     }
 }

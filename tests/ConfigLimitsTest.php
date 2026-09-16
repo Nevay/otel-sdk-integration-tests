@@ -113,6 +113,57 @@ final class ConfigLimitsTest extends TestCase {
         );
     }
 
+    public function testTracerProviderAttributeValueDepthLimitTruncatesNestedValues(): void {
+        /*
+         * The per-signal limit applies to spans, independently of the global
+         * attribute limits.
+         */
+        $this->runOTelConfig(
+            <<<'YAML'
+            file_format: "1.2"
+
+            tracer_provider:
+              limits:
+                attribute_value_depth_limit: 1
+
+              processors:
+                - batch:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT}
+            YAML,
+            static function (): void {
+                Globals::tracerProvider()
+                    ->getTracer('config-test')
+                    ->spanBuilder('tracer-depth-limit')
+                    ->setAttribute('nested', ['a' => ['b' => 'c'], 's' => 'keep'])
+                    ->startSpan()
+                    ->end();
+            },
+        );
+
+        $base = '$.resourceSpans[*].scopeSpans[*].spans[?(@.name == "tracer-depth-limit")].attributes[?(@.key == "nested")].value.kvlistValue.values';
+
+        self::assertSame(
+            ['a', 's'],
+            $this->path($this->combinedTracePayload(), $base . '[*].key'),
+        );
+
+        /*
+         * The nested array is clipped to an empty array value (the entry
+         * itself survives, its contents do not).
+         */
+        self::assertSame(
+            [['key' => 'a', 'value' => ['arrayValue' => []]]],
+            $this->path($this->combinedTracePayload(), $base . '[0]'),
+        );
+
+        self::assertSame(
+            ['keep'],
+            $this->path($this->combinedTracePayload(), $base . '[1].value.stringValue'),
+        );
+    }
+
     /*
      * =========================================================================
      * Span limits

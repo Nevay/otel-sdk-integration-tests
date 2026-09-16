@@ -217,6 +217,58 @@ final class TlsTest extends TestCase {
         );
     }
 
+    #[Group('config-file'), Group('metrics')]
+    public function testConfigFileCaFileTrustsSelfSignedMetricsCollector(): void {
+        $this->runOTelConfig(<<<'YAML'
+            file_format: "1.2"
+
+            meter_provider:
+              readers:
+                - periodic:
+                    interval: 60000
+                    exporter:
+                      otlp_http:
+                        endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
+                        tls:
+                          ca_file: ${OTEL_EXPORTER_OTLP_METRICS_CERTIFICATE}
+        YAML, static function (): void {
+            Globals::meterProvider()->getMeter('tls-test')
+                ->createCounter('tls-config-metric')
+                ->add(1);
+        },
+            'OTEL_EXPORTER_OTLP_METRICS_ENDPOINT=' . $this->tlsBaseUrl . '/v1/metrics',
+            'OTEL_EXPORTER_OTLP_METRICS_CERTIFICATE=' . self::CERT,
+        );
+
+        self::assertCount(1, $this->metrics);
+    }
+
+    #[Group('config-file'), Group('logs')]
+    public function testConfigFileCaFileTrustsSelfSignedLogsCollector(): void {
+        $this->runOTelConfig(<<<'YAML'
+            file_format: "1.2"
+
+            logger_provider:
+              processors:
+                - batch:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${OTEL_EXPORTER_OTLP_LOGS_ENDPOINT}
+                        tls:
+                          ca_file: ${OTEL_EXPORTER_OTLP_LOGS_CERTIFICATE}
+        YAML, static function (): void {
+            Globals::loggerProvider()->getLogger('tls-test')
+                ->logRecordBuilder()
+                ->setBody('tls-config-log')
+                ->emit();
+        },
+            'OTEL_EXPORTER_OTLP_LOGS_ENDPOINT=' . $this->tlsBaseUrl . '/v1/logs',
+            'OTEL_EXPORTER_OTLP_LOGS_CERTIFICATE=' . self::CERT,
+        );
+
+        self::assertCount(1, $this->logs);
+    }
+
     #[Group('config-file'), Group('traces')]
     public function testUnknownCaIsRejectedByDefaultVerification(): void {
         /*

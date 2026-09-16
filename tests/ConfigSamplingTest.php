@@ -1233,6 +1233,309 @@ final class ConfigSamplingTest extends TestCase {
         @unlink($configFile);
     }
 
+    public function testParentBasedSamplerHonorsPerParentOriginSamplers(): void {
+        $this->runOTelConfig(
+            <<<'YAML'
+            file_format: "1.2"
+
+            tracer_provider:
+              sampler:
+                parent_based:
+                  root:
+                    always_off:
+                  remote_parent_sampled:
+                    always_on:
+                  remote_parent_not_sampled:
+                    always_off:
+                  local_parent_sampled:
+                    always_off:
+                  local_parent_not_sampled:
+                    always_on:
+              processors:
+                - batch:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT}
+            YAML,
+            static function (): void {
+                $tracer = Globals::tracerProvider()->getTracer('config-test');
+
+                // Root span: root sampler is always_off -> dropped.
+                $root = $tracer->spanBuilder('root-dropped')->startSpan();
+                $root->end();
+
+                /*
+                 * Child of a sampled remote parent: the
+                 * remote_parent_sampled sampler applies -> kept.
+                 */
+                $sampledRemoteParent = SpanContext::createFromRemoteParent(
+                    '4193e569320548f7b71d4c5a750d504c',
+                    '6e0c63258deeeff4',
+                    TraceFlags::SAMPLED,
+                );
+
+                $remoteChild = $tracer
+                    ->spanBuilder('remote-sampled-child')
+                    ->setParent(Context::getCurrent()->withContextValue(Span::wrap($sampledRemoteParent)))
+                    ->startSpan();
+                $remoteChild->end();
+
+                /*
+                 * Child of an unsampled remote parent: the
+                 * remote_parent_not_sampled sampler applies -> dropped.
+                 */
+                $unsampledRemoteParent = SpanContext::createFromRemoteParent(
+                    '4193e569320548f7b71d4c5a750d504d',
+                    '6e0c63258deeeff5',
+                );
+
+                $tracer
+                    ->spanBuilder('remote-unsampled-child')
+                    ->setParent(Context::getCurrent()->withContextValue(Span::wrap($unsampledRemoteParent)))
+                    ->startSpan()
+                    ->end();
+
+                /*
+                 * Child of a sampled local parent (the kept remote child):
+                 * the local_parent_sampled sampler applies -> dropped.
+                 */
+                $tracer
+                    ->spanBuilder('local-sampled-grandchild')
+                    ->setParent(Context::getCurrent()->withContextValue($remoteChild))
+                    ->startSpan()
+                    ->end();
+
+                /*
+                 * Child of an unsampled local parent: the
+                 * local_parent_not_sampled sampler applies -> kept.
+                 */
+                $localRoot = $tracer->spanBuilder('local-root')->startSpan();
+
+                $tracer
+                    ->spanBuilder('local-unsampled-child')
+                    ->setParent(Context::getCurrent()->withContextValue($localRoot))
+                    ->startSpan()
+                    ->end();
+            },
+        );
+
+        self::assertCount(1, $this->traces);
+        self::assertSame(
+            ['remote-sampled-child', 'local-unsampled-child'],
+            $this->spanNames($this->traces[0]),
+        );
+    }
+
+    #[Group('sampler')]
+    public function testRuleBasedSamplerMatchesParentOrigin(): void {
+        $this->runOTelConfig(
+            <<<'YAML'
+            file_format: "1.2"
+
+            tracer_provider:
+              sampler:
+                composite/development:
+                  rule_based:
+                    rules:
+                      - parent: [none]
+                        sampler:
+                          always_on:
+                      - parent: [remote]
+                        sampler:
+                          always_on:
+              processors:
+                - batch:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${env:OTEL_EXPORTER_OTLP_TRACES_ENDPOINT}
+            YAML,
+            static function (): void {
+                $tracer = Globals::tracerProvider()->getTracer('config-test');
+
+                /* Matches the parent: [none] rule -> sampled. */
+                $root = $tracer->spanBuilder('rule-root')->startSpan();
+                $root->end();
+
+                /* Matches the parent: [remote] rule -> sampled. */
+                $remoteParent = SpanContext::createFromRemoteParent(
+                    '4193e569320548f7b71d4c5a750d504c',
+                    '6e0c63258deeeff4',
+                    TraceFlags::SAMPLED,
+                );
+
+                $tracer
+                    ->spanBuilder('rule-remote-child')
+                    ->setParent(Context::getCurrent()->withContextValue(Span::wrap($remoteParent)))
+                    ->startSpan()
+                    ->end();
+
+                /*
+                 * A local parent matches no rule (only none and remote are
+                 * listed) -> dropped.
+                 */
+                $tracer
+                    ->spanBuilder('rule-local-child')
+                    ->setParent(Context::getCurrent()->withContextValue($root))
+                    ->startSpan()
+                    ->end();
+            },
+        );
+
+        self::assertCount(1, $this->traces);
+        self::assertSame(
+            ['rule-root', 'rule-remote-child'],
+            $this->spanNames($this->traces[0]),
+        );
+    }
+
+    #[Group('sampler')]
+    public function testRuleBasedSamplerExcludedAttributePatterns(): void {
+        $this->runOTelConfig(
+            <<<'YAML'
+            file_format: "1.2"
+
+            tracer_provider:
+              sampler:
+                composite/development:
+                  rule_based:
+                    rules:
+                      - attribute_patterns:
+                          key: http.status_code
+                          included: ['2*']
+                          excluded: ['204']
+                        sampler:
+                          always_on:
+              processors:
+                - batch:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${env:OTEL_EXPORTER_OTLP_TRACES_ENDPOINT}
+            YAML,
+            static function (): void {
+                $tracer = Globals::tracerProvider()->getTracer('config-test');
+
+                /* Included by the pattern -> sampled. */
+                $ok = $tracer->spanBuilder('status-200')
+                    ->setAttribute('http.status_code', '200')
+                    ->startSpan();
+                $ok->end();
+
+                /* Matches the pattern but is excluded -> dropped. */
+                $noContent = $tracer->spanBuilder('status-204')
+                    ->setAttribute('http.status_code', '204')
+                    ->startSpan();
+                $noContent->end();
+
+                /* Not included by the pattern -> dropped. */
+                $moved = $tracer->spanBuilder('status-301')
+                    ->setAttribute('http.status_code', '301')
+                    ->startSpan();
+                $moved->end();
+            },
+        );
+
+        self::assertCount(1, $this->traces);
+        self::assertSame(
+            ['status-200'],
+            $this->spanNames($this->traces[0]),
+        );
+    }
+
+    #[Group('sampler')]
+    public function testCompositeAlwaysOffDropsAllSpans(): void {
+        $this->runOTelConfig(
+            <<<'YAML'
+            file_format: "1.2"
+
+            tracer_provider:
+              sampler:
+                composite/development:
+                  always_off:
+              processors:
+                - batch:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${env:OTEL_EXPORTER_OTLP_TRACES_ENDPOINT}
+            YAML,
+            static function (): void {
+                Globals::tracerProvider()->getTracer('config-test')
+                    ->spanBuilder('composite-off')
+                    ->startSpan()
+                    ->end();
+            },
+        );
+
+        self::assertSame([], $this->traces);
+    }
+
+    #[Group('sampler')]
+    public function testCompositeAlwaysOnSamplesAllSpans(): void {
+        $this->runOTelConfig(
+            <<<'YAML'
+            file_format: "1.2"
+
+            tracer_provider:
+              sampler:
+                composite/development:
+                  always_on:
+              processors:
+                - batch:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${env:OTEL_EXPORTER_OTLP_TRACES_ENDPOINT}
+            YAML,
+            static function (): void {
+                Globals::tracerProvider()->getTracer('config-test')
+                    ->spanBuilder('composite-on')
+                    ->startSpan()
+                    ->end();
+            },
+        );
+
+        self::assertSame(
+            ['composite-on'],
+            $this->spanNames($this->traces[0]),
+        );
+    }
+
+    #[Group('async')]
+    public function testJaegerRemoteInitialSamplerAppliesWhileBackendUnreachable(): void {
+        /*
+         * While the Jaeger backend cannot be reached, the configured initial
+         * sampler makes the sampling decisions: with always_on, spans are
+         * exported even though every poll fails.
+         */
+        $this->runOTelConfig(
+            <<<'YAML'
+            file_format: "1.2"
+
+            tracer_provider:
+              sampler:
+                jaeger_remote/development:
+                  endpoint: http://127.0.0.1:1
+                  interval: 50
+                  initial_sampler:
+                    always_on:
+              processors:
+                - batch:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${env:OTEL_EXPORTER_OTLP_TRACES_ENDPOINT}
+            YAML,
+            static function (): void {
+                // Let a few polls fail against the closed port.
+                \Amp\delay(0.3);
+
+                Globals::tracerProvider()->getTracer('config-test')
+                    ->spanBuilder('initial-sampled')
+                    ->startSpan()
+                    ->end();
+            },
+        );
+
+        self::assertSpanNames(['initial-sampled']);
+    }
+
     /**
      * Emits the given span context as a JSON line on stdout, for assertions
      * in the parent process.

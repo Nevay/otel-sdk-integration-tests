@@ -701,4 +701,100 @@ final class ConfigBasicTest extends TestCase {
             @unlink($file);
         }
     }
+
+    #[Group('traces')]
+    public function testConsoleExporterWritesSpansToStdout(): void {
+        $output = $this->runOTelConfig(
+            <<<'YAML'
+            file_format: "1.2"
+
+            tracer_provider:
+              processors:
+                - batch:
+                    exporter:
+                      console:
+            YAML,
+            static function (): void {
+                Globals::tracerProvider()->getTracer('config-test')
+                    ->spanBuilder('console-span')
+                    ->startSpan()
+                    ->end();
+            },
+        );
+
+        /*
+         * The specification leaves the console exporter's output format
+         * unspecified ("can vary between implementations"), so we only pin
+         * down that the span reaches stdout and does not go to the OTLP
+         * HTTP collector.
+         */
+        self::assertStringContainsString('console-span', $output);
+        self::assertSame([], $this->traces);
+    }
+
+    #[Group('traces')]
+    public function testIdGeneratorRandomProducesSpecConformIds(): void {
+        /*
+         * The random id generator is the default; configuring it explicitly
+         * must produce 128-bit trace ids and 64-bit span ids.
+         */
+        $this->runOTelConfig(
+            <<<'YAML'
+            file_format: "1.2"
+
+            tracer_provider:
+              id_generator:
+                random:
+              processors:
+                - batch:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${env:OTEL_EXPORTER_OTLP_TRACES_ENDPOINT}
+            YAML,
+            static function (): void {
+                Globals::tracerProvider()->getTracer('config-test')
+                    ->spanBuilder('id-generator')
+                    ->startSpan()
+                    ->end();
+            },
+        );
+
+        self::assertNotEmpty($this->traces);
+
+        $traceId = $this->normalizeId(
+            (string) $this->path(
+                $this->traces[0],
+                '$.resourceSpans[*].scopeSpans[*].spans[?(@.name == "id-generator")].traceId',
+            )[0],
+        );
+
+        self::assertMatchesRegularExpression('/^[0-9a-f]{32}$/', $traceId);
+
+        $spanId = $this->normalizeId(
+            (string) $this->path(
+                $this->traces[0],
+                '$.resourceSpans[*].scopeSpans[*].spans[?(@.name == "id-generator")].spanId',
+            )[0],
+        );
+
+        self::assertMatchesRegularExpression('/^[0-9a-f]{16}$/', $spanId);
+    }
+
+    public function testMissingConfigFileFailsInitialization(): void {
+        /*
+         * A configuration file that does not exist is an initialization
+         * error: the SDK reports it and degrades to a no-op.
+         */
+        $this->runOTelExpectingInitError(
+            static function (): void {
+                Globals::tracerProvider()->getTracer('config-test')
+                    ->spanBuilder('missing-config')
+                    ->startSpan()
+                    ->end();
+            },
+            'OTEL_CONFIG_FILE=/nonexistent/otel-test-config.yaml',
+        );
+
+        self::assertSame([], $this->traces);
+    }
 }
