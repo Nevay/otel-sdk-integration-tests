@@ -205,7 +205,7 @@ trait OTelEndpointTrait {
 
         $this->baseUrl = $address;
 
-        $this->env['OTEL_EXPORTER_OTLP_TRACES_PROTOCOL']  = 'http/json';
+        $this->env['OTEL_EXPORTER_OTLP_PROTOCOL']         = 'http/json';
         $this->env['OTEL_EXPORTER_OTLP_TRACES_ENDPOINT']  = $address . '/v1/traces';
         $this->env['OTEL_EXPORTER_OTLP_METRICS_ENDPOINT'] = $address . '/v1/metrics';
         $this->env['OTEL_EXPORTER_OTLP_LOGS_ENDPOINT']    = $address . '/v1/logs';
@@ -217,13 +217,12 @@ trait OTelEndpointTrait {
      * Note on id encoding: OTLP/JSON messages carry trace and span ids as
      * lowercase hex strings, an explicit deviation from the canonical
      * proto3 JSON mapping (which would use base64 for bytes fields). The
-     * captures in this suite are always produced with the canonical proto3
-     * mapping, because protobuf exports are re-serialized through the
-     * protobuf library and native OTLP/JSON exports are round-tripped
-     * through it as well. Hex ids survive that round trip unchanged (hex
-     * is a subset of the base64 alphabet), so a capture may show either
-     * representation depending on the exporter's encoding; normalize with
-     * bin2hex(base64_decode(...)) when comparing across signals.
+     * capture round-trips both wire encodings through the protobuf library
+     * (binary bodies are parsed, JSON bodies are merged), and bytes fields
+     * survive that round trip unchanged: a capture shows whatever
+     * representation the exporter sent, hex for OTLP/JSON and base64 of
+     * the raw bytes for OTLP/protobuf. Compare ids across signals with
+     * normalizeId().
      */
     private static function captureRequestBody(Request $request, mixed &$slot, string $messageType, string $responseType): Response {
         $payload = $request->getBody()->buffer();
@@ -246,6 +245,18 @@ trait OTelEndpointTrait {
             'application/json' => new Response(HttpStatus::OK, ['content-type' => 'application/json'], $response->serializeToJsonString(\Google\Protobuf\PrintOptions::ALWAYS_PRINT_ENUMS_AS_INTS)),
             default => new Response(HttpStatus::OK),
         };
+    }
+
+    /**
+     * Normalizes a captured trace or span id to lowercase hex, whatever the
+     * wire encoding of the export that produced the capture: OTLP/JSON ids
+     * are already hex, while OTLP/protobuf ids are base64 of the raw bytes
+     * (see the note on id encoding in captureRequestBody()).
+     */
+    protected static function normalizeId(string $id): string {
+        return preg_match('/^(?:[0-9a-f]{16}|[0-9a-f]{32})$/', strtolower($id)) === 1
+            ? strtolower($id)
+            : bin2hex(base64_decode($id));
     }
 
     protected function tearDown(): void {

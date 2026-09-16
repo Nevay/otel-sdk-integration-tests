@@ -351,4 +351,41 @@ final class EnvEdgeCasesTest extends TestCase {
             $this->spanNames($this->traces[0]),
         );
     }
+
+    #[Group('async')]
+    public function testGenericOtlpTimeoutEnvVarDropsExportWhenCollectorIsSlow(): void {
+        /*
+         * OTEL_EXPORTER_OTLP_TIMEOUT bounds every OTLP export attempt in
+         * milliseconds. The /v1/slow route answers 500 ms after the request,
+         * beyond the 100 ms timeout, so the export is cancelled and the span
+         * dropped.
+         *
+         * OTEL_PHP_SHUTDOWN_TIMEOUT is a tbachert/otel-sdk vendor variable
+         * that bounds that SDK's retry backoff after the timed-out export;
+         * open-telemetry/sdk ignores it and completes its shutdown on its
+         * own within a second.
+         */
+        $this->runOTel(
+            static function (): void {
+                Globals::tracerProvider()->getTracer('test')
+                    ->spanBuilder('timeout-generic')
+                    ->startSpan()
+                    ->end();
+            },
+            'OTEL_EXPORTER_OTLP_TIMEOUT=100',
+            'OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=' . $this->baseUrl . '/v1/slow',
+            'OTEL_PHP_SHUTDOWN_TIMEOUT=1000',
+        );
+
+        /*
+         * The export was attempted... the slow route delays its response
+         * beyond the 100 ms timeout...
+         */
+        self::assertGreaterThanOrEqual(1, $this->slowRequests);
+
+        /*
+         * ...so the span was never delivered.
+         */
+        self::assertSame([], $this->traces);
+    }
 }

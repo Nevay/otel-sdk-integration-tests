@@ -49,21 +49,20 @@ final class EnvCorrelationTest extends TestCase {
         self::assertCount(1, $logRecords);
 
         /*
-         * The log record is correlated with the active span. Spans are
-         * captured via OTLP/JSON (hex ids, per the OTLP specification),
-         * while logs default to OTLP/protobuf and are re-serialized by the
-         * harness with the canonical proto3 JSON mapping (base64 ids); see
+         * The log record is correlated with the active span. Captured ids
+         * may be hex (OTLP/JSON) or base64 of the raw bytes (OTLP/protobuf
+         * re-serialized by the harness); normalizeId() handles both, see
          * the note on id encoding in
          * OTelEndpointTrait::captureRequestBody().
          */
         self::assertSame(
-            $spans[0]['traceId'],
-            bin2hex(base64_decode($logRecords[0]['traceId'])),
+            self::normalizeId($spans[0]['traceId']),
+            self::normalizeId($logRecords[0]['traceId']),
         );
 
         self::assertSame(
-            $spans[0]['spanId'],
-            bin2hex(base64_decode($logRecords[0]['spanId'])),
+            self::normalizeId($spans[0]['spanId']),
+            self::normalizeId($logRecords[0]['spanId']),
         );
     }
 
@@ -129,13 +128,13 @@ final class EnvCorrelationTest extends TestCase {
         self::assertCount(1, $logRecords);
 
         self::assertSame(
-            $byName['nested-inner']['spanId'],
-            bin2hex(base64_decode($logRecords[0]['spanId'])),
+            self::normalizeId($byName['nested-inner']['spanId']),
+            self::normalizeId($logRecords[0]['spanId']),
         );
 
         self::assertSame(
-            $byName['nested-outer']['traceId'],
-            bin2hex(base64_decode($logRecords[0]['traceId'])),
+            self::normalizeId($byName['nested-outer']['traceId']),
+            self::normalizeId($logRecords[0]['traceId']),
         );
     }
 
@@ -181,13 +180,13 @@ final class EnvCorrelationTest extends TestCase {
          * The exemplar references the active span at measurement time.
          */
         self::assertSame(
-            $spans[0]['traceId'],
-            bin2hex(base64_decode($exemplars[0]['traceId'])),
+            self::normalizeId($spans[0]['traceId']),
+            self::normalizeId($exemplars[0]['traceId']),
         );
 
         self::assertSame(
-            $spans[0]['spanId'],
-            bin2hex(base64_decode($exemplars[0]['spanId'])),
+            self::normalizeId($spans[0]['spanId']),
+            self::normalizeId($exemplars[0]['spanId']),
         );
     }
 
@@ -245,31 +244,30 @@ final class EnvCorrelationTest extends TestCase {
         self::assertCount(1, $logRecords);
 
         /*
-         * All three signals reference the same span context. Spans are
-         * captured via OTLP/JSON (hex ids, per the OTLP specification),
-         * while exemplars and log records default to OTLP/protobuf and are
-         * re-serialized by the harness with the canonical proto3 JSON
-         * mapping (base64 ids); see the note on id encoding in
+         * All three signals reference the same span context. Captured ids
+         * may be hex (OTLP/JSON) or base64 of the raw bytes (OTLP/protobuf
+         * re-serialized by the harness); normalizeId() handles both, see
+         * the note on id encoding in
          * OTelEndpointTrait::captureRequestBody().
          */
         self::assertSame(
-            bin2hex(base64_decode($exemplars[0]['traceId'])),
-            $spans[0]['traceId'],
+            self::normalizeId($exemplars[0]['traceId']),
+            self::normalizeId($spans[0]['traceId']),
         );
 
         self::assertSame(
-            bin2hex(base64_decode($exemplars[0]['spanId'])),
-            $spans[0]['spanId'],
+            self::normalizeId($exemplars[0]['spanId']),
+            self::normalizeId($spans[0]['spanId']),
         );
 
         self::assertSame(
-            $exemplars[0]['traceId'],
-            $logRecords[0]['traceId'],
+            self::normalizeId($exemplars[0]['traceId']),
+            self::normalizeId($logRecords[0]['traceId']),
         );
 
         self::assertSame(
-            $exemplars[0]['spanId'],
-            $logRecords[0]['spanId'],
+            self::normalizeId($exemplars[0]['spanId']),
+            self::normalizeId($logRecords[0]['spanId']),
         );
     }
 }

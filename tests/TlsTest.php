@@ -356,4 +356,77 @@ final class TlsTest extends TestCase {
             strtolower($this->lastStderr),
         );
     }
+
+    #[Group('env'), Group('traces'), Group('metrics'), Group('logs')]
+    public function testGenericCertificateTrustsSelfSignedCollector(): void {
+        /*
+         * The signal-agnostic certificate variable plus the signal-agnostic
+         * endpoint: every signal trusts the self-signed collector.
+         */
+        $this->runOTel(
+            static function (): void {
+                Globals::tracerProvider()->getTracer('tls-test')
+                    ->spanBuilder('generic-tls-span')
+                    ->startSpan()
+                    ->end();
+
+                Globals::meterProvider()->getMeter('tls-test')
+                    ->createCounter('generic.tls-metric')
+                    ->add(1);
+
+                Globals::loggerProvider()->getLogger('tls-test')
+                    ->logRecordBuilder()
+                    ->setBody('generic-tls-log')
+                    ->emit();
+            },
+            'OTEL_EXPORTER_OTLP_ENDPOINT=' . $this->tlsBaseUrl,
+            'OTEL_EXPORTER_OTLP_CERTIFICATE=' . self::CERT,
+        );
+
+        self::assertCount(1, $this->traces);
+        self::assertSame(
+            ['generic-tls-span'],
+            $this->spanNames($this->traces[0]),
+        );
+        self::assertCount(1, $this->metrics);
+        self::assertCount(1, $this->logs);
+    }
+
+    #[Group('env'), Group('traces'), Group('metrics'), Group('logs')]
+    public function testGenericClientCertificateIsPresentedAndVerified(): void {
+        /*
+         * The signal-agnostic client certificate variables: the collector
+         * requires a client certificate signed by the fixture CA for every
+         * signal.
+         */
+        $this->runOTel(
+            static function (): void {
+                Globals::tracerProvider()->getTracer('tls-test')
+                    ->spanBuilder('generic-mtls-span')
+                    ->startSpan()
+                    ->end();
+
+                Globals::meterProvider()->getMeter('tls-test')
+                    ->createCounter('generic.mtls-metric')
+                    ->add(1);
+
+                Globals::loggerProvider()->getLogger('tls-test')
+                    ->logRecordBuilder()
+                    ->setBody('generic-mtls-log')
+                    ->emit();
+            },
+            'OTEL_EXPORTER_OTLP_ENDPOINT=' . $this->mtlsBaseUrl,
+            'OTEL_EXPORTER_OTLP_CERTIFICATE=' . self::CERT,
+            'OTEL_EXPORTER_OTLP_CLIENT_CERTIFICATE=' . self::CERT,
+            'OTEL_EXPORTER_OTLP_CLIENT_KEY=' . self::KEY,
+        );
+
+        self::assertCount(1, $this->traces);
+        self::assertSame(
+            ['generic-mtls-span'],
+            $this->spanNames($this->traces[0]),
+        );
+        self::assertCount(1, $this->metrics);
+        self::assertCount(1, $this->logs);
+    }
 }
