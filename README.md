@@ -48,6 +48,16 @@ passable via `ARGS='--group env'`):
   SDK (vendor options, non-spec environment variables, implementation-dependent
   behavior). Each run excludes the other SDK's group.
 
+**Dependency note.** The root `composer.json` pins `open-telemetry/api` to
+the unreleased baggage fix — `dev-main#b2bc26bf… as 1.10.x-dev`, the commit
+of [open-telemetry/opentelemetry-php#2056](https://github.com/open-telemetry/opentelemetry-php/pull/2056)
+(merged, not yet part of a release) — because the newest api release (1.10.0)
+drops baggage list-members whose values are percent-encoded. Packagist serves
+`open-telemetry/api` from the read-only `opentelemetry-php/api` mirror of the
+monorepo's `src/API`, so the pin references that mirror's commit rather than
+the monorepo's. Replace the pin with the next stable api release once it
+ships.
+
 ## Tested SDKs
 
 ### [`tbachert/otel-sdk`](https://github.com/tbachert/otel-sdk)

@@ -1952,16 +1952,16 @@
         },
         {
             "name": "open-telemetry/api",
-            "version": "1.10.0",
+            "version": "dev-main",
             "source": {
                 "type": "git",
                 "url": "https://github.com/opentelemetry-php/api.git",
-                "reference": "7c029c4a6fd457094a20569bf98f93d95e9a7559"
+                "reference": "b2bc26bf8bd6b2b6447b3626b2a1b5733873aa0b"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/opentelemetry-php/api/zipball/7c029c4a6fd457094a20569bf98f93d95e9a7559",
-                "reference": "7c029c4a6fd457094a20569bf98f93d95e9a7559",
+                "url": "https://api.github.com/repos/opentelemetry-php/api/zipball/b2bc26bf8bd6b2b6447b3626b2a1b5733873aa0b",
+                "reference": "b2bc26bf8bd6b2b6447b3626b2a1b5733873aa0b",
                 "shasum": ""
             },
             "require": {
@@ -1973,6 +1973,7 @@
             "conflict": {
                 "open-telemetry/sdk": "<=1.11"
             },
+            "default-branch": true,
             "type": "library",
             "extra": {
                 "spi": {
@@ -2018,7 +2019,7 @@
                 "issues": "https://github.com/open-telemetry/opentelemetry-php/issues",
                 "source": "https://github.com/open-telemetry/opentelemetry-php"
             },
-            "time": "2026-07-06T12:28:04+00:00"
+            "time": "2026-09-16T01:59:09+00:00"
         },
         {
             "name": "open-telemetry/context",
@@ -2771,16 +2772,16 @@
         },
         {
             "name": "phpunit/phpunit",
-            "version": "13.3.3",
+            "version": "13.3.4",
             "source": {
                 "type": "git",
                 "url": "https://github.com/sebastianbergmann/phpunit.git",
-                "reference": "0d8711067516c1f6ba1a66f762e16c2fb1a8ccd1"
+                "reference": "d19d90cf860efb7e4d96cee8243e06a248578085"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/sebastianbergmann/phpunit/zipball/0d8711067516c1f6ba1a66f762e16c2fb1a8ccd1",
-                "reference": "0d8711067516c1f6ba1a66f762e16c2fb1a8ccd1",
+                "url": "https://api.github.com/repos/sebastianbergmann/phpunit/zipball/d19d90cf860efb7e4d96cee8243e06a248578085",
+                "reference": "d19d90cf860efb7e4d96cee8243e06a248578085",
                 "shasum": ""
             },
             "require": {
@@ -2794,7 +2795,7 @@
                 "phar-io/manifest": "^2.0.4",
                 "phar-io/version": "^3.2.1",
                 "php": ">=8.4.1",
-                "phpunit/php-code-coverage": "^14.3.2",
+                "phpunit/php-code-coverage": "^14.3.3",
                 "phpunit/php-file-iterator": "^7.0.2",
                 "phpunit/php-invoker": "^7.0.0",
                 "phpunit/php-text-template": "^6.0.0",
@@ -2851,7 +2852,7 @@
             "support": {
                 "issues": "https://github.com/sebastianbergmann/phpunit/issues",
                 "security": "https://github.com/sebastianbergmann/phpunit/security/policy",
-                "source": "https://github.com/sebastianbergmann/phpunit/tree/13.3.3"
+                "source": "https://github.com/sebastianbergmann/phpunit/tree/13.3.4"
             },
             "funding": [
                 {
@@ -2859,7 +2860,7 @@
                     "type": "other"
                 }
             ],
-            "time": "2026-09-09T04:50:32+00:00"
+            "time": "2026-09-15T07:37:05+00:00"
         },
         {
             "name": "psr/http-factory",
@@ -4645,7 +4646,7 @@
             "dist": {
                 "type": "path",
                 "url": "../..",
-                "reference": "6e448047a9ba1565c4ecbbbd628aeccc6a809e0e"
+                "reference": "c03f525f39dc8e3b3abcc239d186d75dc0dfe186"
             },
             "require": {
                 "amphp/amp": "^3.0",
@@ -4661,7 +4662,7 @@
                 "ext-zlib": "*",
                 "galbar/jsonpath": "^3.0",
                 "google/protobuf": "^5.0",
-                "open-telemetry/api": "^1.10",
+                "open-telemetry/api": "dev-main#b2bc26bf8bd6b2b6447b3626b2a1b5733873aa0b as 1.10.x-dev",
                 "open-telemetry/context": "^1.5",
                 "open-telemetry/extension-propagator-b3": "^1.2",
                 "open-telemetry/gen-otlp-protobuf": "^1.10",
