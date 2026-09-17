@@ -1,1 +1,4 @@
 * text=auto eol=lf
+# Local SDK subprojects are not part of the published package: consumers
+# require the suite into their own project and bring their own SDK.
+sdks/** export-ignore
