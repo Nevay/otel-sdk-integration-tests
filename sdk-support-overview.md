@@ -110,7 +110,8 @@ propagator — instead of logging a warning and falling back to the default.
 ² All exemplar tests fail: none are captured/exported with the spec's filter
 values (`trace_based`, `always_on`), and an invalid value falls back to no
 exemplars instead of the default `trace_based`
-([#2054](https://github.com/open-telemetry/opentelemetry-php/issues/2054)).  
+(issue [#2054](https://github.com/open-telemetry/opentelemetry-php/issues/2054),
+fix in [PR #2057](https://github.com/open-telemetry/opentelemetry-php/pull/2057) — open).  
 ³ Blocked by the `file_format` gate: the official `sdk-configuration` package
 only accepts `file_format: '1.0-rc.2'`, while the suite uses data model version
 1.2, so every config-file test fails at initialization. Expected to be resolved
@@ -120,7 +121,9 @@ by [PR #2050](https://github.com/open-telemetry/opentelemetry-php/pull/2050).
 (untracked upstream).  
 ⁵ The 2 failures are the **global** attribute limit vars
 (`OTEL_ATTRIBUTE_COUNT_LIMIT`, `OTEL_ATTRIBUTE_VALUE_LENGTH_LIMIT`) — declared
-but not applied ([#2055](https://github.com/open-telemetry/opentelemetry-php/issues/2055));
+but not applied (issue
+[#2055](https://github.com/open-telemetry/opentelemetry-php/issues/2055), fix in
+[PR #2058](https://github.com/open-telemetry/opentelemetry-php/pull/2058) — open);
 the third is an unparseable limit aborting initialization (footnote ¹). The
 signal-specific `OTEL_SPAN_*` limits work.  
 ⁶ Queue-full drop fails: the batch processor flushes synchronously on span
@@ -161,8 +164,8 @@ the current no-op behavior for unsupported file formats.
 | Lenient handling of invalid configuration: unrecognized/case-mismatched enums and unparseable values abort init instead of warning + fallback | 10 | untracked |
 | Entities (`OTEL_ENTITIES`) not implemented | 7 | untracked |
 | `jaeger_remote` sampler not implemented (5 env + 2 config-file) | 7 | untracked |
-| Exemplars / exemplar filter: spec values unrecognized, invalid → no exemplars; none captured or exported | 5 | [#2054](https://github.com/open-telemetry/opentelemetry-php/issues/2054) |
-| Global attribute limits declared but not applied | 2 | [#2055](https://github.com/open-telemetry/opentelemetry-php/issues/2055) |
+| Exemplars / exemplar filter: spec values unrecognized, invalid → no exemplars; none captured or exported | 5 | [#2054](https://github.com/open-telemetry/opentelemetry-php/issues/2054), fix in [PR #2057](https://github.com/open-telemetry/opentelemetry-php/pull/2057) (open) |
+| Global attribute limits declared but not applied | 2 | [#2055](https://github.com/open-telemetry/opentelemetry-php/issues/2055), fix in [PR #2058](https://github.com/open-telemetry/opentelemetry-php/pull/2058) (open) |
 | Batch processor queue-full drop: blocking I/O on span end / log emit | 2 | untracked |
 | Metric export interval / periodic reader (+ temporality dependency) | 2 | [#1884](https://github.com/open-telemetry/opentelemetry-php/issues/1884) |
 | Prometheus pull exporter (needs async runtime) | 1 | not reported upstream (by decision) |
