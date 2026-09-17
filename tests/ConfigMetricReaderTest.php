@@ -482,6 +482,7 @@ final class ConfigMetricReaderTest extends TestCase {
         );
     }
 
+    #[Group('aggregation')]
     public function testReaderCardinalityLimitBucketsOverflowSeries(): void {
         $this->runOTelConfig(<<<'YAML'
             file_format: "1.2"
@@ -525,7 +526,7 @@ final class ConfigMetricReaderTest extends TestCase {
         );
     }
 
-    #[Group('async')]
+    #[Group('async'), Group('aggregation')]
     public function testReaderCardinalityLimitsApplyPerInstrumentType(): void {
         /*
          * The reader-level cardinality limits apply per instrument type:

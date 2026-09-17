@@ -2,8 +2,8 @@
 
 Feature-by-feature pass/fail status of the suite's shared `spec` group — every
 test that verifies specification-defined behavior — against the two SDKs under
-`sdks/`. Generated from full suite runs (JUnit logs); re-run with
-`make test SDK=<tbachert|official>` to refresh.
+`sdks/`. Generated from full suite runs (JUnit logs); regenerate with
+`make test-all`, which writes `.junit-<sdk>.xml` for both SDKs.
 
 - **tbachert run:** 374 tests executed, **374 passing** (`spec` + `tbachert`
   groups).
