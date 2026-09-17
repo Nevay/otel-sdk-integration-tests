@@ -115,7 +115,7 @@ fix in [PR #2057](https://github.com/open-telemetry/opentelemetry-php/pull/2057)
 ³ Blocked by the `file_format` gate: the official `sdk-configuration` package
 only accepts `file_format: '1.0-rc.2'`, while the suite uses data model version
 1.2, so every config-file test fails at initialization. Expected to be resolved
-by [PR #2050](https://github.com/open-telemetry/opentelemetry-php/pull/2050).  
+by [PR #2050](https://github.com/open-telemetry/opentelemetry-php/pull/2050) (draft).  
 ⁴ The `jaeger_remote` sampler is not implemented:
 `OTEL_TRACES_SAMPLER=jaeger_remote` fails initialization with "unknown sampler"
 (untracked upstream).  
@@ -158,7 +158,7 @@ the current no-op behavior for unsupported file formats.
 
 | Failing group | Tests | Tracking |
 |---|---:|---|
-| File-based configuration (`file_format` 1.2 gate): all config-file tests except the two passing pins, the `jaeger_remote` config tests and the missing-file test | 210 | [PR #2050](https://github.com/open-telemetry/opentelemetry-php/pull/2050) |
+| File-based configuration (`file_format` 1.2 gate): all config-file tests except the two passing pins, the `jaeger_remote` config tests and the missing-file test | 210 | fix in [PR #2050](https://github.com/open-telemetry/opentelemetry-php/pull/2050) (draft) |
 | gRPC: per-signal endpoints abort initialization (env mode) | 12 | untracked |
 | Certificate env vars never wired into the transports (OTLP/HTTP, all signals) | 8 | untracked |
 | Lenient handling of invalid configuration: unrecognized/case-mismatched enums and unparseable values abort init instead of warning + fallback | 10 | untracked |
