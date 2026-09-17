@@ -45,6 +45,7 @@ passable via `ARGS='--group env'`):
 - context propagation: `propagation` (propagators, cross-signal correlation)
 - `async`: tests whose server handlers use `Amp\delay`
 - feature: `prometheus` (pull exporter), `entities` (`OTEL_ENTITIES`)
+- feature area: `sampler`, `resource`, `view`, `aggregation`
 - `spec`: every test that verifies specification-defined behavior. Each SDK
   run executes the `spec` group plus its own SDK-name group (`tbachert`,
   `official`), which holds tests that only apply to that specific SDK (vendor
@@ -69,7 +70,8 @@ Exact package versions pinned in `sdks/tbachert/composer.lock`.
 **Scope.** All stable environment variables from the specification's SDK
 configuration section, plus file-based configuration using the official
 [opentelemetry-configuration](https://github.com/open-telemetry/opentelemetry-configuration)
-data model (schema versions 1.0 through 1.2).
+data model (version 1.2, including format-version handling for newer and
+unknown versions).
 `OTEL_LOG_LEVEL` is applied to the SDK's internal logger: at `debug`,
 diagnostic messages appear on stderr; at `error`, even warnings (e.g. for an
 unrecognized `OTEL_TRACES_SAMPLER` value, which is logged and ignored in

@@ -284,10 +284,17 @@ final class EnvMetricsTest extends TestCase {
          * to base-2 exponential buckets: data points carry a scale and
          * offset/bucket-count pairs instead of explicit bounds.
          */
-        $dataPoint = $this->path(
+        $dataPoints = $this->path(
             $this->metrics[0],
-            '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "agg.histogram")].exponentialHistogram.dataPoints[0]',
-        )[0];
+            '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "agg.histogram")].exponentialHistogram.dataPoints',
+        );
+
+        self::assertNotEmpty(
+            $dataPoints,
+            'No exponential histogram data points were exported.',
+        );
+
+        $dataPoint = $dataPoints[0][0];
 
         self::assertArrayNotHasKey('explicitBounds', $dataPoint);
         self::assertIsInt($dataPoint['scale']);

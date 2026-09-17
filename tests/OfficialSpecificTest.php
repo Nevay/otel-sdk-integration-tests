@@ -2,6 +2,7 @@
 namespace Nevay\OTelTest;
 
 use OpenTelemetry\API\Globals;
+use OpenTelemetry\API\Logs\LogRecord;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 
@@ -10,9 +11,9 @@ use PHPUnit\Framework\TestCase;
  * Official SDK specific configuration surface
  *
  * Environment variables that are not part of the official specification but
- * are implemented by open-telemetry/sdk. These tests are excluded from the
- * tbachert run (group "official") and document the vendor-specific
- * configuration surface of the official SDK.
+ * are implemented by open-telemetry/sdk. These tests run in the official run
+ * only (group "official") and document the vendor-specific configuration
+ * surface of the official SDK.
  * =========================================================================
  */
 #[Group('env')]
@@ -38,6 +39,24 @@ final class OfficialSpecificTest extends TestCase {
          * The no-op span processor never forwards spans to the exporter.
          */
         self::assertSame([], $this->traces);
+    }
+
+    #[Group('logs')]
+    public function testPhpLogsProcessorNoneDisablesLogExport(): void {
+        $this->runOTel(
+            static function (): void {
+                Globals::loggerProvider()
+                    ->getLogger('test')
+                    ->emit(new LogRecord('processor-none'));
+            },
+            'OTEL_PHP_LOGS_PROCESSOR=none',
+        );
+
+        /*
+         * The no-op log record processor never forwards records to the
+         * exporter.
+         */
+        self::assertSame([], $this->logs);
     }
 
     #[Group('traces')]

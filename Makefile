@@ -28,3 +28,15 @@ dependencies-update:
 test:
 	@test -n "$(SDK)" || { echo "Usage: make test SDK=<tbachert|official> [ARGS=...]"; exit 1; }
 	$(PHP) sh -c "cd sdks/$(SDK) && vendor/bin/phpunit $(ARGS)"
+
+# Run both suites and write .junit-<sdk>.xml logs (used to regenerate
+# sdk-support-overview.md). The official run is expected to fail while the
+# SDK has spec gaps; both runs always complete, and the target exits non-zero
+# if either suite failed.
+test-all:
+	@status=0; \
+	for sdk in $(SDKS); do \
+		echo "==> $$sdk"; \
+		$(PHP) sh -c "cd sdks/$$sdk && vendor/bin/phpunit --log-junit /php/.junit-$$sdk.xml" || status=1; \
+	done; \
+	exit $$status

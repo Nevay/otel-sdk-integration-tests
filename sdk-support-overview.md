@@ -7,7 +7,7 @@ test that verifies specification-defined behavior — against the two SDKs under
 
 - **tbachert run:** 374 tests executed, **374 passing** (`spec` + `tbachert`
   groups).
-- **official run:** 375 tests executed, **106 passing / 269 failing**
+- **official run:** 376 tests executed, **107 passing / 269 failing**
   (`spec` + `official` groups). Most failures (210 of 269) are gated by
   not-yet-updated config-file support: the SDK only accepts
   `file_format: '1.0-rc.2'`, while the suite uses data model version 1.2, so
