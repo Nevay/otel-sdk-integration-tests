@@ -6,6 +6,7 @@ use OpenTelemetry\API\Trace\Span;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 
+#[Group('spec')]
 #[Group('config-file'), Group('traces')]
 final class ConfigLimitsTest extends TestCase {
     use OTelEndpointTrait;

@@ -9,6 +9,7 @@ use OpenTelemetry\Context\Context;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 
+#[Group('spec')]
 #[Group('env'), Group('traces')]
 final class EnvEdgeCasesTest extends TestCase {
     use OTelEndpointTrait;

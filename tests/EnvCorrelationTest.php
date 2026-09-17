@@ -5,7 +5,8 @@ use OpenTelemetry\API\Globals;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 
-#[Group('env')]
+#[Group('spec')]
+#[Group('env'), Group('propagation')]
 final class EnvCorrelationTest extends TestCase {
     use OTelEndpointTrait;
 

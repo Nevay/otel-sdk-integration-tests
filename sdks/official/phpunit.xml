@@ -16,14 +16,15 @@
     </testsuites>
 
     <!--
-        Tests tagged with the other SDK's name only apply to that SDK (vendor
-        options, non-spec environment variables, implementation-dependent
-        behavior) and are excluded here so that remaining failures reflect
-        spec gaps in the SDK under test.
+        The spec group contains every test that verifies specification-defined
+        behavior; the official group adds this SDK's vendor-specific tests.
+        Only these groups are executed so that remaining failures reflect spec
+        gaps in the SDK under test.
     -->
     <groups>
-        <exclude>
-            <group>tbachert</group>
-        </exclude>
+        <include>
+            <group>spec</group>
+            <group>official</group>
+        </include>
     </groups>
 </phpunit>

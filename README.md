@@ -42,11 +42,13 @@ passable via `ARGS='--group env'`):
 
 - configuration mode: `env`, `config-file`
 - signal: `traces`, `metrics`, `logs`
+- context propagation: `propagation` (propagators, cross-signal correlation)
 - `async`: tests whose server handlers use `Amp\delay`
 - feature: `prometheus` (pull exporter), `entities` (`OTEL_ENTITIES`)
-- SDK name (`tbachert`, `official`): tests that only apply to that specific
-  SDK (vendor options, non-spec environment variables, implementation-dependent
-  behavior). Each run excludes the other SDK's group.
+- `spec`: every test that verifies specification-defined behavior. Each SDK
+  run executes the `spec` group plus its own SDK-name group (`tbachert`,
+  `official`), which holds tests that only apply to that specific SDK (vendor
+  options, non-spec environment variables, implementation-dependent behavior).
 
 **Dependency note.** The root `composer.json` pins `open-telemetry/api` to
 the unreleased baggage fix — `dev-main#b2bc26bf… as 1.10.x-dev`, the commit
@@ -80,11 +82,11 @@ node that is not part of the official data model
 (`capture_code_attributes/development`), and vendor options under the schema's
 `distribution:` extension point (e.g. `shutdown_timeout`). SDK self-observability
 is off by default; the vendor-only `*_configurator/development` nodes enable it
-per signal via `config.enabled: true`, marking all such telemetry with the scope
-attribute `php.otel.sdk.self_diagnostics` (`ConfigSelfObservabilityTest` pins
-the metrics side, semconv names and instrument types).
-Tests that pin this surface are tagged with the group `tbachert` and are
-excluded from the official run.
+per signal via `config.enabled: true` (the enablement pin in
+`TbachertSpecificTest` verifies the exported semconv metric names and
+instrument types).
+The tests that pin this surface live in `TbachertSpecificTest`, tagged with
+the group `tbachert`; they run in the tbachert run only.
 
 **Spec features not implemented by this SDK (gaps, not deviations):**
 
@@ -128,8 +130,8 @@ PHP-specific environment variables: `OTEL_PHP_TRACES_PROCESSOR` /
 `OTEL_PHP_LOGS_PROCESSOR` (processor selection), `OTEL_PHP_DETECTORS`
 (resource detector selection), `OTEL_PHP_LOG_DESTINATION` (self-diagnostic log
 destination), and `OTEL_PHP_INTERNAL_METRICS_ENABLED` (SDK self-instrumentation).
-`OfficialSpecificTest` covers these; the tests are tagged with the group
-`official` and are excluded from the tbachert run. The spec variable
+`OfficialSpecificTest` covers these; its tests are tagged with the group
+`official` and run in the official run only. The spec variable
 `OTEL_LOG_LEVEL` is applied to the SDK's self-diagnostic log output, which
 respects the level for warnings and initialization errors alike (`none`
 suppresses all of it).

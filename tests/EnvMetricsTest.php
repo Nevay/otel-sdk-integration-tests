@@ -8,6 +8,7 @@ use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 use function Amp\delay;
 
+#[Group('spec')]
 #[Group('env'), Group('metrics')]
 final class EnvMetricsTest extends TestCase {
     use OTelEndpointTrait;

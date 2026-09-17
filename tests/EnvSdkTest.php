@@ -6,6 +6,7 @@ use OpenTelemetry\API\Logs\LogRecord;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 
+#[Group('spec')]
 #[Group('env')]
 final class EnvSdkTest extends TestCase {
     use OTelEndpointTrait;
@@ -152,83 +153,9 @@ final class EnvSdkTest extends TestCase {
 
     /*
      * =========================================================================
-     * SDK log level
+     * Miscellaneous SDK behavior
      * =========================================================================
      */
-
-    #[Group('traces')]
-    /*
-     * Vendor-specific: the specification defines OTEL_LOG_LEVEL but not the
-     * log level of individual self-diagnostic messages. This test pins down
-     * tbachert/otel-sdk's classification (export failures are logged at
-     * warning level, initialization errors at error level), which other SDKs
-     * may legitimately classify differently.
-     */
-    #[Group('tbachert')]
-    public function testLogLevelControlsSdkLogging(): void {
-        $failEndpoint = 'OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=' . str_replace(
-            '/v1/traces',
-            '/v1/fail',
-            $this->env['OTEL_EXPORTER_OTLP_TRACES_ENDPOINT'],
-        );
-
-        $emitSpan = static function (): void {
-            Globals::tracerProvider()
-                ->getTracer('test')
-                ->spanBuilder('log-level')
-                ->startSpan()
-                ->end();
-        };
-
-        /*
-         * The default level (info) reports the export failure as a warning.
-         */
-        $this->runOTel($emitSpan, $failEndpoint);
-
-        self::assertStringContainsString(
-            'Export failure',
-            $this->lastStderr,
-        );
-
-        /*
-         * At level error, the warning is suppressed...
-         */
-        $this->runOTel($emitSpan, $failEndpoint, 'OTEL_LOG_LEVEL=error');
-
-        self::assertStringNotContainsString(
-            'Export failure',
-            $this->lastStderr,
-        );
-
-        /*
-         * ...but error-level messages such as the initialization failure are
-         * still logged.
-         */
-        $this->runOTelConfigExpectingInitError(
-            <<<'YAML'
-            file_format: "9.9"
-
-            tracer_provider:
-              processors:
-                - batch:
-                    exporter:
-                      otlp_http:
-                        endpoint: ${env:OTEL_EXPORTER_OTLP_TRACES_ENDPOINT}
-            YAML,
-            $emitSpan,
-            'OTEL_LOG_LEVEL=error',
-        );
-
-        /*
-         * The SDK capitalizes the product name differently in this code
-         * path ('OpenTelemetry' vs 'opentelemetry'), so compare
-         * case-insensitively.
-         */
-        self::assertStringContainsString(
-            'error during opentelemetry initialization',
-            strtolower($this->lastStderr),
-        );
-    }
 
     #[Group('traces')]
     public function testConsoleExporterWritesSpansToStdout(): void

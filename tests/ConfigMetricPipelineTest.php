@@ -7,6 +7,7 @@ use function Amp\delay;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 
+#[Group('spec')]
 #[Group('config-file'), Group('metrics')]
 final class ConfigMetricPipelineTest extends TestCase {
     use OTelEndpointTrait;

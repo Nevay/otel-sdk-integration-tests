@@ -7,6 +7,7 @@ use OpenTelemetry\API\Globals;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 
+#[Group('spec')]
 #[Group('config-file'), Group('metrics'), Group('prometheus')]
 final class ConfigPrometheusExporterTest extends TestCase {
     use OTelEndpointTrait;

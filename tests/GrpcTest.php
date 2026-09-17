@@ -54,6 +54,7 @@ use function Amp\async;
  * plaintext export has been verified manually against a reference collector
  * (opentelemetry-collector).
  */
+#[Group('spec')]
 final class GrpcTest extends TestCase {
     use OTelEndpointTrait;
 

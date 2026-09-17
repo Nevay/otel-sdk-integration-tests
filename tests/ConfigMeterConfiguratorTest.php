@@ -5,6 +5,7 @@ use OpenTelemetry\API\Globals;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 
+#[Group('spec')]
 #[Group('config-file'), Group('metrics')]
 final class ConfigMeterConfiguratorTest extends TestCase {
     use OTelEndpointTrait;

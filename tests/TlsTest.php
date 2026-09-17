@@ -31,6 +31,7 @@ use Psr\Log\NullLogger;
  * rejects our self-signed CA unless configured) and one that requires a
  * client certificate signed by the fixture CA (mutual TLS).
  */
+#[Group('spec')]
 final class TlsTest extends TestCase {
     use OTelEndpointTrait;
 

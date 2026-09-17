@@ -10,6 +10,7 @@ use OpenTelemetry\API\Trace\TraceFlags;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 
+#[Group('spec')]
 #[Group('env'), Group('traces')]
 final class EnvSpanDetailsTest extends TestCase {
     use OTelEndpointTrait;

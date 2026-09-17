@@ -6,6 +6,7 @@ use OpenTelemetry\API\Logs\LogRecord;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 
+#[Group('spec')]
 #[Group('config-file')]
 final class ConfigConfiguratorsTest extends TestCase {
     use OTelEndpointTrait;

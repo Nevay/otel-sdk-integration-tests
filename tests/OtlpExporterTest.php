@@ -6,6 +6,7 @@ use OpenTelemetry\API\Logs\LogRecord;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 
+#[Group('spec')]
 #[Group('env')]
 final class OtlpExporterTest extends TestCase {
     use OTelEndpointTrait;

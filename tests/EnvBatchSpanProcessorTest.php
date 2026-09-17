@@ -6,6 +6,7 @@ use OpenTelemetry\API\Trace\Span;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 
+#[Group('spec')]
 #[Group('env'), Group('traces')]
 final class EnvBatchSpanProcessorTest extends TestCase {
     use OTelEndpointTrait;

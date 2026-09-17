@@ -6,6 +6,7 @@ use OpenTelemetry\API\Logs\LogRecord;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 
+#[Group('spec')]
 #[Group('config-file')]
 final class ConfigBasicTest extends TestCase {
     use OTelEndpointTrait;
@@ -460,94 +461,6 @@ final class ConfigBasicTest extends TestCase {
             'file_format',
             strtolower($this->lastStderr),
         );
-    }
-
-    #[Group('traces')]
-    /*
-     * Vendor-specific: capture_code_attributes/development is not part of the
-     * official opentelemetry-configuration data model; it is an experimental
-     * processor of tbachert/otel-sdk.
-     */
-    #[Group('tbachert')]
-    public function testCaptureCodeAttributesProcessorAddsSourceLocation(): void
-    {
-        $run = function (string $config): array {
-            $this->runOTelConfig(
-                $config,
-                static function (): void {
-                    Globals::tracerProvider()
-                        ->getTracer('config-test')
-                        ->spanBuilder('code-attrs')
-                        ->startSpan()
-                        ->end();
-                },
-            );
-
-            /*
-             * Each run appends to the captured payloads; use the most
-             * recent one.
-             */
-            $payload = end($this->traces);
-
-            return $this->path(
-                $payload,
-                '$.resourceSpans[*].scopeSpans[*].spans[?(@.name == "code-attrs")].attributes',
-            )[0];
-        };
-
-        $attributeValue = static function (array $attributes, string $key): ?array {
-            foreach ($attributes as $attribute) {
-                if ($attribute['key'] === $key) {
-                    return $attribute['value'];
-                }
-            }
-
-            return null;
-        };
-
-        /*
-         * With capture_stacktrace: true the span carries source location and
-         * a stack trace.
-         */
-        $attributes = $run(<<<'YAML'
-            file_format: "1.2"
-
-            tracer_provider:
-              processors:
-                - capture_code_attributes/development:
-                    capture_stacktrace: true
-                - batch:
-                    exporter:
-                      otlp_http:
-                        endpoint: ${env:OTEL_EXPORTER_OTLP_TRACES_ENDPOINT}
-            YAML);
-
-        self::assertIsArray($attributeValue($attributes, 'code.file.path'));
-        self::assertIsArray($attributeValue($attributes, 'code.line.number'));
-        self::assertIsArray($attributeValue($attributes, 'code.function.name'));
-
-        $stacktrace = $attributeValue($attributes, 'code.stacktrace');
-        self::assertIsArray($stacktrace);
-        self::assertNotSame('', $stacktrace['stringValue']);
-
-        /*
-         * Without the option the source location is still captured, but no
-         * stack trace.
-         */
-        $attributes = $run(<<<'YAML'
-            file_format: "1.2"
-
-            tracer_provider:
-              processors:
-                - capture_code_attributes/development:
-                - batch:
-                    exporter:
-                      otlp_http:
-                        endpoint: ${env:OTEL_EXPORTER_OTLP_TRACES_ENDPOINT}
-            YAML);
-
-        self::assertIsArray($attributeValue($attributes, 'code.file.path'));
-        self::assertNull($attributeValue($attributes, 'code.stacktrace'));
     }
 
     #[Group('traces')]

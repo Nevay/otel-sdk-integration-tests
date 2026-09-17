@@ -10,7 +10,8 @@ use OpenTelemetry\Context\Context;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 
-#[Group('env'), Group('traces')]
+#[Group('spec')]
+#[Group('env'), Group('propagation')]
 final class EnvPropagatorTest extends TestCase {
     use OTelEndpointTrait;
 

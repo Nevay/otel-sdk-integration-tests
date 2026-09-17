@@ -11,7 +11,8 @@ use function sprintf;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 
-#[Group('config-file'), Group('traces')]
+#[Group('spec')]
+#[Group('config-file'), Group('propagation')]
 final class ConfigPropagatorTest extends TestCase {
     use OTelEndpointTrait;
 

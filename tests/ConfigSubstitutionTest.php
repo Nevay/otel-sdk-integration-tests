@@ -13,6 +13,7 @@ use PHPUnit\Framework\TestCase;
  * that arrive at the collector verbatim, so any substitution behavior is
  * visible in the captured request headers.
  */
+#[Group('spec')]
 #[Group('config-file')]
 final class ConfigSubstitutionTest extends TestCase {
     use OTelEndpointTrait;

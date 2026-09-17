@@ -6,6 +6,7 @@ use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 use function Amp\delay;
 
+#[Group('spec')]
 #[Group('config-file'), Group('metrics')]
 final class ConfigViewsTest extends TestCase {
     use OTelEndpointTrait;
