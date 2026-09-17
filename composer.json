@@ -1,6 +1,19 @@
 {
   "name": "tbachert/otel-integration-tests",
   "description": "SDK-agnostic integration tests for OpenTelemetry PHP SDK configuration",
+  "keywords": [
+    "opentelemetry",
+    "open-telemetry",
+    "otel",
+    "php",
+    "sdk",
+    "compliance",
+    "integration-testing"
+  ],
+  "homepage": "https://github.com/Nevay/otel-sdk-integration-tests",
+  "support": {
+    "issues": "https://github.com/Nevay/otel-sdk-integration-tests/issues"
+  },
   "license": "Apache-2.0",
   "require": {
     "amphp/amp": "^3.0",
