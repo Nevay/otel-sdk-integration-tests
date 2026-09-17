@@ -13,6 +13,76 @@ final class ConfigLogRecordTest extends TestCase {
 
     /*
      * =========================================================================
+     * Log record content
+     * =========================================================================
+     *
+     * A logger provider configured via the config file must export log
+     * records with full content (severity, typed bodies), like the
+     * env-configured pipeline.
+     */
+
+    public function testLogRecordsExportedWithSeverityAndTypedBodies(): void
+    {
+        $this->runOTelConfig(
+            <<<'YAML'
+            file_format: "1.2"
+
+            logger_provider:
+              processors:
+                - batch:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${OTEL_EXPORTER_OTLP_LOGS_ENDPOINT}
+                        encoding: json
+            YAML,
+            static function (): void {
+                $logger = Globals::loggerProvider()->getLogger('config-test');
+
+                $logger->emit((new LogRecord('warn-message'))
+                    ->setSeverityNumber(13)
+                    ->setSeverityText('Warning'));
+                $logger->emit(new LogRecord(['nested' => ['key' => 'value'], 'count' => 2]));
+            },
+        );
+
+        self::assertNotEmpty($this->logs);
+
+        $records = $this->path(
+            $this->logs[0],
+            '$.resourceLogs[*].scopeLogs[*].logRecords',
+        );
+
+        self::assertSame(13, $records[0][0]['severityNumber']);
+        self::assertSame('Warning', $records[0][0]['severityText']);
+
+        /*
+         * Map bodies are exported as OTLP kvlist values, including nested
+         * maps; int64 values are encoded as strings in JSON.
+         */
+        self::assertSame(
+            [
+                'kvlistValue' => [
+                    'values' => [
+                        [
+                            'key' => 'nested',
+                            'value' => [
+                                'kvlistValue' => [
+                                    'values' => [
+                                        ['key' => 'key', 'value' => ['stringValue' => 'value']],
+                                    ],
+                                ],
+                            ],
+                        ],
+                        ['key' => 'count', 'value' => ['intValue' => '2']],
+                    ],
+                ],
+            ],
+            $records[0][1]['body'],
+        );
+    }
+
+    /*
+     * =========================================================================
      * Batch LogRecord Processor
      * =========================================================================
      */

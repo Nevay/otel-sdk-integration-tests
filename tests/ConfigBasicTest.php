@@ -3,6 +3,10 @@ namespace Nevay\OTelTest;
 
 use OpenTelemetry\API\Globals;
 use OpenTelemetry\API\Logs\LogRecord;
+use OpenTelemetry\API\Trace\SpanContext;
+use OpenTelemetry\API\Trace\SpanKind;
+use OpenTelemetry\API\Trace\StatusCode;
+use OpenTelemetry\API\Trace\TraceFlags;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 
@@ -59,6 +63,83 @@ final class ConfigBasicTest extends TestCase {
         self::assertSame(
             ['config-file'],
             $this->spanNames($this->traces[0]),
+        );
+    }
+
+    /*
+     * =========================================================================
+     * Span export fidelity
+     * =========================================================================
+     *
+     * A tracer provider configured via the config file must export spans with
+     * full detail (status, events, kinds, links, typed attributes), like the
+     * env-configured pipeline.
+     */
+
+    #[Group('traces')]
+    public function testSpansExportedWithStatusEventsKindsAndLinks(): void
+    {
+        $this->runOTelConfig(
+            <<<'YAML'
+            file_format: "1.2"
+
+            tracer_provider:
+              processors:
+                - batch:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT}
+                        encoding: json
+            YAML,
+            static function (): void {
+                $tracer = Globals::tracerProvider()->getTracer('config-test');
+
+                $error = $tracer->spanBuilder('status-error')->startSpan();
+                $error->setStatus(StatusCode::STATUS_ERROR, 'boom');
+                $error->end();
+
+                $span = $tracer->spanBuilder('details-span')
+                    ->setSpanKind(SpanKind::KIND_SERVER)
+                    ->addLink(SpanContext::create(
+                        '11111111111111111111111111111111',
+                        '1111111111111111',
+                        TraceFlags::SAMPLED,
+                    ))
+                    ->startSpan();
+
+                $span->setAttribute('int.value', 42);
+                $span->addEvent('first-event', ['event.attr' => 'ev']);
+
+                $span->end();
+            },
+        );
+
+        self::assertNotEmpty($this->traces);
+
+        $spans = $this->path(
+            $this->traces[0],
+            '$.resourceSpans[*].scopeSpans[*].spans[*]',
+        );
+
+        $byName = array_column($spans, null, 'name');
+
+        /*
+         * OTLP status codes: 2 = error; span kinds: 2 = server.
+         */
+        self::assertSame(['message' => 'boom', 'code' => 2], $byName['status-error']['status']);
+        self::assertSame(2, $byName['details-span']['kind']);
+
+        self::assertSame(
+            [['key' => 'int.value', 'value' => ['intValue' => '42']]],
+            $byName['details-span']['attributes'],
+        );
+        self::assertSame(
+            [['key' => 'event.attr', 'value' => ['stringValue' => 'ev']]],
+            $byName['details-span']['events'][0]['attributes'],
+        );
+        self::assertSame(
+            '11111111111111111111111111111111',
+            $byName['details-span']['links'][0]['traceId'],
         );
     }
 
