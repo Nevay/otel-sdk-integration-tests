@@ -258,21 +258,20 @@ final class ConfigBasicTest extends TestCase {
 
     #[Group('traces')]
     public function testOtlpHttpTimeoutDropsExportWhenCollectorIsSlow(): void {
+        /*
+         * The timed-out attempt is retryable, so without an upper bound the
+         * exporter would keep retrying with exponential backoff for tens of
+         * seconds. export_timeout bounds the whole export call (the
+         * spec-compliant processor-level limit) so the test stays fast.
+         */
         $this->runOTelConfig(
             <<<'YAML'
             file_format: "1.2"
 
-            distribution:
-              tbachert/otel-sdk:
-                #
-                # Bound the shutdown so the test does not wait out the SDK's
-                # full exponential-backoff retry sequence (~30 s).
-                #
-                shutdown_timeout: 1
-
             tracer_provider:
               processors:
                 - batch:
+                    export_timeout: 600
                     exporter:
                       otlp_http:
                         endpoint: ${env:OTEL_EXPORTER_OTLP_TRACES_ENDPOINT}

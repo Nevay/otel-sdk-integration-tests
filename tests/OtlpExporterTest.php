@@ -646,13 +646,13 @@ final class OtlpExporterTest extends TestCase {
         /*
          * OTEL_EXPORTER_OTLP_TIMEOUT bounds every OTLP export attempt in
          * milliseconds. The /v1/slow route answers 500 ms after the request,
-         * beyond the 100 ms timeout, so the export is cancelled and the span
-         * dropped.
+         * beyond the 100 ms timeout, so the first attempt is cancelled and
+         * the span dropped.
          *
-         * OTEL_PHP_SHUTDOWN_TIMEOUT is a tbachert/otel-sdk vendor variable
-         * that bounds that SDK's retry backoff after the timed-out export;
-         * open-telemetry/sdk ignores it and completes its shutdown on its
-         * own within a second.
+         * A timed-out attempt is retryable, so without an upper bound the
+         * exporter would keep retrying with exponential backoff for tens of
+         * seconds. OTEL_BSP_EXPORT_TIMEOUT bounds the whole export call (the
+         * spec-compliant processor-level limit) so the test stays fast.
          */
         $this->runOTel(
             static function (): void {
@@ -662,8 +662,8 @@ final class OtlpExporterTest extends TestCase {
                     ->end();
             },
             'OTEL_EXPORTER_OTLP_TIMEOUT=100',
+            'OTEL_BSP_EXPORT_TIMEOUT=200',
             'OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=' . $this->baseUrl . '/v1/slow',
-            'OTEL_PHP_SHUTDOWN_TIMEOUT=1000',
         );
 
         /*
@@ -683,7 +683,7 @@ final class OtlpExporterTest extends TestCase {
          * The per-signal OTEL_EXPORTER_OTLP_TRACES_TIMEOUT bounds each trace
          * export attempt in milliseconds (the signal-agnostic variable is
          * covered above). Same setup, so a collector slower than the bound
-         * drops the span.
+         * drops the span; OTEL_BSP_EXPORT_TIMEOUT bounds the retry sequence.
          */
         $this->runOTel(
             static function (): void {
@@ -693,8 +693,8 @@ final class OtlpExporterTest extends TestCase {
                     ->end();
             },
             'OTEL_EXPORTER_OTLP_TRACES_TIMEOUT=100',
+            'OTEL_BSP_EXPORT_TIMEOUT=200',
             'OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=' . $this->baseUrl . '/v1/slow',
-            'OTEL_PHP_SHUTDOWN_TIMEOUT=1000',
         );
 
         self::assertGreaterThanOrEqual(1, $this->slowRequests);
@@ -703,9 +703,10 @@ final class OtlpExporterTest extends TestCase {
 
     public function testMetricExportTimeoutEnvVarDropsExportWhenCollectorIsSlow(): void {
         /*
-         * The retry backoff after a timed-out export would otherwise keep
-         * the process alive for tens of seconds; bound the shutdown with the
-         * vendor-specific timeout so the test stays fast.
+         * OTEL_METRIC_EXPORT_TIMEOUT bounds the entire metrics export call in
+         * milliseconds — including any retry backoff after a timed-out
+         * attempt — so the process shuts down promptly without any
+         * vendor-specific configuration.
          */
         $this->runOTel(
             static function (): void {
@@ -720,7 +721,6 @@ final class OtlpExporterTest extends TestCase {
                 '/v1/slow',
                 $this->env['OTEL_EXPORTER_OTLP_METRICS_ENDPOINT'],
             ),
-            'OTEL_PHP_SHUTDOWN_TIMEOUT=1000',
         );
 
         /*
@@ -741,12 +741,11 @@ final class OtlpExporterTest extends TestCase {
          * metrics export attempt in milliseconds (the signal-agnostic
          * variable is covered by EnvEdgeCasesTest). The /v1/slow route
          * answers 500 ms after the request, beyond the 100 ms timeout, so
-         * the export is cancelled and the data point dropped.
+         * the first attempt is cancelled and the data point dropped.
          *
-         * OTEL_PHP_SHUTDOWN_TIMEOUT is a tbachert/otel-sdk vendor variable
-         * that bounds that SDK's retry backoff after the timed-out export;
-         * open-telemetry/sdk ignores it and completes its shutdown on its
-         * own within a second.
+         * OTEL_METRIC_EXPORT_TIMEOUT bounds the retry sequence after the
+         * timed-out attempt (the spec-compliant reader-level limit) so the
+         * test stays fast.
          */
         $this->runOTel(
             static function (): void {
@@ -756,8 +755,8 @@ final class OtlpExporterTest extends TestCase {
                     ->add(1);
             },
             'OTEL_EXPORTER_OTLP_METRICS_TIMEOUT=100',
+            'OTEL_METRIC_EXPORT_TIMEOUT=200',
             'OTEL_EXPORTER_OTLP_METRICS_ENDPOINT=' . $this->baseUrl . '/v1/slow',
-            'OTEL_PHP_SHUTDOWN_TIMEOUT=1000',
         );
 
         self::assertGreaterThanOrEqual(1, $this->slowRequests);
@@ -769,7 +768,8 @@ final class OtlpExporterTest extends TestCase {
          * The per-signal OTEL_EXPORTER_OTLP_LOGS_TIMEOUT bounds each log
          * export attempt in milliseconds (the signal-agnostic variable is
          * covered by EnvEdgeCasesTest). Same setup as the BLRP timeout test
-         * above, so a collector slower than the bound drops the record.
+         * above, so a collector slower than the bound drops the record;
+         * OTEL_BLRP_EXPORT_TIMEOUT bounds the retry sequence.
          */
         $this->runOTel(
             static function (): void {
@@ -778,8 +778,8 @@ final class OtlpExporterTest extends TestCase {
                     ->emit(new LogRecord('otlp-timeout-log'));
             },
             'OTEL_EXPORTER_OTLP_LOGS_TIMEOUT=100',
+            'OTEL_BLRP_EXPORT_TIMEOUT=200',
             'OTEL_EXPORTER_OTLP_LOGS_ENDPOINT=' . $this->baseUrl . '/v1/slow',
-            'OTEL_PHP_SHUTDOWN_TIMEOUT=1000',
         );
 
         self::assertGreaterThanOrEqual(1, $this->slowRequests);

@@ -7,8 +7,8 @@ use PHPUnit\Framework\TestCase;
 
 /**
  * Vendor-specific tests for tbachert/otel-sdk: behavior beyond the
- * specification surface (vendor configuration nodes, log message wording)
- * that is not part of the shared spec group.
+ * specification surface (vendor configuration nodes and variables, log
+ * message wording) that is not part of the shared spec group.
  */
 #[Group('tbachert')]
 final class TbachertSpecificTest extends TestCase {
@@ -91,6 +91,57 @@ final class TbachertSpecificTest extends TestCase {
             'error during opentelemetry initialization',
             strtolower($this->lastStderr),
         );
+    }
+
+    /*
+     * =========================================================================
+     * OTEL_PHP_SHUTDOWN_TIMEOUT (vendor variable)
+     * =========================================================================
+     */
+
+    /**
+     * Vendor-specific: OTEL_PHP_SHUTDOWN_TIMEOUT is not part of the
+     * specification. Without it, a timed-out export attempt triggers the
+     * exporter's retry backoff sequence (five attempts with exponential
+     * delays), which keeps the process alive for ~30 s during shutdown.
+     * This test pins that the variable bounds the shutdown and that its
+     * value is in seconds (it is passed verbatim to the async runtime's
+     * timeout cancellation).
+     */
+    #[Group('env'), Group('traces')]
+    public function testPhpShutdownTimeoutBoundsRetryBackoffAfterTimedOutExport(): void {
+        $start = microtime(true);
+
+        $this->runOTel(
+            static function (): void {
+                Globals::tracerProvider()->getTracer('test')
+                    ->spanBuilder('shutdown-timeout')
+                    ->startSpan()
+                    ->end();
+            },
+            'OTEL_EXPORTER_OTLP_TIMEOUT=100',
+            'OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=' . $this->baseUrl . '/v1/slow',
+            'OTEL_PHP_SHUTDOWN_TIMEOUT=2',
+        );
+
+        /*
+         * The export was attempted... the slow route delays its response
+         * beyond the 100 ms timeout...
+         */
+        self::assertGreaterThanOrEqual(1, $this->slowRequests);
+
+        /*
+         * ...so the span was never delivered.
+         */
+        self::assertSame([], $this->traces);
+
+        /*
+         * With the 2 s cap the child process finishes well below the ~30 s
+         * that the unbounded retry backoff sequence would take; if the
+         * variable were ignored (or interpreted in milliseconds) this run
+         * would take tens of seconds.
+         */
+        self::assertLessThan(15.0, microtime(true) - $start);
     }
 
     /*

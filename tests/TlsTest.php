@@ -275,19 +275,16 @@ final class TlsTest extends TestCase {
         /*
          * Without any tls configuration the exporter keeps default peer
          * verification, so the self-signed collector is rejected and
-         * nothing is exported. (The shutdown timeout bounds the exporter's
-         * retry backoff.)
+         * nothing is exported. (export_timeout bounds the exporter's retry
+         * backoff after the failed attempt.)
          */
         $this->runOTelConfig(<<<'YAML'
             file_format: "1.2"
 
-            distribution:
-              tbachert/otel-sdk:
-                shutdown_timeout: 1
-
             tracer_provider:
               processors:
                 - batch:
+                    export_timeout: 600
                     exporter:
                       otlp_http:
                         endpoint: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT}
@@ -419,18 +416,16 @@ final class TlsTest extends TestCase {
          * and nothing is exported. PHP streams surface the peer
          * verification failure only after the handshake, so the client
          * sees a plain socket disconnect rather than a TLS error.
-         * (The shutdown timeout bounds the exporter's retry backoff.)
+         * (export_timeout bounds the exporter's retry backoff after the
+         * failed attempt.)
          */
         $this->runOTelConfig(<<<'YAML'
             file_format: "1.2"
 
-            distribution:
-              tbachert/otel-sdk:
-                shutdown_timeout: 1
-
             tracer_provider:
               processors:
                 - batch:
+                    export_timeout: 600
                     exporter:
                       otlp_http:
                         endpoint: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT}

@@ -5,7 +5,7 @@ test that verifies specification-defined behavior — against the two SDKs under
 `sdks/`. Generated from full suite runs (JUnit logs); regenerate with
 `make test-all`, which writes `.junit-<sdk>.xml` for both SDKs.
 
-- **tbachert run:** 374 tests executed, **374 passing** (`spec` + `tbachert`
+- **tbachert run:** 375 tests executed, **375 passing** (`spec` + `tbachert`
   groups).
 - **official run:** 376 tests executed, **107 passing / 269 failing**
   (`spec` + `official` groups). Most failures (210 of 269) are gated by

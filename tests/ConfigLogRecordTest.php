@@ -487,10 +487,10 @@ final class ConfigLogRecordTest extends TestCase {
 
     public function testOtlpHttpTimeoutDropsExportWhenCollectorIsSlow(): void {
         /*
-         * OTEL_PHP_SHUTDOWN_TIMEOUT is a tbachert/otel-sdk vendor variable
-         * that bounds that SDK's retry backoff after the timed-out export;
-         * open-telemetry/sdk ignores it and completes its shutdown on its
-         * own within a second.
+         * The timed-out attempt is retryable, so without an upper bound the
+         * exporter would keep retrying with exponential backoff for tens of
+         * seconds. export_timeout bounds the whole export call (the
+         * spec-compliant processor-level limit) so the test stays fast.
          */
         $this->runOTelConfig(
             <<<'YAML'
@@ -499,6 +499,7 @@ final class ConfigLogRecordTest extends TestCase {
             logger_provider:
               processors:
                 - batch:
+                    export_timeout: 600
                     exporter:
                       otlp_http:
                         endpoint: ${env:OTEL_EXPORTER_OTLP_LOGS_ENDPOINT}
@@ -514,7 +515,6 @@ final class ConfigLogRecordTest extends TestCase {
                 '/v1/slow',
                 $this->env['OTEL_EXPORTER_OTLP_LOGS_ENDPOINT'],
             ),
-            'OTEL_PHP_SHUTDOWN_TIMEOUT=1000',
         );
 
         /*

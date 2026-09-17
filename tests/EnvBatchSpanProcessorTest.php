@@ -79,15 +79,12 @@ final class EnvBatchSpanProcessorTest extends TestCase {
     #[Group('async')]
     public function testBspExportTimeout(): void {
         /*
-         * OTEL_BSP_EXPORT_TIMEOUT bounds each span export attempt in
-         * milliseconds. The /v1/slow route answers 500 ms after the request,
-         * beyond the 100 ms timeout, so the export is cancelled and the span
-         * dropped.
-         *
-         * OTEL_PHP_SHUTDOWN_TIMEOUT is a tbachert/otel-sdk vendor variable
-         * that bounds that SDK's retry backoff after the timed-out export;
-         * open-telemetry/sdk ignores it and completes its shutdown on its
-         * own within a second.
+         * OTEL_BSP_EXPORT_TIMEOUT bounds the entire span export call in
+         * milliseconds — including any retry backoff after a timed-out
+         * attempt — so the process shuts down promptly without any
+         * vendor-specific configuration. The /v1/slow route answers 500 ms
+         * after the request, beyond the 100 ms bound, so the export is
+         * cancelled and the span dropped.
          */
         $this->runOTel(
             static function (): void {
@@ -100,7 +97,6 @@ final class EnvBatchSpanProcessorTest extends TestCase {
             },
             'OTEL_BSP_EXPORT_TIMEOUT=100',
             'OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=' . $this->baseUrl . '/v1/slow',
-            'OTEL_PHP_SHUTDOWN_TIMEOUT=1000',
         );
 
         /*
