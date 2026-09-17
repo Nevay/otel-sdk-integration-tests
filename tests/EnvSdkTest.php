@@ -344,9 +344,7 @@ final class EnvSdkTest extends TestCase {
      * aware logger, so this test proves that "none" suppresses it.
      * tbachert/otel-sdk handles an unrecognized protocol gracefully (warning
      * plus default transport), so no initialization error occurs and the
-     * assertion holds trivially; note that its dedicated init-error logger
-     * in the autoload bootstrap still ignores OTEL_LOG_LEVEL whenever an
-     * initialization error does occur.
+     * assertion holds trivially.
      */
     public function testLogLevelNoneSuppressesSelfDiagnostics(): void
     {
