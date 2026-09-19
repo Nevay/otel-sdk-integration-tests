@@ -8,20 +8,20 @@ use PHPUnit\Framework\TestCase;
 
 /*
  * =========================================================================
- * Official SDK specific configuration surface
+ * Official SDK specific behavior
  *
  * Environment variables that are not part of the official specification but
- * are implemented by open-telemetry/sdk. These tests run in the official run
- * only (group "official") and document the vendor-specific configuration
- * surface of the official SDK.
+ * are implemented by open-telemetry/sdk, plus spec-defined behavior that only
+ * applies to this SDK (such as the reserved telemetry.sdk.name). These tests
+ * run in the official run only (group "official") and document the
+ * vendor-specific surface of the official SDK.
  * =========================================================================
  */
-#[Group('env')]
 #[Group('official')]
 final class OfficialSpecificTest extends TestCase {
     use OTelEndpointTrait;
 
-    #[Group('traces')]
+    #[Group('env'), Group('traces')]
     public function testPhpTracesProcessorNoneDisablesSpanExport(): void {
         $this->runOTel(
             static function (): void {
@@ -41,7 +41,7 @@ final class OfficialSpecificTest extends TestCase {
         self::assertSame([], $this->traces);
     }
 
-    #[Group('logs')]
+    #[Group('env'), Group('logs')]
     public function testPhpLogsProcessorNoneDisablesLogExport(): void {
         $this->runOTel(
             static function (): void {
@@ -59,7 +59,7 @@ final class OfficialSpecificTest extends TestCase {
         self::assertSame([], $this->logs);
     }
 
-    #[Group('traces')]
+    #[Group('env'), Group('traces')]
     public function testPhpDetectorsEnvVarRestrictsResourceDetectors(): void {
         $emitSpan = static function (): void {
             $span = Globals::tracerProvider()
@@ -97,7 +97,7 @@ final class OfficialSpecificTest extends TestCase {
         self::assertContains('service.name', $keys);
     }
 
-    #[Group('traces')]
+    #[Group('env'), Group('traces')]
     public function testPhpLogDestinationNoneSuppressesDiagnostics(): void {
         $noop = static function (): void {
             Globals::tracerProvider()->getTracer('test');
@@ -121,7 +121,7 @@ final class OfficialSpecificTest extends TestCase {
         );
     }
 
-    #[Group('traces'), Group('metrics')]
+    #[Group('env'), Group('traces'), Group('metrics')]
     public function testPhpInternalMetricsEnvVarExportsSdkMetrics(): void {
         $this->runOTel(
             static function (): void {
@@ -150,5 +150,30 @@ final class OfficialSpecificTest extends TestCase {
         }
 
         self::assertContains('otel.sdk.span.started', $names);
+    }
+
+    #[Group('resource')]
+    public function testDefaultResourceUsesReservedSdkName(): void {
+        $this->runOTel(
+            static function (): void {
+                Globals::tracerProvider()
+                    ->getTracer('test')
+                    ->spanBuilder('default-resource-sdk-name')
+                    ->startSpan()
+                    ->end();
+            },
+        );
+
+        self::assertNotEmpty($this->traces);
+
+        /*
+         * The reference implementation MUST identify itself with the reserved
+         * name "opentelemetry"; the shared resource test (spec group) only
+         * requires a non-empty identifier, which holds for every SDK.
+         */
+        self::assertSame(
+            'opentelemetry',
+            $this->resourceAttribute($this->traces[0], 'telemetry.sdk.name'),
+        );
     }
 }

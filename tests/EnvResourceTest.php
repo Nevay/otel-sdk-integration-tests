@@ -214,17 +214,15 @@ final class EnvResourceTest extends TestCase {
         );
 
         /*
-         * ...with a required, stable identifier: the reference implementation
-         * MUST use the reserved name "opentelemetry", vendor SDKs MUST use a
-         * custom identifier instead.
+         * ...with a required, stable identifier. The specification only
+         * prescribes the value for the reference implementation (it MUST use
+         * the reserved name "opentelemetry", asserted in
+         * OfficialSpecificTest); every other SDK needs some non-empty custom
+         * identifier, so that is all we assert here.
          */
-        $sdkName = $this->resourceAttribute($this->traces[0], 'telemetry.sdk.name');
-
-        if (InstalledVersions::isInstalled('tbachert/otel-sdk')) {
-            self::assertSame('tbachert/otel-sdk', $sdkName);
-        } else {
-            self::assertSame('opentelemetry', $sdkName);
-        }
+        self::assertNotEmpty(
+            $this->resourceAttribute($this->traces[0], 'telemetry.sdk.name'),
+        );
 
         /*
          * ...and sets a reasonable service name. The specification only says
