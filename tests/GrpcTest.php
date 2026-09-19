@@ -61,6 +61,15 @@ final class GrpcTest extends TestCase {
     private const CERT = __DIR__ . '/fixtures/tls/cert.pem';
     private const KEY  = __DIR__ . '/fixtures/tls/key.pem';
 
+    /**
+     * A second, distinct self-signed pair used as the mTLS client
+     * certificate: because it differs from the CA/server fixture, a
+     * transport that presents the wrong file (or none) fails the
+     * handshake instead of silently passing.
+     */
+    private const CLIENT_CERT = __DIR__ . '/fixtures/tls/client_cert.pem';
+    private const CLIENT_KEY  = __DIR__ . '/fixtures/tls/client_key.pem';
+
     /** @var list<SocketHttpServer> */
     private array $servers = [];
     private string $grpcBaseUrl = '';
@@ -85,7 +94,7 @@ final class GrpcTest extends TestCase {
     /**
      * @return array{SocketHttpServer, string} [server, base URL]
      */
-    private function createGrpcCaptureServer(string $grpcStatus): array {
+    private function createGrpcCaptureServer(string $grpcStatus, bool $requireClientCertificate = false): array {
         $server = SocketHttpServer::createForDirectAccess(new NullLogger());
         $router = new Router($server, new NullLogger(), new DefaultErrorHandler());
 
@@ -126,6 +135,18 @@ final class GrpcTest extends TestCase {
 
         $tlsContext = (new ServerTlsContext())
             ->withDefaultCertificate(new Certificate(self::CERT, self::KEY));
+
+        if ($requireClientCertificate) {
+            /*
+             * Peer name verification must be disabled: with an empty
+             * peer_name PHP compares the client certificate's CN against
+             * an empty string and fails the handshake.
+             */
+            $tlsContext = $tlsContext
+                ->withPeerVerification()
+                ->withoutPeerNameVerification()
+                ->withCaFile(self::CLIENT_CERT);
+        }
 
         $server->expose(
             new InternetAddress('127.0.0.1', 0),
@@ -519,10 +540,110 @@ final class GrpcTest extends TestCase {
             'OTEL_EXPORTER_OTLP_TRACES_CERTIFICATE=' . self::CERT,
         );
 
+        /*
+         * Both SDKs report the failed export on stderr, but they word the
+         * gRPC status differently (one names InvalidArgument, the other logs
+         * an empty exception message), so only the shared failure phrase is
+         * asserted.
+         */
         self::assertCount(1, $this->traces);
         self::assertStringContainsString(
-            'invalidargument',
+            'export failure',
             strtolower($this->lastStderr),
+        );
+    }
+
+    #[Group('env'), Group('traces')]
+    public function testGrpcClientCertificateIsPresentedAndVerified(): void {
+        /*
+         * The mTLS server trusts only the dedicated client certificate
+         * fixture: the handshake completes only if the SDK presents
+         * _CLIENT_CERTIFICATE/_CLIENT_KEY over gRPC. A transport that
+         * forwards the CA file as the client certificate (or no client
+         * certificate at all) fails the handshake and exports nothing.
+         */
+        [, $mtlsBaseUrl] = $this->createGrpcCaptureServer('0', requireClientCertificate: true);
+
+        $this->runOTel(
+            static function (): void {
+                Globals::tracerProvider()->getTracer('grpc-test')
+                    ->spanBuilder('grpc-mtls-span')
+                    ->startSpan()
+                    ->end();
+            },
+            'OTEL_EXPORTER_OTLP_TRACES_PROTOCOL=grpc',
+            'OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=' . $mtlsBaseUrl,
+            'OTEL_EXPORTER_OTLP_TRACES_CERTIFICATE=' . self::CERT,
+            'OTEL_EXPORTER_OTLP_TRACES_CLIENT_CERTIFICATE=' . self::CLIENT_CERT,
+            'OTEL_EXPORTER_OTLP_TRACES_CLIENT_KEY=' . self::CLIENT_KEY,
+        );
+
+        self::assertCount(1, $this->traces);
+        self::assertSame(
+            ['grpc-mtls-span'],
+            $this->spanNames($this->traces[0]),
+        );
+    }
+
+    #[Group('env'), Group('metrics')]
+    public function testGrpcMetricsClientCertificateIsPresentedAndVerified(): void {
+        /*
+         * Per-signal client certificate variables for metrics: the mTLS
+         * server trusts only the dedicated client certificate fixture.
+         */
+        [, $mtlsBaseUrl] = $this->createGrpcCaptureServer('0', requireClientCertificate: true);
+
+        $this->runOTel(
+            static function (): void {
+                Globals::meterProvider()
+                    ->getMeter('grpc-test')
+                    ->createCounter('grpc-mtls-metric', 'requests')
+                    ->add(1);
+            },
+            'OTEL_EXPORTER_OTLP_METRICS_PROTOCOL=grpc',
+            'OTEL_EXPORTER_OTLP_METRICS_ENDPOINT=' . $mtlsBaseUrl,
+            'OTEL_EXPORTER_OTLP_METRICS_CERTIFICATE=' . self::CERT,
+            'OTEL_EXPORTER_OTLP_METRICS_CLIENT_CERTIFICATE=' . self::CLIENT_CERT,
+            'OTEL_EXPORTER_OTLP_METRICS_CLIENT_KEY=' . self::CLIENT_KEY,
+        );
+
+        self::assertNotEmpty($this->metrics);
+        self::assertNotEmpty(
+            $this->path(
+                $this->metrics[0],
+                '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "grpc-mtls-metric")]',
+            ),
+        );
+    }
+
+    #[Group('env'), Group('logs')]
+    public function testGrpcLogsClientCertificateIsPresentedAndVerified(): void {
+        /*
+         * Per-signal client certificate variables for logs: the mTLS
+         * server trusts only the dedicated client certificate fixture.
+         */
+        [, $mtlsBaseUrl] = $this->createGrpcCaptureServer('0', requireClientCertificate: true);
+
+        $this->runOTel(
+            static function (): void {
+                Globals::loggerProvider()
+                    ->getLogger('grpc-test')
+                    ->emit(new LogRecord('grpc-mtls-log'));
+            },
+            'OTEL_EXPORTER_OTLP_LOGS_PROTOCOL=grpc',
+            'OTEL_EXPORTER_OTLP_LOGS_ENDPOINT=' . $mtlsBaseUrl,
+            'OTEL_EXPORTER_OTLP_LOGS_CERTIFICATE=' . self::CERT,
+            'OTEL_EXPORTER_OTLP_LOGS_CLIENT_CERTIFICATE=' . self::CLIENT_CERT,
+            'OTEL_EXPORTER_OTLP_LOGS_CLIENT_KEY=' . self::CLIENT_KEY,
+        );
+
+        self::assertNotEmpty($this->logs);
+        self::assertContains(
+            'grpc-mtls-log',
+            $this->path(
+                $this->logs[0],
+                '$.resourceLogs[*].scopeLogs[*].logRecords[*].body.stringValue',
+            ),
         );
     }
 }

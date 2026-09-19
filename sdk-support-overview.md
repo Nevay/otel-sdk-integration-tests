@@ -5,15 +5,15 @@ test that verifies specification-defined behavior — against the two SDKs under
 `sdks/`. Generated from full suite runs (JUnit logs); regenerate with
 `make test-all`, which writes `.junit-<sdk>.xml` for both SDKs.
 
-- **tbachert run:** 375 tests executed, **375 passing** (`spec` + `tbachert`
+- **tbachert run:** 378 tests executed, **378 passing** (`spec` + `tbachert`
   groups).
-- **official run:** 376 tests executed, **107 passing / 269 failing**
-  (`spec` + `official` groups). Most failures (210 of 269) are gated by
+- **official run:** 379 tests executed, **107 passing / 272 failing**
+  (`spec` + `official` groups). Most failures (210 of 272) are gated by
   not-yet-updated config-file support: the SDK only accepts
   `file_format: '1.0-rc.2'`, while the suite uses data model version 1.2, so
   every config-file test fails at initialization.
 
-The matrix below covers the 371 shared `spec` tests; vendor-specific tests
+The matrix below covers the 374 shared `spec` tests; vendor-specific tests
 (`TbachertSpecificTest`, `OfficialSpecificTest`) are documented in the README
 and not part of this overview. Sections follow the specification's structure
 (context propagation, then the signals in spec order: traces, metrics, logs);
@@ -26,7 +26,7 @@ config-file equivalent (env-only).
 
 Legend: ✅ all passing · ⚠️ partially passing · ❌ fully failing · – no tests
 for that mode. Each spec test is counted in exactly one cell; the "Upstream
-tracking" table at the bottom accounts for all 269 failures by root cause.
+tracking" table at the bottom accounts for all 272 failures by root cause.
 Footnotes are collected below the tables.
 
 ## Context propagation
@@ -82,7 +82,7 @@ Footnotes are collected below the tables.
 | OTLP HTTP exporter options: protocol, headers, compression, endpoints, timeouts, size limits, retries | ✅ 24/24 | ✅ 18/18 | ⚠️ 21/24¹¹⁰ | ❌ 0/18³ |
 | OTLP gRPC exporter (all signals) | ✅ 12/12 | ✅ 4/4 | ❌ 0/12¹¹ | ❌ 0/4³ |
 | OTLP file exporter (newline-delimited JSON on disk) | – | ✅ 1/1 | – | ❌ 0/1³ |
-| TLS: CA trust & client certificates (all signals, both protocols) | ✅ 8/8 | ✅ 6/6 | ❌ 0/8¹² | ❌ 0/6³ |
+| TLS: CA trust & client certificates (all signals, both protocols) | ✅ 11/11 | ✅ 6/6 | ❌ 0/11¹² | ❌ 0/6³ |
 | Console exporter (stdout) | ✅ 3/3 | ✅ 3/3 | ✅ 3/3 | ❌ 0/3³ |
 | Prometheus exporter (pull, translation & escaping) | ✅ 1/1 | ✅ 9/9 | ❌ 0/1¹³ | ❌ 0/9³ |
 
@@ -146,7 +146,9 @@ no interop problem exists.
 ¹² The certificate environment variables
 (`OTEL_EXPORTER_OTLP[_<signal>]*_CERTIFICATE`, `_CLIENT_CERTIFICATE`,
 `_CLIENT_KEY`) are declared but never passed to the transport factories, for
-all signals and both protocols.  
+all signals and both protocols. The gRPC wiring is fixed in
+[PR #2059](https://github.com/open-telemetry/opentelemetry-php/pull/2059)
+(open); the OTLP/HTTP side remains unaddressed upstream.  
 ¹³ No exporter factory is registered for the protocol; structurally requires an
 async runtime to serve the pull reader; excluded from upstream issue reporting
 by decision.  
@@ -159,7 +161,7 @@ the current no-op behavior for unsupported file formats.
 | Failing group | Tests | Tracking |
 |---|---:|---|
 | File-based configuration (`file_format` 1.2 gate): all config-file tests except the two passing pins, the `jaeger_remote` config tests and the missing-file test | 210 | fix in [PR #2050](https://github.com/open-telemetry/opentelemetry-php/pull/2050) (draft) |
-| gRPC: per-signal endpoints abort initialization (env mode) | 12 | untracked |
+| gRPC exporter env-based configuration: per-signal endpoints abort initialization; certificate & insecure env vars not wired (env mode) | 15 | fix in [PR #2059](https://github.com/open-telemetry/opentelemetry-php/pull/2059) (open) |
 | Certificate env vars never wired into the transports (OTLP/HTTP, all signals) | 8 | untracked |
 | Lenient handling of invalid configuration: unrecognized/case-mismatched enums and unparseable values abort init instead of warning + fallback | 10 | untracked |
 | Entities (`OTEL_ENTITIES`) not implemented | 7 | untracked |
@@ -172,7 +174,7 @@ the current no-op behavior for unsupported file formats.
 | Default histogram aggregation env var declared but not applied | 1 | untracked |
 | Non-retryable HTTP `500` responses are retried | 1 | untracked |
 | Missing config file: uncaught fatal error instead of a reported initialization error | 1 | untracked |
-| **Total** | **269** | |
+| **Total** | **272** | |
 
 Caveats:
 

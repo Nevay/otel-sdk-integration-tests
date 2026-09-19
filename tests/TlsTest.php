@@ -29,7 +29,7 @@ use Psr\Log\NullLogger;
  * two additional TLS-secured endpoints that capture into the same slots:
  * one that only verifies the client against the system CA bundle (i.e.
  * rejects our self-signed CA unless configured) and one that requires a
- * client certificate signed by the fixture CA (mutual TLS).
+ * dedicated client certificate (mutual TLS).
  */
 #[Group('spec')]
 final class TlsTest extends TestCase {
@@ -37,6 +37,15 @@ final class TlsTest extends TestCase {
 
     private const CERT = __DIR__ . '/fixtures/tls/cert.pem';
     private const KEY  = __DIR__ . '/fixtures/tls/key.pem';
+
+    /**
+     * A second, distinct self-signed pair used as the mTLS client
+     * certificate: because it differs from the CA/server fixture, a
+     * transport that presents the wrong file (or none) fails the
+     * handshake instead of silently passing.
+     */
+    private const CLIENT_CERT = __DIR__ . '/fixtures/tls/client_cert.pem';
+    private const CLIENT_KEY  = __DIR__ . '/fixtures/tls/client_key.pem';
 
     /** @var list<SocketHttpServer> */
     private array $servers = [];
@@ -115,7 +124,7 @@ final class TlsTest extends TestCase {
             $tlsContext = $tlsContext
                 ->withPeerVerification()
                 ->withoutPeerNameVerification()
-                ->withCaFile(self::CERT);
+                ->withCaFile(self::CLIENT_CERT);
         }
 
         $server->expose(
@@ -315,14 +324,15 @@ final class TlsTest extends TestCase {
             },
             'OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=' . $this->mtlsBaseUrl . '/v1/traces',
             'OTEL_EXPORTER_OTLP_TRACES_CERTIFICATE=' . self::CERT,
-            'OTEL_EXPORTER_OTLP_TRACES_CLIENT_CERTIFICATE=' . self::CERT,
-            'OTEL_EXPORTER_OTLP_TRACES_CLIENT_KEY=' . self::KEY,
+            'OTEL_EXPORTER_OTLP_TRACES_CLIENT_CERTIFICATE=' . self::CLIENT_CERT,
+            'OTEL_EXPORTER_OTLP_TRACES_CLIENT_KEY=' . self::CLIENT_KEY,
         );
 
         /*
-         * The collector requires a client certificate signed by the
-         * fixture CA: with both the CA file and the client certificate
-         * configured, the span is exported.
+         * The mTLS collector trusts only the dedicated client
+         * certificate fixture: the span is exported only if
+         * _CLIENT_CERTIFICATE/_CLIENT_KEY point to it (presenting the CA
+         * file or no client certificate fails the handshake).
          */
         self::assertCount(1, $this->traces);
         self::assertSame(
@@ -335,7 +345,8 @@ final class TlsTest extends TestCase {
     public function testMetricsClientCertificateIsPresentedAndVerified(): void {
         /*
          * The per-signal client certificate variables for metrics: the
-         * collector requires a client certificate signed by the fixture CA.
+         * mTLS collector trusts only the dedicated client certificate
+         * fixture.
          */
         $this->runOTel(
             static function (): void {
@@ -345,8 +356,8 @@ final class TlsTest extends TestCase {
             },
             'OTEL_EXPORTER_OTLP_METRICS_ENDPOINT=' . $this->mtlsBaseUrl . '/v1/metrics',
             'OTEL_EXPORTER_OTLP_METRICS_CERTIFICATE=' . self::CERT,
-            'OTEL_EXPORTER_OTLP_METRICS_CLIENT_CERTIFICATE=' . self::CERT,
-            'OTEL_EXPORTER_OTLP_METRICS_CLIENT_KEY=' . self::KEY,
+            'OTEL_EXPORTER_OTLP_METRICS_CLIENT_CERTIFICATE=' . self::CLIENT_CERT,
+            'OTEL_EXPORTER_OTLP_METRICS_CLIENT_KEY=' . self::CLIENT_KEY,
         );
 
         self::assertCount(1, $this->metrics);
@@ -355,8 +366,8 @@ final class TlsTest extends TestCase {
     #[Group('env'), Group('logs')]
     public function testLogsClientCertificateIsPresentedAndVerified(): void {
         /*
-         * The per-signal client certificate variables for logs: the collector
-         * requires a client certificate signed by the fixture CA.
+         * The per-signal client certificate variables for logs: the mTLS
+         * collector trusts only the dedicated client certificate fixture.
          */
         $this->runOTel(
             static function (): void {
@@ -367,8 +378,8 @@ final class TlsTest extends TestCase {
             },
             'OTEL_EXPORTER_OTLP_LOGS_ENDPOINT=' . $this->mtlsBaseUrl . '/v1/logs',
             'OTEL_EXPORTER_OTLP_LOGS_CERTIFICATE=' . self::CERT,
-            'OTEL_EXPORTER_OTLP_LOGS_CLIENT_CERTIFICATE=' . self::CERT,
-            'OTEL_EXPORTER_OTLP_LOGS_CLIENT_KEY=' . self::KEY,
+            'OTEL_EXPORTER_OTLP_LOGS_CLIENT_CERTIFICATE=' . self::CLIENT_CERT,
+            'OTEL_EXPORTER_OTLP_LOGS_CLIENT_KEY=' . self::CLIENT_KEY,
         );
 
         self::assertCount(1, $this->logs);
@@ -397,8 +408,8 @@ final class TlsTest extends TestCase {
         },
             'OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=' . $this->mtlsBaseUrl . '/v1/traces',
             'OTEL_EXPORTER_OTLP_TRACES_CERTIFICATE=' . self::CERT,
-            'OTEL_EXPORTER_OTLP_TRACES_CLIENT_CERTIFICATE=' . self::CERT,
-            'OTEL_EXPORTER_OTLP_TRACES_CLIENT_KEY=' . self::KEY,
+            'OTEL_EXPORTER_OTLP_TRACES_CLIENT_CERTIFICATE=' . self::CLIENT_CERT,
+            'OTEL_EXPORTER_OTLP_TRACES_CLIENT_KEY=' . self::CLIENT_KEY,
         );
 
         self::assertCount(1, $this->traces);
@@ -486,9 +497,9 @@ final class TlsTest extends TestCase {
     #[Group('env'), Group('traces'), Group('metrics'), Group('logs')]
     public function testGenericClientCertificateIsPresentedAndVerified(): void {
         /*
-         * The signal-agnostic client certificate variables: the collector
-         * requires a client certificate signed by the fixture CA for every
-         * signal.
+         * The signal-agnostic client certificate variables: the mTLS
+         * collector trusts only the dedicated client certificate fixture
+         * for every signal.
          */
         $this->runOTel(
             static function (): void {
@@ -508,8 +519,8 @@ final class TlsTest extends TestCase {
             },
             'OTEL_EXPORTER_OTLP_ENDPOINT=' . $this->mtlsBaseUrl,
             'OTEL_EXPORTER_OTLP_CERTIFICATE=' . self::CERT,
-            'OTEL_EXPORTER_OTLP_CLIENT_CERTIFICATE=' . self::CERT,
-            'OTEL_EXPORTER_OTLP_CLIENT_KEY=' . self::KEY,
+            'OTEL_EXPORTER_OTLP_CLIENT_CERTIFICATE=' . self::CLIENT_CERT,
+            'OTEL_EXPORTER_OTLP_CLIENT_KEY=' . self::CLIENT_KEY,
         );
 
         self::assertCount(1, $this->traces);
