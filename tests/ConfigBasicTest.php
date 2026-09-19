@@ -256,7 +256,7 @@ final class ConfigBasicTest extends TestCase {
         self::assertContains('json-encoding', $this->spanNames($this->traces[0]));
     }
 
-    #[Group('traces')]
+    #[Group('traces'), Group('async')]
     public function testOtlpHttpTimeoutDropsExportWhenCollectorIsSlow(): void {
         /*
          * The timed-out attempt is retryable, so without an upper bound the

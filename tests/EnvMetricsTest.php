@@ -310,6 +310,7 @@ final class EnvMetricsTest extends TestCase {
      * measurement rounds spread over 800 ms, the collector must receive more
      * than one export.
      */
+    #[Group('async')]
     public function testMetricExportIntervalEnvVarControlsCollectionFrequency(): void
     {
         $this->runOTel(
@@ -332,6 +333,7 @@ final class EnvMetricsTest extends TestCase {
     /**
      * OTEL_METRICS_EXPORTER=console must export metrics to stdout.
      */
+    #[Group('async')]
     public function testMetricsConsoleExporterWritesToStdout(): void
     {
         $output = $this->runOTel(

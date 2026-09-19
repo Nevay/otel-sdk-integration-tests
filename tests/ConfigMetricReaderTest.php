@@ -700,6 +700,7 @@ final class ConfigMetricReaderTest extends TestCase {
         self::assertSame(['application/json'], $headers['content-type']);
     }
 
+    #[Group('async')]
     public function testOtlpHttpTimeoutDropsExportWhenCollectorIsSlow(): void {
         /*
          * The timed-out attempt is retryable, so without an upper bound the

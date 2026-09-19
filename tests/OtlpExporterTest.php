@@ -642,6 +642,7 @@ final class OtlpExporterTest extends TestCase {
      * =========================================================================
      */
 
+    #[Group('async')]
     public function testGenericOtlpTimeoutEnvVarDropsExportWhenCollectorIsSlow(): void {
         /*
          * OTEL_EXPORTER_OTLP_TIMEOUT bounds every OTLP export attempt in
@@ -678,6 +679,7 @@ final class OtlpExporterTest extends TestCase {
         self::assertSame([], $this->traces);
     }
 
+    #[Group('async')]
     public function testTracesOtlpTimeoutEnvVarDropsExportWhenCollectorIsSlow(): void {
         /*
          * The per-signal OTEL_EXPORTER_OTLP_TRACES_TIMEOUT bounds each trace
@@ -701,6 +703,7 @@ final class OtlpExporterTest extends TestCase {
         self::assertSame([], $this->traces);
     }
 
+    #[Group('async')]
     public function testMetricExportTimeoutEnvVarDropsExportWhenCollectorIsSlow(): void {
         /*
          * OTEL_METRIC_EXPORT_TIMEOUT bounds the entire metrics export call in
@@ -735,6 +738,7 @@ final class OtlpExporterTest extends TestCase {
         self::assertSame([], $this->metrics);
     }
 
+    #[Group('async')]
     public function testMetricsOtlpTimeoutEnvVarDropsExportWhenCollectorIsSlow(): void {
         /*
          * The per-signal OTEL_EXPORTER_OTLP_METRICS_TIMEOUT bounds each
@@ -763,6 +767,7 @@ final class OtlpExporterTest extends TestCase {
         self::assertSame([], $this->metrics);
     }
 
+    #[Group('async')]
     public function testLogsOtlpTimeoutEnvVarDropsExportWhenCollectorIsSlow(): void {
         /*
          * The per-signal OTEL_EXPORTER_OTLP_LOGS_TIMEOUT bounds each log

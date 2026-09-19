@@ -30,6 +30,10 @@ make test SDK=tbachert      # run the suite against tbachert/otel-sdk
 make test SDK=official      # run the suite against open-telemetry/sdk
 ```
 
+Run only one suite at a time: several tests are timing-sensitive (periodic
+collection intervals versus async delays), and running two suites in parallel
+on the same host can make them fail spuriously.
+
 The test container runs on PHP 8.5 by default; the version can be overridden
 at build time (minimum supported: 8.4):
 
@@ -45,7 +49,7 @@ passable via `ARGS='--group env'`):
 - context propagation: `propagation` (propagators, cross-signal correlation)
 - `async`: tests whose server handlers use `Amp\delay`
 - feature: `prometheus` (pull exporter), `entities` (`OTEL_ENTITIES`)
-- feature area: `sampler`, `resource`, `view`, `aggregation`
+- feature area: `sampler`, `jaeger`, `resource`, `view`, `aggregation`
 - `spec`: every test that verifies specification-defined behavior. Each SDK
   run executes the `spec` group plus its own SDK-name group (`tbachert`,
   `official`), which holds tests that only apply to that specific SDK (vendor

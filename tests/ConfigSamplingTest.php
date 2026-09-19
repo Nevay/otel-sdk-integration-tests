@@ -470,6 +470,7 @@ final class ConfigSamplingTest extends TestCase {
 
 
 
+    #[Group('async'), Group('jaeger')]
     public function testJaegerRemoteSamplerDialsPlaintextEndpoint(): void
     {
         $configFile = '';
@@ -765,7 +766,7 @@ final class ConfigSamplingTest extends TestCase {
         );
     }
 
-    #[Group('async')]
+    #[Group('async'), Group('jaeger')]
     public function testJaegerRemoteInitialSamplerAppliesWhileBackendUnreachable(): void {
         /*
          * While the Jaeger backend cannot be reached, the configured initial

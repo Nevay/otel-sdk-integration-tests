@@ -108,7 +108,7 @@ final class TbachertSpecificTest extends TestCase {
      * value is in seconds (it is passed verbatim to the async runtime's
      * timeout cancellation).
      */
-    #[Group('env'), Group('traces')]
+    #[Group('env'), Group('traces'), Group('async')]
     public function testPhpShutdownTimeoutBoundsRetryBackoffAfterTimedOutExport(): void {
         $start = microtime(true);
 

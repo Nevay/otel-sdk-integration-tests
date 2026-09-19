@@ -165,6 +165,7 @@ final class EnvSamplingTest extends TestCase {
         self::assertSpanNames(['kept-child']);
     }
 
+    #[Group('async'), Group('jaeger')]
     public function testJaegerRemoteSamplerDialsPlaintextEndpoint(): void {
         $this->assertPlaintextGrpcDial(
             static fn (int $port): array => [
@@ -188,7 +189,7 @@ final class EnvSamplingTest extends TestCase {
      * =========================================================================
      */
 
-    #[Group('async')]
+    #[Group('async'), Group('jaeger')]
     public function testJaegerRemoteProbabilityStrategyIsApplied(): void {
         $this->runJaegerRemoteSampling(
             JaegerSamplingServer::probabilityStrategy(1.0),
@@ -211,7 +212,7 @@ final class EnvSamplingTest extends TestCase {
         self::assertSpanNames(['remote-sampled']);
     }
 
-    #[Group('async')]
+    #[Group('async'), Group('jaeger')]
     public function testJaegerRemotePerOperationStrategyMatchesSpanNames(): void {
         $this->runJaegerRemoteSampling(
             JaegerSamplingServer::operationsStrategy(0.0, ['kept' => 1.0]),
@@ -234,7 +235,7 @@ final class EnvSamplingTest extends TestCase {
         self::assertSpanNames(['kept']);
     }
 
-    #[Group('async')]
+    #[Group('async'), Group('jaeger')]
     public function testJaegerRemoteRateLimitingStrategyLimitsSpans(): void {
         /*
          * maxTracesPerSecond=1 gives the token bucket a cost of one second per
@@ -274,6 +275,7 @@ final class EnvSamplingTest extends TestCase {
         self::assertSpanNames(['rl-first', 'rl-third']);
     }
 
+    #[Group('async'), Group('jaeger')]
     public function testJaegerRemoteInitialSamplerAppliesWhileBackendUnreachable(): void {
         $this->runOTel(
             static function (): void {
