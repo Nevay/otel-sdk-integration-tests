@@ -545,7 +545,8 @@ final class ConfigBasicTest extends TestCase {
 
     #[Group('traces')]
     public function testOtlpHttpMaxRequestSizeBlocksOversizedExports(): void {
-        $this->runOTelConfig(<<<'YAML'
+        $this->runOTelConfig(
+            <<<'YAML'
             file_format: "1.2"
 
             tracer_provider:
@@ -555,7 +556,7 @@ final class ConfigBasicTest extends TestCase {
                       otlp_http:
                         endpoint: ${env:OTEL_EXPORTER_OTLP_TRACES_ENDPOINT}
                         max_request_size: 1
-        YAML, static function (): void {
+            YAML, static function (): void {
             Globals::tracerProvider()->getTracer('config-test')
                 ->spanBuilder('oversized')
                 ->startSpan()
@@ -587,7 +588,8 @@ final class ConfigBasicTest extends TestCase {
         /*
          * The default level (info) reports the export failure as a warning.
          */
-        $this->runOTelConfig(<<<'YAML'
+        $this->runOTelConfig(
+            <<<'YAML'
             file_format: "1.2"
 
             tracer_provider:
@@ -596,14 +598,15 @@ final class ConfigBasicTest extends TestCase {
                     exporter:
                       otlp_http:
                         endpoint: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT}
-        YAML, $emitSpan, 'OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=' . $failEndpoint);
+            YAML, $emitSpan, 'OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=' . $failEndpoint);
 
         self::assertStringContainsString('Export failure', $this->lastStderr);
 
         /*
          * At level error the warning is suppressed.
          */
-        $this->runOTelConfig(<<<'YAML'
+        $this->runOTelConfig(
+            <<<'YAML'
             file_format: "1.2"
             log_level: error
 
@@ -613,7 +616,7 @@ final class ConfigBasicTest extends TestCase {
                     exporter:
                       otlp_http:
                         endpoint: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT}
-        YAML, $emitSpan, 'OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=' . $failEndpoint);
+            YAML, $emitSpan, 'OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=' . $failEndpoint);
 
         self::assertStringNotContainsString('Export failure', $this->lastStderr);
     }
@@ -626,7 +629,8 @@ final class ConfigBasicTest extends TestCase {
          * configured limit. (JSON encoding is used so that the empty
          * response body is larger than one byte.)
          */
-        $this->runOTelConfig(<<<'YAML'
+        $this->runOTelConfig(
+            <<<'YAML'
             file_format: "1.2"
 
             tracer_provider:
@@ -637,7 +641,7 @@ final class ConfigBasicTest extends TestCase {
                         endpoint: ${env:OTEL_EXPORTER_OTLP_TRACES_ENDPOINT}
                         encoding: json
                         max_response_size: 1
-        YAML, static function (): void {
+            YAML, static function (): void {
             Globals::tracerProvider()->getTracer('config-test')
                 ->spanBuilder('oversized-response')
                 ->startSpan()
@@ -655,7 +659,8 @@ final class ConfigBasicTest extends TestCase {
         $file = tempnam(sys_get_temp_dir(), 'otlp-file');
 
         try {
-            $this->runOTelConfig(<<<YAML
+            $this->runOTelConfig(
+                <<<YAML
                 file_format: "1.2"
 
                 tracer_provider:
@@ -663,8 +668,8 @@ final class ConfigBasicTest extends TestCase {
                     - batch:
                         exporter:
                           otlp_file/development:
-                            output_stream: {$file}
-            YAML, static function (): void {
+                            output_stream: "{$file}"
+                YAML, static function (): void {
                 Globals::tracerProvider()->getTracer('config-test')
                     ->spanBuilder('file-export')
                     ->startSpan()
@@ -813,7 +818,7 @@ final class ConfigBasicTest extends TestCase {
                 - batch:
                     exporter:
                       otlp_http:
-                        endpoint: {$this->baseUrl}/v1/traces
+                        endpoint: "{$this->baseUrl}/v1/traces"
             YAML,
             static function (): void {
                 $span = Globals::tracerProvider()

@@ -199,7 +199,8 @@ final class TlsTest extends TestCase {
 
     #[Group('config-file'), Group('traces')]
     public function testConfigFileCaFileTrustsSelfSignedCollector(): void {
-        $this->runOTelConfig(<<<'YAML'
+        $this->runOTelConfig(
+            <<<'YAML'
             file_format: "1.2"
 
             tracer_provider:
@@ -210,7 +211,7 @@ final class TlsTest extends TestCase {
                         endpoint: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT}
                         tls:
                           ca_file: ${OTEL_EXPORTER_OTLP_TRACES_CERTIFICATE}
-        YAML, static function (): void {
+            YAML, static function (): void {
             Globals::tracerProvider()->getTracer('tls-test')
                 ->spanBuilder('tls-config-span')
                 ->startSpan()
@@ -229,7 +230,8 @@ final class TlsTest extends TestCase {
 
     #[Group('config-file'), Group('metrics')]
     public function testConfigFileCaFileTrustsSelfSignedMetricsCollector(): void {
-        $this->runOTelConfig(<<<'YAML'
+        $this->runOTelConfig(
+            <<<'YAML'
             file_format: "1.2"
 
             meter_provider:
@@ -241,7 +243,7 @@ final class TlsTest extends TestCase {
                         endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
                         tls:
                           ca_file: ${OTEL_EXPORTER_OTLP_METRICS_CERTIFICATE}
-        YAML, static function (): void {
+            YAML, static function (): void {
             Globals::meterProvider()->getMeter('tls-test')
                 ->createCounter('tls-config-metric')
                 ->add(1);
@@ -255,7 +257,8 @@ final class TlsTest extends TestCase {
 
     #[Group('config-file'), Group('logs')]
     public function testConfigFileCaFileTrustsSelfSignedLogsCollector(): void {
-        $this->runOTelConfig(<<<'YAML'
+        $this->runOTelConfig(
+            <<<'YAML'
             file_format: "1.2"
 
             logger_provider:
@@ -266,7 +269,7 @@ final class TlsTest extends TestCase {
                         endpoint: ${OTEL_EXPORTER_OTLP_LOGS_ENDPOINT}
                         tls:
                           ca_file: ${OTEL_EXPORTER_OTLP_LOGS_CERTIFICATE}
-        YAML, static function (): void {
+            YAML, static function (): void {
             Globals::loggerProvider()->getLogger('tls-test')
                 ->logRecordBuilder()
                 ->setBody('tls-config-log')
@@ -287,7 +290,8 @@ final class TlsTest extends TestCase {
          * nothing is exported. (export_timeout bounds the exporter's retry
          * backoff after the failed attempt.)
          */
-        $this->runOTelConfig(<<<'YAML'
+        $this->runOTelConfig(
+            <<<'YAML'
             file_format: "1.2"
 
             tracer_provider:
@@ -297,7 +301,7 @@ final class TlsTest extends TestCase {
                     exporter:
                       otlp_http:
                         endpoint: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT}
-        YAML, static function (): void {
+            YAML, static function (): void {
             Globals::tracerProvider()->getTracer('tls-test')
                 ->spanBuilder('tls-untrusted')
                 ->startSpan()
@@ -387,7 +391,8 @@ final class TlsTest extends TestCase {
 
     #[Group('config-file'), Group('traces')]
     public function testConfigFileClientCertificateIsPresentedAndVerified(): void {
-        $this->runOTelConfig(<<<'YAML'
+        $this->runOTelConfig(
+            <<<'YAML'
             file_format: "1.2"
 
             tracer_provider:
@@ -400,7 +405,7 @@ final class TlsTest extends TestCase {
                           ca_file: ${OTEL_EXPORTER_OTLP_TRACES_CERTIFICATE}
                           cert_file: ${OTEL_EXPORTER_OTLP_TRACES_CLIENT_CERTIFICATE}
                           key_file: ${OTEL_EXPORTER_OTLP_TRACES_CLIENT_KEY}
-        YAML, static function (): void {
+            YAML, static function (): void {
             Globals::tracerProvider()->getTracer('tls-test')
                 ->spanBuilder('mtls-config-span')
                 ->startSpan()
@@ -430,7 +435,8 @@ final class TlsTest extends TestCase {
          * (export_timeout bounds the exporter's retry backoff after the
          * failed attempt.)
          */
-        $this->runOTelConfig(<<<'YAML'
+        $this->runOTelConfig(
+            <<<'YAML'
             file_format: "1.2"
 
             tracer_provider:
@@ -442,7 +448,7 @@ final class TlsTest extends TestCase {
                         endpoint: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT}
                         tls:
                           ca_file: ${OTEL_EXPORTER_OTLP_TRACES_CERTIFICATE}
-        YAML, static function (): void {
+            YAML, static function (): void {
             Globals::tracerProvider()->getTracer('tls-test')
                 ->spanBuilder('mtls-rejected')
                 ->startSpan()

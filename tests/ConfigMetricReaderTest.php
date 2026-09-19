@@ -151,7 +151,8 @@ final class ConfigMetricReaderTest extends TestCase {
 
     #[Group('metrics')]
     public function testExporterDefaultBase2ExponentialHistogramAggregation(): void {
-        $this->runOTelConfig(<<<'YAML'
+        $this->runOTelConfig(
+            <<<'YAML'
             file_format: "1.2"
 
             meter_provider:
@@ -163,7 +164,7 @@ final class ConfigMetricReaderTest extends TestCase {
                       otlp_http:
                         endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
                         default_histogram_aggregation: base2_exponential_bucket_histogram
-        YAML, static function (): void {
+            YAML, static function (): void {
             $histogram = Globals::meterProvider()->getMeter('config-test')
                 ->createHistogram('b2.histogram');
 
@@ -484,7 +485,8 @@ final class ConfigMetricReaderTest extends TestCase {
 
     #[Group('aggregation')]
     public function testReaderCardinalityLimitBucketsOverflowSeries(): void {
-        $this->runOTelConfig(<<<'YAML'
+        $this->runOTelConfig(
+            <<<'YAML'
             file_format: "1.2"
 
             meter_provider:
@@ -497,7 +499,7 @@ final class ConfigMetricReaderTest extends TestCase {
                         endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
                     cardinality_limits:
                       default: 2
-        YAML, static function (): void {
+            YAML, static function (): void {
             $counter = Globals::meterProvider()->getMeter('config-test')
                 ->createCounter('cardinality.counter');
 

@@ -220,7 +220,8 @@ final class GrpcTest extends TestCase {
 
     #[Group('config-file'), Group('traces')]
     public function testConfigFileGrpcExporterExportsSpans(): void {
-        $this->runOTelConfig(<<<'YAML'
+        $this->runOTelConfig(
+            <<<'YAML'
             file_format: "1.2"
 
             tracer_provider:
@@ -231,7 +232,7 @@ final class GrpcTest extends TestCase {
                         endpoint: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT}
                         tls:
                           ca_file: ${OTEL_EXPORTER_OTLP_TRACES_CERTIFICATE}
-        YAML, static function (): void {
+            YAML, static function (): void {
             Globals::tracerProvider()->getTracer('grpc-test')
                 ->spanBuilder('grpc-config-span')
                 ->startSpan()
@@ -371,7 +372,8 @@ final class GrpcTest extends TestCase {
 
         $this->assertPlaintextGrpcDial(static function (int $port) use (&$configFile): array {
             $configFile = sys_get_temp_dir() . '/otel-test-grpc-insecure-' . uniqid() . '.yaml';
-            file_put_contents($configFile, <<<'YAML'
+            file_put_contents($configFile,
+                <<<'YAML'
                 file_format: "1.2"
 
                 tracer_provider:
@@ -382,7 +384,7 @@ final class GrpcTest extends TestCase {
                             endpoint: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT}
                             tls:
                               insecure: true
-            YAML);
+                YAML);
 
             return [
                 'OTEL_CONFIG_FILE' => $configFile,
@@ -395,7 +397,8 @@ final class GrpcTest extends TestCase {
 
     #[Group('config-file'), Group('metrics')]
     public function testConfigFileGrpcExporterExportsMetrics(): void {
-        $this->runOTelConfig(<<<'YAML'
+        $this->runOTelConfig(
+            <<<'YAML'
             file_format: "1.2"
 
             meter_provider:
@@ -407,7 +410,7 @@ final class GrpcTest extends TestCase {
                         endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
                         tls:
                           ca_file: ${OTEL_EXPORTER_OTLP_METRICS_CERTIFICATE}
-        YAML, static function (): void {
+            YAML, static function (): void {
             Globals::meterProvider()
                 ->getMeter('grpc-test')
                 ->createCounter('grpc-config-metric', 'requests')
@@ -428,7 +431,8 @@ final class GrpcTest extends TestCase {
 
     #[Group('config-file'), Group('logs')]
     public function testConfigFileGrpcExporterExportsLogs(): void {
-        $this->runOTelConfig(<<<'YAML'
+        $this->runOTelConfig(
+            <<<'YAML'
             file_format: "1.2"
 
             logger_provider:
@@ -439,7 +443,7 @@ final class GrpcTest extends TestCase {
                         endpoint: ${OTEL_EXPORTER_OTLP_LOGS_ENDPOINT}
                         tls:
                           ca_file: ${OTEL_EXPORTER_OTLP_LOGS_CERTIFICATE}
-        YAML, static function (): void {
+            YAML, static function (): void {
             Globals::loggerProvider()
                 ->getLogger('grpc-test')
                 ->emit(new LogRecord('grpc-config-log'));

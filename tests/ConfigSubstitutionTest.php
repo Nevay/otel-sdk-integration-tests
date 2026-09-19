@@ -112,7 +112,8 @@ final class ConfigSubstitutionTest extends TestCase {
     }
 
     public function testInvalidSubstitutionFailsInitialization(): void {
-        $template = <<<'YAML'
+        $template =
+            <<<'YAML'
             file_format: "1.2"
 
             tracer_provider:
@@ -124,7 +125,7 @@ final class ConfigSubstitutionTest extends TestCase {
                         headers:
                           - name: invalid
                             value: "__REF__"
-        YAML;
+            YAML;
 
         /*
          * A malformed reference is a configuration error: the SDK reports

@@ -2234,7 +2234,8 @@ final class ConfigViewsTest extends TestCase {
     }
 
     public function testViewUsesBase2ExponentialBucketHistogramAggregation(): void {
-        $this->runOTelConfig(<<<'YAML'
+        $this->runOTelConfig(
+            <<<'YAML'
             file_format: "1.2"
 
             meter_provider:
@@ -2255,7 +2256,7 @@ final class ConfigViewsTest extends TestCase {
                         max_scale: 5
                         max_size: 32
                         record_min_max: false
-        YAML, static function (): void {
+            YAML, static function (): void {
             $histogram = Globals::meterProvider()->getMeter('config-test')
                 ->createHistogram('b2.view.histogram');
 
