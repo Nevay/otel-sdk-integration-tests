@@ -145,10 +145,13 @@ C-core client delivers correct gRPC frames to the suite's capture server), so
 no interop problem exists.  
 ¹² The certificate environment variables
 (`OTEL_EXPORTER_OTLP[_<signal>]*_CERTIFICATE`, `_CLIENT_CERTIFICATE`,
-`_CLIENT_KEY`) are declared but never passed to the transport factories, for
-all signals and both protocols. The gRPC wiring is fixed in
+`_CLIENT_KEY`) are declared but never passed to the transports, for all
+signals and both protocols. The gRPC wiring is fixed in
 [PR #2059](https://github.com/open-telemetry/opentelemetry-php/pull/2059)
-(open); the OTLP/HTTP side remains unaddressed upstream.  
+(open); the OTLP/HTTP side is addressed by
+[PR #2060](https://github.com/open-telemetry/opentelemetry-php/pull/2060)
+(open), which forwards the certificates from the PSR transport factory to the
+Guzzle/Symfony transports and builds on PR #2059's exporter-side forwarding.  
 ¹³ No exporter factory is registered for the protocol; structurally requires an
 async runtime to serve the pull reader; excluded from upstream issue reporting
 by decision.  
@@ -162,7 +165,7 @@ the current no-op behavior for unsupported file formats.
 |---|---:|---|
 | File-based configuration (`file_format` 1.2 gate): all config-file tests except the two passing pins, the `jaeger_remote` config tests and the missing-file test | 210 | fix in [PR #2050](https://github.com/open-telemetry/opentelemetry-php/pull/2050) (draft) |
 | gRPC exporter env-based configuration: per-signal endpoints abort initialization; certificate & insecure env vars not wired (env mode) | 15 | fix in [PR #2059](https://github.com/open-telemetry/opentelemetry-php/pull/2059) (open) |
-| Certificate env vars never wired into the transports (OTLP/HTTP, all signals) | 8 | untracked |
+| Certificate env vars never wired into the transports (OTLP/HTTP, all signals) | 8 | fix in [PR #2060](https://github.com/open-telemetry/opentelemetry-php/pull/2060) (open), builds on [PR #2059](https://github.com/open-telemetry/opentelemetry-php/pull/2059) (open) |
 | Lenient handling of invalid configuration: unrecognized/case-mismatched enums and unparseable values abort init instead of warning + fallback | 10 | untracked |
 | Entities (`OTEL_ENTITIES`) not implemented | 7 | untracked |
 | `jaeger_remote` sampler not implemented (5 env + 2 config-file) | 7 | untracked |
