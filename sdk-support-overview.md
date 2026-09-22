@@ -783,7 +783,8 @@ never applied (untracked upstream).
 ⁹ The env entity detector is not implemented (untracked upstream).  
 ¹⁰ The exporter retries non-retryable `500` responses (four attempts observed);
 the specification requires that all `4xx`/`5xx` codes other than 429, 502, 503
-and 504 MUST NOT be retried (untracked upstream).  
+and 504 MUST NOT be retried (tracked in
+[#2061](https://github.com/open-telemetry/opentelemetry-php/issues/2061)).  
 ¹¹ The 12 env-based tests fail because per-signal gRPC endpoints are used as-is
 (the method path is only appended to the *generic* endpoint), which aborts
 initialization. The HTTP/2 exchange itself has been verified to work (a raw
@@ -794,10 +795,11 @@ no interop problem exists.
 `_CLIENT_KEY`) are declared but never passed to the transports, for all
 signals and both protocols. The gRPC wiring is fixed in
 [PR #2059](https://github.com/open-telemetry/opentelemetry-php/pull/2059)
-(open); the OTLP/HTTP side is addressed by
+(merged, not yet released); the OTLP/HTTP side is addressed by
 [PR #2060](https://github.com/open-telemetry/opentelemetry-php/pull/2060)
-(open), which forwards the certificates from the PSR transport factory to the
-Guzzle/Symfony transports and builds on PR #2059's exporter-side forwarding.  
+(merged, not yet released), which forwards the certificates from the PSR
+transport factory to the Guzzle/Symfony transports and builds on PR #2059's
+exporter-side forwarding.  
 ¹³ No exporter factory is registered for the protocol; structurally requires an
 async runtime to serve the pull reader; excluded from upstream issue reporting
 by decision.  
@@ -814,8 +816,8 @@ group.
 | Failing group | Tests | Tracking |
 |---|---:|---|
 | File-based configuration (`file_format` 1.2 gate): all config-file tests except the two passing pins, the `jaeger_remote` config tests and the missing-file test | 210 | fix in [PR #2050](https://github.com/open-telemetry/opentelemetry-php/pull/2050) (draft) |
-| gRPC exporter env-based configuration: per-signal endpoints abort initialization; certificate & insecure env vars not wired (env mode) | 15 | fix in [PR #2059](https://github.com/open-telemetry/opentelemetry-php/pull/2059) (open) |
-| Certificate env vars never wired into the transports (OTLP/HTTP, all signals) | 8 | fix in [PR #2060](https://github.com/open-telemetry/opentelemetry-php/pull/2060) (open), builds on [PR #2059](https://github.com/open-telemetry/opentelemetry-php/pull/2059) (open) |
+| gRPC exporter env-based configuration: per-signal endpoints abort initialization; certificate & insecure env vars not wired (env mode) | 15 | fix in [PR #2059](https://github.com/open-telemetry/opentelemetry-php/pull/2059) (merged, not yet released) |
+| Certificate env vars never wired into the transports (OTLP/HTTP, all signals) | 8 | fix in [PR #2060](https://github.com/open-telemetry/opentelemetry-php/pull/2060) (merged, not yet released), builds on [PR #2059](https://github.com/open-telemetry/opentelemetry-php/pull/2059) (merged, not yet released) |
 | Lenient handling of invalid configuration: unrecognized/case-mismatched enums and unparseable values abort init instead of warning + fallback | 10 | untracked |
 | Entities (`OTEL_ENTITIES`) not implemented | 7 | untracked |
 | `jaeger_remote` sampler not implemented (5 env + 2 config-file) | 7 | untracked |
@@ -825,7 +827,7 @@ group.
 | Metric export interval / periodic reader (+ temporality dependency) | 2 | [#1884](https://github.com/open-telemetry/opentelemetry-php/issues/1884) |
 | Prometheus pull exporter (needs async runtime) | 1 | not reported upstream (by decision) |
 | Default histogram aggregation env var declared but not applied | 1 | untracked |
-| Non-retryable HTTP `500` responses are retried | 1 | untracked |
+| Non-retryable HTTP `500` responses are retried | 1 | [#2061](https://github.com/open-telemetry/opentelemetry-php/issues/2061) (open) |
 | Missing config file: uncaught fatal error instead of a reported initialization error | 1 | untracked |
 | **Total** | **272** | |
 
