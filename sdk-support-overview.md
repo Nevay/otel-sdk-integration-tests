@@ -783,8 +783,9 @@ never applied (untracked upstream).
 ⁹ The env entity detector is not implemented (untracked upstream).  
 ¹⁰ The exporter retries non-retryable `500` responses (four attempts observed);
 the specification requires that all `4xx`/`5xx` codes other than 429, 502, 503
-and 504 MUST NOT be retried (tracked in
-[#2061](https://github.com/open-telemetry/opentelemetry-php/issues/2061)).  
+and 504 MUST NOT be retried (fixed in
+[PR #2061](https://github.com/open-telemetry/opentelemetry-php/pull/2061), merged,
+not yet released).  
 ¹¹ The 12 env-based tests fail because per-signal gRPC endpoints are used as-is
 (the method path is only appended to the *generic* endpoint), which aborts
 initialization. The HTTP/2 exchange itself has been verified to work (a raw
@@ -827,7 +828,7 @@ group.
 | Metric export interval / periodic reader (+ temporality dependency) | 2 | [#1884](https://github.com/open-telemetry/opentelemetry-php/issues/1884) |
 | Prometheus pull exporter (needs async runtime) | 1 | not reported upstream (by decision) |
 | Default histogram aggregation env var declared but not applied | 1 | untracked |
-| Non-retryable HTTP `500` responses are retried | 1 | [#2061](https://github.com/open-telemetry/opentelemetry-php/issues/2061) (open) |
+| Non-retryable HTTP `500` responses are retried | 1 | fix in [PR #2061](https://github.com/open-telemetry/opentelemetry-php/pull/2061) (merged, not yet released) |
 | Missing config file: uncaught fatal error instead of a reported initialization error | 1 | untracked |
 | **Total** | **272** | |
 
