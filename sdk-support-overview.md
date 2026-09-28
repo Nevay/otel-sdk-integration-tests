@@ -769,7 +769,8 @@ by [PR #2050](https://github.com/open-telemetry/opentelemetry-php/pull/2050) (dr
 (`OTEL_ATTRIBUTE_COUNT_LIMIT`, `OTEL_ATTRIBUTE_VALUE_LENGTH_LIMIT`) — declared
 but not applied (issue
 [#2055](https://github.com/open-telemetry/opentelemetry-php/issues/2055), fix in
-[PR #2058](https://github.com/open-telemetry/opentelemetry-php/pull/2058) — open);
+[PR #2058](https://github.com/open-telemetry/opentelemetry-php/pull/2058) — merged,
+not yet released);
 the third is an unparseable limit aborting initialization (footnote ¹). The
 signal-specific `OTEL_SPAN_*` limits work.  
 ⁶ Queue-full drop fails: the batch processor flushes synchronously on span
@@ -823,7 +824,7 @@ group.
 | Entities (`OTEL_ENTITIES`) not implemented | 7 | untracked |
 | `jaeger_remote` sampler not implemented (5 env + 2 config-file) | 7 | untracked |
 | Exemplars / exemplar filter: spec values unrecognized, invalid → no exemplars; none captured or exported | 5 | [#2054](https://github.com/open-telemetry/opentelemetry-php/issues/2054), fix in [PR #2057](https://github.com/open-telemetry/opentelemetry-php/pull/2057) (open) |
-| Global attribute limits declared but not applied | 2 | [#2055](https://github.com/open-telemetry/opentelemetry-php/issues/2055), fix in [PR #2058](https://github.com/open-telemetry/opentelemetry-php/pull/2058) (open) |
+| Global attribute limits declared but not applied | 2 | [#2055](https://github.com/open-telemetry/opentelemetry-php/issues/2055), fix in [PR #2058](https://github.com/open-telemetry/opentelemetry-php/pull/2058) (merged, not yet released) |
 | Batch processor queue-full drop: blocking I/O on span end / log emit | 2 | untracked |
 | Metric export interval / periodic reader (+ temporality dependency) | 2 | [#1884](https://github.com/open-telemetry/opentelemetry-php/issues/1884) |
 | Prometheus pull exporter (needs async runtime) | 1 | not reported upstream (by decision) |
