@@ -5,15 +5,15 @@ test that verifies specification-defined behavior — against the two SDKs under
 `sdks/`. Generated from full suite runs (JUnit logs); regenerate with
 `make test-all`, which writes `.junit-<sdk>.xml` for both SDKs.
 
-- **tbachert run:** 378 tests executed, **378 passing** (`spec` + `tbachert`
+- **tbachert run:** 380 tests executed, **380 passing** (`spec` + `tbachert`
   groups).
-- **official run:** 380 tests executed, **108 passing / 272 failing**
-  (`spec` + `official` groups). Most failures (210 of 272) are gated by
+- **official run:** 382 tests executed, **109 passing / 273 failing**
+  (`spec` + `official` groups). Most failures (211 of 273) are gated by
   not-yet-updated config-file support: the SDK only accepts
   `file_format: '1.0-rc.2'`, while the suite uses data model version 1.2, so
   every config-file test fails at initialization.
 
-The matrix below covers the 374 shared `spec` tests; vendor-specific tests
+The matrix below covers the 376 shared `spec` tests; vendor-specific tests
 (`TbachertSpecificTest`, `OfficialSpecificTest`) are documented in the README
 and not part of this overview. Sections follow the specification's structure
 (context propagation, then the signals in spec order: traces, metrics, logs);
@@ -223,7 +223,7 @@ Footnotes are collected below the tables.
 |---|---|---|---|---|
 | Metric pipeline: instruments, series separation, gauge/counter semantics | – | ✅ 8/8 | – | ❌ 0/8³ |
 | Exemplar filter (always_on/off, trace_based, invalid fallback) | ✅ 4/4 | ✅ 2/2 | ⚠️ 1/4² | ❌ 0/2³ |
-| Temporality preference (cumulative/delta) | ✅ 1/1 | ✅ 3/3 | 🟨 0/1⁷¹⁵ | ❌ 0/3³ |
+| Temporality preference (cumulative/delta/lowmemory) | ✅ 2/2 | ✅ 4/4 | 🟨 1/2⁷¹⁵ | ❌ 0/4³ |
 | Default histogram aggregation (exponential buckets, spec boundaries) | ✅ 1/1 | ✅ 2/2 | ❌ 0/1⁸ | ❌ 0/2³ |
 | Collection interval & periodic reader (batch size) | ✅ 1/1 | ✅ 3/3 | 🟨 0/1⁷¹⁵ | ❌ 0/3³ |
 | Views: instrument & meter selection (incl. wildcards) | – | ✅ 9/9 | – | ❌ 0/9³ |
@@ -261,12 +261,14 @@ Footnotes are collected below the tables.
 </details>
 
 <details>
-<summary>Temporality preference (cumulative/delta) — 4 tests (1 env · 3 config)</summary>
+<summary>Temporality preference (cumulative/delta/lowmemory) — 6 tests (2 env · 4 config)</summary>
 
 - `ConfigMetricReaderTest::testMetricsCumulativeTemporalityPreservesStartTimestamp` — tbachert ✅ · official ❌
 - `ConfigMetricReaderTest::testMetricsExporterUsesCumulativeTemporality` — tbachert ✅ · official ❌
 - `ConfigMetricReaderTest::testMetricsExporterUsesDeltaTemporality` — tbachert ✅ · official ❌
+- `ConfigMetricReaderTest::testMetricsExporterUsesLowMemoryTemporality` — tbachert ✅ · official ❌
 - `EnvMetricsTest::testMetricsTemporalityPreferenceEnvVarUsesDelta` — tbachert ✅ · official ❌
+- `EnvMetricsTest::testMetricsTemporalityPreferenceEnvVarUsesLowMemory` — tbachert ✅ · official ✅
 
 </details>
 
@@ -817,7 +819,7 @@ group.
 
 | Failing group | Tests | Tracking |
 |---|---:|---|
-| File-based configuration (`file_format` 1.2 gate): all config-file tests except the two passing pins, the `jaeger_remote` config tests and the missing-file test | 210 | fix in [PR #2050](https://github.com/open-telemetry/opentelemetry-php/pull/2050) (draft) |
+| File-based configuration (`file_format` 1.2 gate): all config-file tests except the two passing pins, the `jaeger_remote` config tests and the missing-file test | 211 | fix in [PR #2050](https://github.com/open-telemetry/opentelemetry-php/pull/2050) (draft) |
 | gRPC exporter env-based configuration: per-signal endpoints abort initialization; certificate & insecure env vars not wired (env mode) | 15 | fix in [PR #2059](https://github.com/open-telemetry/opentelemetry-php/pull/2059) (merged, not yet released) |
 | Certificate env vars never wired into the transports (OTLP/HTTP, all signals) | 8 | fix in [PR #2060](https://github.com/open-telemetry/opentelemetry-php/pull/2060) (merged, not yet released), builds on [PR #2059](https://github.com/open-telemetry/opentelemetry-php/pull/2059) (merged, not yet released) |
 | Lenient handling of invalid configuration: unrecognized/case-mismatched enums and unparseable values abort init instead of warning + fallback | 10 | untracked |
@@ -831,7 +833,7 @@ group.
 | Default histogram aggregation env var declared but not applied | 1 | untracked |
 | Non-retryable HTTP `500` responses are retried | 1 | fix in [PR #2061](https://github.com/open-telemetry/opentelemetry-php/pull/2061) (merged, not yet released) |
 | Missing config file: uncaught fatal error instead of a reported initialization error | 1 | untracked |
-| **Total** | **272** | |
+| **Total** | **273** | |
 
 Caveats:
 

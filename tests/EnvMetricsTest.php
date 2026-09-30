@@ -4,6 +4,8 @@ namespace Nevay\OTelTest;
 use Amp\Http\Client\HttpClientBuilder;
 use Amp\Http\Client\Request;
 use OpenTelemetry\API\Globals;
+use OpenTelemetry\API\Metrics\ObserverInterface;
+use Opentelemetry\Proto\Metrics\V1\AggregationTemporality;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 use function Amp\delay;
@@ -261,6 +263,64 @@ final class EnvMetricsTest extends TestCase {
          */
         self::assertSame('5', $exports[0]['asInt']);
         self::assertSame('3', $exports[1]['asInt']);
+    }
+
+    /*
+     * OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE accepts the values
+     * cumulative, delta and LowMemory (case-insensitive). LowMemory uses
+     * delta aggregation temporality for synchronous counter and histogram
+     * instruments and cumulative aggregation temporality for asynchronous
+     * counters. The temporality is carried on every data point, so a single
+     * shutdown export is enough to observe it.
+     */
+    public function testMetricsTemporalityPreferenceEnvVarUsesLowMemory(): void {
+        $this->runOTel(
+            static function (): void {
+                $meter = Globals::meterProvider()->getMeter('low-memory-test');
+
+                $counter = $meter->createCounter('test.requests', 'requests');
+                $counter->add(5);
+
+                $asyncCounter = $meter->createObservableCounter(
+                    'test.async.requests',
+                    'requests',
+                );
+
+                $asyncCounter->observe(
+                    static function (ObserverInterface $observer): void {
+                        $observer->observe(7);
+                    },
+                );
+            },
+            'OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE=lowmemory',
+        );
+
+        self::assertNotEmpty(
+            $this->metrics,
+            'Expected a metrics export at shutdown.',
+        );
+
+        $payload = $this->metrics[array_key_last($this->metrics)];
+
+        $sync = $this->metric($payload, 'test.requests');
+
+        self::assertSame(
+            AggregationTemporality::AGGREGATION_TEMPORALITY_DELTA,
+            $sync['sum']['aggregationTemporality'],
+            'The synchronous counter must use delta temporality under LowMemory.',
+        );
+
+        self::assertTrue($sync['sum']['isMonotonic']);
+
+        $async = $this->metric($payload, 'test.async.requests');
+
+        self::assertSame(
+            AggregationTemporality::AGGREGATION_TEMPORALITY_CUMULATIVE,
+            $async['sum']['aggregationTemporality'],
+            'The asynchronous counter must use cumulative temporality under LowMemory.',
+        );
+
+        self::assertTrue($async['sum']['isMonotonic']);
     }
 
     public function testDefaultHistogramAggregationEnvVarUsesExponentialBuckets(): void {

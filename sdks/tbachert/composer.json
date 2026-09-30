@@ -14,7 +14,7 @@
     "tbachert/otel-integration-tests": "*"
   },
   "require-dev": {
-    "tbachert/otel-sdk": "^0.1.0@dev"
+    "tbachert/otel-sdk": "^0.1"
   },
   "minimum-stability": "dev",
   "prefer-stable": true,

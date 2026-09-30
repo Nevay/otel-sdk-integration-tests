@@ -2,6 +2,8 @@
 namespace Nevay\OTelTest;
 
 use OpenTelemetry\API\Globals;
+use OpenTelemetry\API\Metrics\ObserverInterface;
+use Opentelemetry\Proto\Metrics\V1\AggregationTemporality;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 use function Amp\delay;
@@ -389,6 +391,87 @@ final class ConfigMetricReaderTest extends TestCase {
                 ),
             ),
         );
+    }
+
+    /*
+     * The file-based configuration accepts the values cumulative, delta and
+     * low_memory for temporality_preference. low_memory uses delta aggregation
+     * temporality for synchronous counter and histogram instruments and
+     * cumulative aggregation temporality for asynchronous counters. The
+     * temporality is carried on every data point, so the shutdown export is
+     * enough to observe it.
+     */
+    public function testMetricsExporterUsesLowMemoryTemporality(): void
+    {
+        $output = $this->runOTelConfig(
+            <<<'YAML'
+            file_format: "1.2"
+
+            meter_provider:
+              readers:
+                - periodic:
+                    interval: 300
+                    exporter:
+                      otlp_http:
+                        endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
+                        temporality_preference: low_memory
+            YAML,
+            static function (): void {
+                $meter = Globals::meterProvider()->getMeter(
+                    'low-memory-test',
+                    '1.0.0',
+                );
+
+                $counter = $meter->createCounter(
+                    'test.requests',
+                    'requests',
+                );
+
+                $counter->add(5);
+
+                $asyncCounter = $meter->createObservableCounter(
+                    'test.async.requests',
+                    'requests',
+                );
+
+                $asyncCounter->observe(
+                    static function (ObserverInterface $observer): void {
+                        $observer->observe(7);
+                    },
+                );
+
+                echo 'done';
+            },
+        );
+
+        self::assertSame('done', $output);
+
+        self::assertNotEmpty(
+            $this->metrics,
+            'Expected a metrics export at shutdown.',
+        );
+
+        $payload = $this->metrics[array_key_last($this->metrics)];
+
+        $sync = $this->metric($payload, 'test.requests');
+
+        self::assertSame(
+            AggregationTemporality::AGGREGATION_TEMPORALITY_DELTA,
+            $sync['sum']['aggregationTemporality'],
+            'The synchronous counter must use delta temporality under low_memory.',
+        );
+
+        self::assertTrue($sync['sum']['isMonotonic']);
+
+        $async = $this->metric($payload, 'test.async.requests');
+
+        self::assertSame(
+            AggregationTemporality::AGGREGATION_TEMPORALITY_CUMULATIVE,
+            $async['sum']['aggregationTemporality'],
+            'The asynchronous counter must use cumulative temporality under low_memory.',
+        );
+
+        self::assertTrue($async['sum']['isMonotonic']);
     }
 
     #[Group('async')]

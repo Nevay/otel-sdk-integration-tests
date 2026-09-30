@@ -143,11 +143,13 @@
   "EnvMetricsTest::testMetricsExemplarFilterAlwaysOnCapturesWithoutSpan",
   "EnvMetricsTest::testMetricsExemplarFilterTraceBasedOnlyCapturesInSampledSpans"
  ],
- "Temporality preference (cumulative/delta)": [
+ "Temporality preference (cumulative/delta/lowmemory)": [
   "ConfigMetricReaderTest::testMetricsCumulativeTemporalityPreservesStartTimestamp",
   "ConfigMetricReaderTest::testMetricsExporterUsesCumulativeTemporality",
   "ConfigMetricReaderTest::testMetricsExporterUsesDeltaTemporality",
-  "EnvMetricsTest::testMetricsTemporalityPreferenceEnvVarUsesDelta"
+  "ConfigMetricReaderTest::testMetricsExporterUsesLowMemoryTemporality",
+  "EnvMetricsTest::testMetricsTemporalityPreferenceEnvVarUsesDelta",
+  "EnvMetricsTest::testMetricsTemporalityPreferenceEnvVarUsesLowMemory"
  ],
  "Default histogram aggregation (exponential buckets, spec boundaries)": [
   "ConfigMetricPipelineTest::testDefaultHistogramUsesSpecBoundaries",

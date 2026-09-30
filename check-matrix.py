@@ -33,7 +33,7 @@ SECTIONS = [
                 "Span details: status, events, kinds, links, attribute value types"]),
     ("Metrics", ["Metric pipeline: instruments, series separation, gauge/counter semantics",
                  "Exemplar filter (always_on/off, trace_based, invalid fallback)",
-                 "Temporality preference (cumulative/delta)",
+                 "Temporality preference (cumulative/delta/lowmemory)",
                  "Default histogram aggregation (exponential buckets, spec boundaries)",
                  "Collection interval & periodic reader (batch size)",
                  "Views: instrument & meter selection (incl. wildcards)",
@@ -266,7 +266,7 @@ def main():
         for e in errors:
             print(f"  - {e}")
         sys.exit(1)
-    print("\nOK: all 374 spec tests mapped exactly once; all cells match JUnit results.")
+    print(f"\nOK: all {len(mapped)} spec tests mapped exactly once; all cells match JUnit results.")
 
 
 if __name__ == "__main__":
