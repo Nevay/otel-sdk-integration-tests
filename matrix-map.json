@@ -283,6 +283,10 @@
   "ConfigResourceTest::testResourceSchemaUrlMatchingDetectedResourcesIsExported",
   "ConfigResourceTest::testServiceDetectorReadsServiceNameFromEnvironmentVariable"
  ],
+ "Unrecognized resource detector name (warn & skip)": [
+  "ConfigResourceTest::testUnrecognizedResourceDetectorDoesNotPreventOtherDetectors",
+  "ConfigResourceTest::testUnrecognizedResourceDetectorIsIgnoredWithWarning"
+ ],
  "OTLP HTTP exporter options: protocol, headers, compression, endpoints, timeouts, size limits, retries": [
   "ConfigBasicTest::testOtlpHttpEncodingJsonIsApplied",
   "ConfigBasicTest::testOtlpHttpExporterHeadersAreSentToCollector",

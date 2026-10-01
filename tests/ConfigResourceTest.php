@@ -731,4 +731,122 @@ final class ConfigResourceTest extends TestCase {
         self::assertSame(['custom.desc'], $refs[0]['descriptionKeys']);
         self::assertSame('https://opentelemetry.io/schemas/1.21.0', $refs[0]['schemaUrl']);
     }
+
+    #[Group('resource')]
+    public function testUnrecognizedResourceDetectorIsIgnoredWithWarning(): void {
+        /*
+         * Detector names are language-specific, so a portable configuration
+         * may reference names the SDK does not know. Such an unrecognized
+         * name must be skipped with a warning identifying it, not fail SDK
+         * construction.
+         */
+        $this->runOTelConfig(
+            <<<'YAML'
+            file_format: "1.2"
+
+            resource:
+              detection/development:
+                detectors:
+                  - custom_detector:
+
+            tracer_provider:
+              processors:
+                - batch:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${env:OTEL_EXPORTER_OTLP_TRACES_ENDPOINT}
+            YAML,
+            static function (): void {
+                $span = Globals::tracerProvider()
+                    ->getTracer('test')
+                    ->spanBuilder('detector-unrecognized')
+                    ->startSpan();
+
+                $span->end();
+            },
+        );
+
+        /*
+         * The SDK must still initialize and export: the resource carries the
+         * default service.name, proving detection did not abort construction.
+         */
+        self::assertNotEmpty($this->traces);
+
+        self::assertNotEmpty(
+            $this->resourceAttribute($this->traces[0], 'service.name'),
+        );
+
+        /*
+         * A warning must identify the unrecognized detector name. The
+         * level marker differs between SDKs ('otel.WARNING' vs
+         * '[warning]'), so only the shared "warn" substring is asserted.
+         */
+        self::assertStringContainsString(
+            'warn',
+            strtolower($this->lastStderr),
+        );
+
+        self::assertStringContainsString(
+            'custom_detector',
+            $this->lastStderr,
+        );
+    }
+
+    #[Group('resource')]
+    public function testUnrecognizedResourceDetectorDoesNotPreventOtherDetectors(): void {
+        /*
+         * Skipping the unrecognized detector must not skip the rest of the
+         * list: recognized detectors continue to run and contribute their
+         * attributes.
+         */
+        $this->runOTelConfig(
+            <<<'YAML'
+            file_format: "1.2"
+
+            resource:
+              detection/development:
+                detectors:
+                  - custom_detector:
+                  - host:
+
+            tracer_provider:
+              processors:
+                - batch:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${env:OTEL_EXPORTER_OTLP_TRACES_ENDPOINT}
+            YAML,
+            static function (): void {
+                $span = Globals::tracerProvider()
+                    ->getTracer('test')
+                    ->spanBuilder('detector-unrecognized-others-run')
+                    ->startSpan();
+
+                $span->end();
+            },
+        );
+
+        self::assertNotEmpty($this->traces);
+
+        $keys = $this->path(
+            $this->traces[0],
+            '$.resourceSpans[*].resource.attributes[*].key',
+        );
+
+        self::assertContains('host.id', $keys);
+
+        /*
+         * A warning must identify the unrecognized detector name; see the
+         * sibling test for the level-marker caveat.
+         */
+        self::assertStringContainsString(
+            'warn',
+            strtolower($this->lastStderr),
+        );
+
+        self::assertStringContainsString(
+            'custom_detector',
+            $this->lastStderr,
+        );
+    }
 }
