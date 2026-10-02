@@ -629,7 +629,7 @@ final class ConfigLogRecordTest extends TestCase {
                     - batch:
                         exporter:
                           otlp_file/development:
-                            output_stream: "{$file}"
+                            output_stream: "file://{$file}"
                 YAML, static function (): void {
                 Globals::loggerProvider()
                     ->getLogger('config-test')

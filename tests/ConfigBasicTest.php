@@ -668,7 +668,7 @@ final class ConfigBasicTest extends TestCase {
                     - batch:
                         exporter:
                           otlp_file/development:
-                            output_stream: "{$file}"
+                            output_stream: "file://{$file}"
                 YAML, static function (): void {
                 Globals::tracerProvider()->getTracer('config-test')
                     ->spanBuilder('file-export')

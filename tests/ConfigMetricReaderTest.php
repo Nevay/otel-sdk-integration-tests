@@ -1347,7 +1347,7 @@ final class ConfigMetricReaderTest extends TestCase {
                         interval: 60000
                         exporter:
                           otlp_file/development:
-                            output_stream: "{$file}"
+                            output_stream: "file://{$file}"
                 YAML, static function (): void {
                 Globals::meterProvider()
                     ->getMeter('config-test')
