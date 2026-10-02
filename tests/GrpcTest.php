@@ -183,7 +183,7 @@ final class GrpcTest extends TestCase {
         }
 
         $message = new $messageType();
-        $message->mergeFromString($payload);
+        $message->mergeFromString($payload, 65535);
         $slot = $message->serializeToJsonString(\Google\Protobuf\PrintOptions::ALWAYS_PRINT_ENUMS_AS_INTS);
 
         $responseBody = (new $responseType())->serializeToString();

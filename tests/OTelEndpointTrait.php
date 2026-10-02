@@ -233,7 +233,10 @@ trait OTelEndpointTrait {
 
         $message = new $messageType();
         match ($request->getHeader('content-type')) {
-            'application/x-protobuf' => $message->mergeFromString($payload),
+            # Raised recursion limit: deeply nested attribute values (truncated
+            # at the spec's default depth of 64) must round-trip through the
+            # capture endpoint.
+            'application/x-protobuf' => $message->mergeFromString($payload, 65535),
             'application/json' => $message->mergeFromJsonString($payload, true),
             default => null,
         };
