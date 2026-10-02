@@ -256,6 +256,44 @@ final class ConfigBasicTest extends TestCase {
         self::assertContains('json-encoding', $this->spanNames($this->traces[0]));
     }
 
+    #[Group('traces')]
+    public function testOtlpHttpDefaultsToProtobufEncodingWithoutCompression(): void {
+        /*
+         * Without encoding or compression keys, the spec defaults apply:
+         * protobuf payloads sent uncompressed ("if omitted or null, none is
+         * used").
+         */
+        $this->runOTelConfig(
+            <<<'YAML'
+            file_format: "1.2"
+
+            tracer_provider:
+              processors:
+                - batch:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${env:OTEL_EXPORTER_OTLP_TRACES_ENDPOINT}
+            YAML,
+            static function (): void {
+                $span = Globals::tracerProvider()
+                    ->getTracer('config-test')
+                    ->spanBuilder('default-wire-format')
+                    ->startSpan();
+
+                $span->end();
+            },
+        );
+
+        self::assertNotEmpty($this->traces);
+
+        $headers = array_change_key_case($this->requestHeaders[0]);
+
+        self::assertSame(['application/x-protobuf'], $headers['content-type']);
+        self::assertArrayNotHasKey('content-encoding', $headers);
+
+        self::assertContains('default-wire-format', $this->spanNames($this->traces[0]));
+    }
+
     #[Group('traces'), Group('async')]
     public function testOtlpHttpTimeoutDropsExportWhenCollectorIsSlow(): void {
         /*
@@ -619,6 +657,61 @@ final class ConfigBasicTest extends TestCase {
             YAML, $emitSpan, 'OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=' . $failEndpoint);
 
         self::assertStringNotContainsString('Export failure', $this->lastStderr);
+    }
+
+    public function testLogLevelDefaultsToInfo(): void {
+        /*
+         * Span-limit discard diagnostics are logged at info level. Without a
+         * log_level key the spec default (info) applies, so they must be
+         * reported; raising the level to warning suppresses them.
+         */
+        $emitSpan = static function (): void {
+            $span = Globals::tracerProvider()->getTracer('config-test')
+                ->spanBuilder('log-level-default')
+                ->startSpan();
+
+            $span->addEvent('discarded-event');
+            $span->end();
+        };
+
+        $this->runOTelConfig(
+            <<<'YAML'
+            file_format: "1.2"
+
+            tracer_provider:
+              limits:
+                event_count_limit: 0
+              processors:
+                - batch:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT}
+            YAML, $emitSpan);
+
+        self::assertStringContainsString(
+            'discarded due to span limits',
+            $this->lastStderr,
+        );
+
+        $this->runOTelConfig(
+            <<<'YAML'
+            file_format: "1.2"
+            log_level: warn
+
+            tracer_provider:
+              limits:
+                event_count_limit: 0
+              processors:
+                - batch:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT}
+            YAML, $emitSpan);
+
+        self::assertStringNotContainsString(
+            'discarded due to span limits',
+            $this->lastStderr,
+        );
     }
 
     #[Group('traces')]

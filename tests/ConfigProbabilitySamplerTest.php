@@ -71,6 +71,38 @@ final class ConfigProbabilitySamplerTest extends TestCase {
         );
     }
     #[Group('sampler')]
+    public function testComposableProbabilitySamplerDefaultsToRatioOne(): void {
+        /*
+         * Without a ratio, the spec default of 1.0 applies: every span is
+         * sampled.
+         */
+        $this->runOTelConfig(
+            <<<'YAML'
+            file_format: "1.2"
+
+            tracer_provider:
+              sampler:
+                composite/development:
+                  probability:
+              processors:
+                - batch:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${env:OTEL_EXPORTER_OTLP_TRACES_ENDPOINT}
+            YAML,
+            static function (): void {
+                $tracer = Globals::tracerProvider()->getTracer('config-test');
+
+                foreach (['kept-one', 'kept-two'] as $name) {
+                    $tracer->spanBuilder($name)->startSpan()->end();
+                }
+            },
+        );
+
+        self::assertSpanNames(['kept-one', 'kept-two']);
+    }
+
+    #[Group('sampler')]
     public function testProbabilitySamplerWritesThresholdTraceState(): void {
         $output = $this->runOTelConfig(
             <<<'YAML'

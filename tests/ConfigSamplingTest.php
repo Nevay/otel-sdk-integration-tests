@@ -595,6 +595,131 @@ final class ConfigSamplingTest extends TestCase {
     }
 
     #[Group('sampler')]
+    public function testParentBasedSamplerDefaultsToAlwaysOnForSampledParents(): void {
+        /*
+         * Only the root sampler is configured; the four per-parent samplers
+         * fall back to their spec defaults: always_on for sampled parents
+         * (remote and local), always_off for unsampled parents.
+         */
+        $this->runOTelConfig(
+            <<<'YAML'
+            file_format: "1.2"
+
+            tracer_provider:
+              sampler:
+                parent_based:
+                  root:
+                    always_on:
+              processors:
+                - batch:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${env:OTEL_EXPORTER_OTLP_TRACES_ENDPOINT}
+            YAML,
+            static function (): void {
+                $tracer = Globals::tracerProvider()->getTracer('config-test');
+
+                // Root span: the configured root sampler (always_on) -> kept.
+                $root = $tracer->spanBuilder('root-kept')->startSpan();
+                $root->end();
+
+                /*
+                 * Child of a sampled remote parent: the default
+                 * remote_parent_sampled (always_on) applies -> kept.
+                 */
+                $sampledRemoteParent = SpanContext::createFromRemoteParent(
+                    '4193e569320548f7b71d4c5a750d504c',
+                    '6e0c63258deeeff0',
+                    TraceFlags::SAMPLED,
+                );
+
+                $remoteChild = $tracer
+                    ->spanBuilder('remote-sampled-child')
+                    ->setParent(Context::getCurrent()->withContextValue(Span::wrap($sampledRemoteParent)))
+                    ->startSpan();
+                $remoteChild->end();
+
+                /*
+                 * Child of an unsampled remote parent: the default
+                 * remote_parent_not_sampled (always_off) applies -> dropped.
+                 */
+                $unsampledRemoteParent = SpanContext::createFromRemoteParent(
+                    '4193e569320548f7b71d4c5a750d504c',
+                    '6e0c63258deeeff1',
+                );
+
+                $tracer
+                    ->spanBuilder('remote-unsampled-child')
+                    ->setParent(Context::getCurrent()->withContextValue(Span::wrap($unsampledRemoteParent)))
+                    ->startSpan()
+                    ->end();
+
+                /*
+                 * Grandchild of the sampled remote child: the default
+                 * local_parent_sampled (always_on) applies -> kept.
+                 */
+                $tracer
+                    ->spanBuilder('local-sampled-grandchild')
+                    ->setParent(Context::getCurrent()->withContextValue($remoteChild))
+                    ->startSpan()
+                    ->end();
+
+                /*
+                 * Child of an unsampled local parent: the default
+                 * local_parent_not_sampled (always_off) applies -> dropped.
+                 */
+                $unsampledLocalParent = SpanContext::create(
+                    '4193e569320548f7b71d4c5a750d504d',
+                    '6e0c63258deeeff2',
+                );
+
+                $tracer
+                    ->spanBuilder('local-unsampled-child')
+                    ->setParent(Context::getCurrent()->withContextValue(Span::wrap($unsampledLocalParent)))
+                    ->startSpan()
+                    ->end();
+            },
+        );
+
+        self::assertCount(1, $this->traces);
+        self::assertSame(
+            ['root-kept', 'remote-sampled-child', 'local-sampled-grandchild'],
+            $this->spanNames($this->traces[0]),
+        );
+    }
+
+    #[Group('sampler')]
+    public function testRuleBasedSamplerWithoutRulesDropsAllSpans(): void {
+        /*
+         * A rule-based sampler without a rules list matches nothing: per the
+         * spec, "if omitted, no span is sampled".
+         */
+        $this->runOTelConfig(
+            <<<'YAML'
+            file_format: "1.2"
+
+            tracer_provider:
+              sampler:
+                composite/development:
+                  rule_based:
+              processors:
+                - batch:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${env:OTEL_EXPORTER_OTLP_TRACES_ENDPOINT}
+            YAML,
+            static function (): void {
+                Globals::tracerProvider()->getTracer('config-test')
+                    ->spanBuilder('dropped-by-empty-rules')
+                    ->startSpan()
+                    ->end();
+            },
+        );
+
+        self::assertSpanNames([]);
+    }
+
+    #[Group('sampler')]
     public function testRuleBasedSamplerMatchesParentOrigin(): void {
         $this->runOTelConfig(
             <<<'YAML'
@@ -976,6 +1101,44 @@ final class ConfigSamplingTest extends TestCase {
         );
 
         self::assertSpanNames(['initial-sampled']);
+    }
+
+    #[Group('async'), Group('jaeger')]
+    public function testJaegerRemoteSamplerInitializesWithoutExplicitInterval(): void {
+        /*
+         * Without an explicit interval, the spec default of 60 seconds
+         * applies: the SDK must initialize cleanly and fall back to the
+         * initial sampler while the (unreachable) backend is polled on that
+         * schedule.
+         */
+        $this->runOTelConfig(
+            <<<'YAML'
+            file_format: "1.2"
+
+            tracer_provider:
+              sampler:
+                jaeger_remote/development:
+                  endpoint: http://127.0.0.1:1
+                  initial_sampler:
+                    always_on:
+              processors:
+                - batch:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${env:OTEL_EXPORTER_OTLP_TRACES_ENDPOINT}
+            YAML,
+            static function (): void {
+                // Let a poll attempt fail against the closed port.
+                \Amp\delay(0.3);
+
+                Globals::tracerProvider()->getTracer('config-test')
+                    ->spanBuilder('jaeger-default-interval')
+                    ->startSpan()
+                    ->end();
+            },
+        );
+
+        self::assertSpanNames(['jaeger-default-interval']);
     }
 
     /**

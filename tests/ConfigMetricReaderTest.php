@@ -315,6 +315,48 @@ final class ConfigMetricReaderTest extends TestCase {
     }
 
     #[Group('metrics')]
+    #[Group('metrics')]
+    public function testBase2ExponentialBucketHistogramDefaultsToSpecMaxScaleAndSize(): void {
+        $this->runOTelConfig(
+            <<<'YAML'
+            file_format: "1.2"
+
+            meter_provider:
+              readers:
+                - periodic:
+                    interval: 60000
+                    timeout: 1000
+                    exporter:
+                      otlp_http:
+                        endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
+                        default_histogram_aggregation: base2_exponential_bucket_histogram
+            YAML, static function (): void {
+            $histogram = Globals::meterProvider()->getMeter('config-test')
+                ->createHistogram('b2.default-limits.histogram');
+
+            foreach ([0.5, 1, 2, 4, 8, 16] as $value) {
+                $histogram->record($value);
+            }
+        });
+
+        /*
+         * Without max_scale and max_size, the spec defaults (20 and 160)
+         * apply: the chosen scale stays within the default bound and the
+         * bucket count never exceeds the default size.
+         */
+        $dataPoint = $this->path(
+            $this->metrics[0],
+            '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "b2.default-limits.histogram")].exponentialHistogram.dataPoints[0]',
+        )[0];
+
+        self::assertIsInt($dataPoint['scale']);
+        self::assertLessThanOrEqual(20, $dataPoint['scale']);
+        self::assertLessThanOrEqual(
+            160,
+            count($dataPoint['positive']['bucketCounts']),
+        );
+    }
+
     /*
      * =========================================================================
      * Temporality
@@ -1381,6 +1423,152 @@ final class ConfigMetricReaderTest extends TestCase {
                     $payloads[0],
                     '$.resourceMetrics[*].scopeMetrics[*].metrics[*].sum.dataPoints[*].asInt',
                 ),
+            );
+        } finally {
+            @unlink($file);
+        }
+    }
+
+    #[Group('metrics'), Group('async')]
+    public function testOtlpFileMetricExporterDefaultsToCumulativeTemporality(): void {
+        $file = tempnam(sys_get_temp_dir(), 'otlp-file-metrics');
+
+        try {
+            /*
+             * Without a temporality_preference, the spec default (cumulative)
+             * applies: each periodic export carries the total since start.
+             */
+            $output = $this->runOTelConfig(
+                <<<YAML
+                file_format: "1.2"
+
+                meter_provider:
+                  readers:
+                    - periodic:
+                        interval: 300
+                        exporter:
+                          otlp_file/development:
+                            output_stream: "file://{$file}"
+                YAML,
+                static function (): void {
+                    $counter = Globals::meterProvider()
+                        ->getMeter('config-test')
+                        ->createCounter('default-temporality.counter', 'requests');
+
+                    $counter->add(5);
+
+                    delay(0.5);
+
+                    $counter->add(3);
+
+                    delay(0.5);
+
+                    echo 'done';
+                },
+            );
+
+            self::assertSame('done', $output);
+
+            $payloads = array_values(array_filter(
+                explode("\n", (string) file_get_contents($file)),
+            ));
+
+            self::assertGreaterThanOrEqual(2, count($payloads));
+
+            $exports = [];
+
+            foreach ($payloads as $payload) {
+                $dataPoints = $this->path(
+                    $payload,
+                    '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "default-temporality.counter")].sum.dataPoints[*]',
+                );
+
+                if ($dataPoints !== []) {
+                    $exports[] = $dataPoints[0];
+                }
+            }
+
+            $exports = $this->sortByCollectionTime($exports);
+
+            self::assertGreaterThanOrEqual(
+                2,
+                count($exports),
+                'Expected the metric to be exported in multiple collection cycles.',
+            );
+
+            self::assertSame('5', $exports[0]['asInt']);
+            self::assertSame('8', $exports[array_key_last($exports)]['asInt']);
+
+            /*
+             * Cumulative counter values must never decrease between exports;
+             * a delta exporter would have reported 5 and 3 instead of 5 and 8.
+             */
+            $previous = null;
+
+            foreach ($exports as $export) {
+                $value = (int) $export['asInt'];
+
+                if ($previous !== null) {
+                    self::assertGreaterThanOrEqual(
+                        $previous,
+                        $value,
+                        'Cumulative counter value decreased between exports.',
+                    );
+                }
+
+                $previous = $value;
+            }
+        } finally {
+            @unlink($file);
+        }
+    }
+
+    #[Group('metrics')]
+    public function testOtlpFileMetricExporterDefaultsToExplicitBucketHistogramAggregation(): void {
+        $file = tempnam(sys_get_temp_dir(), 'otlp-file-metrics');
+
+        try {
+            /*
+             * Without a default_histogram_aggregation, the spec default
+             * (explicit_bucket_histogram) applies: data points carry explicit
+             * bounds and bucket counts instead of an exponential scale.
+             */
+            $this->runOTelConfig(
+                <<<YAML
+                file_format: "1.2"
+
+                meter_provider:
+                  readers:
+                    - periodic:
+                        interval: 60000
+                        exporter:
+                          otlp_file/development:
+                            output_stream: "file://{$file}"
+                YAML, static function (): void {
+                $histogram = Globals::meterProvider()->getMeter('config-test')
+                    ->createHistogram('default-agg.histogram');
+
+                foreach ([0.5, 1, 2, 4, 8, 16] as $value) {
+                    $histogram->record($value);
+                }
+            });
+
+            $payloads = array_values(array_filter(
+                explode("\n", (string) file_get_contents($file)),
+            ));
+
+            self::assertCount(1, $payloads);
+
+            $dataPoint = $this->path(
+                $payloads[0],
+                '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "default-agg.histogram")].histogram.dataPoints[0]',
+            )[0];
+
+            self::assertArrayHasKey('explicitBounds', $dataPoint);
+            self::assertArrayNotHasKey('scale', $dataPoint);
+            self::assertSame(
+                6,
+                array_sum(array_map('intval', $dataPoint['bucketCounts'])),
             );
         } finally {
             @unlink($file);

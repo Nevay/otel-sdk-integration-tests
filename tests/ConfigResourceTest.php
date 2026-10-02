@@ -572,6 +572,56 @@ final class ConfigResourceTest extends TestCase {
     }
 
     #[Group('resource')]
+    public function testProcessDetectorReportsProcessAttributes(): void {
+        $this->runOTelConfig(
+            <<<'YAML'
+            file_format: "1.2"
+
+            resource:
+              detection/development:
+                detectors:
+                  - process:
+
+            tracer_provider:
+              processors:
+                - batch:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${env:OTEL_EXPORTER_OTLP_TRACES_ENDPOINT}
+            YAML,
+            static function (): void {
+                $span = Globals::tracerProvider()
+                    ->getTracer('test')
+                    ->spanBuilder('detector-process')
+                    ->startSpan();
+
+                $span->end();
+            },
+        );
+
+        self::assertNotEmpty($this->traces);
+
+        /*
+         * The suite runs under the CLI SAPI; the detector reports the PHP
+         * runtime as well as the process identity.
+         */
+        self::assertSame(
+            'cli',
+            $this->resourceAttribute($this->traces[0], 'process.runtime.name'),
+        );
+
+        self::assertSame(
+            PHP_VERSION,
+            $this->resourceAttribute($this->traces[0], 'process.runtime.version'),
+        );
+
+        self::assertMatchesRegularExpression(
+            '/^\d+$/',
+            (string) $this->resourceAttribute($this->traces[0], 'process.pid'),
+        );
+    }
+
+    #[Group('resource')]
     public function testHostDetectorPopulatesHostAndOsAttributes(): void {
         $this->runOTelConfig(
             <<<'YAML'
