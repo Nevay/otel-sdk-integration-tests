@@ -5251,12 +5251,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/Nevay/otel-sdk-config.git",
-                "reference": "27d60052b6f5d76bbd0fff400be020401f216097"
+                "reference": "0ff629e4b38165f7b78220f275ee9d59350ae51b"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/Nevay/otel-sdk-config/zipball/27d60052b6f5d76bbd0fff400be020401f216097",
-                "reference": "27d60052b6f5d76bbd0fff400be020401f216097",
+                "url": "https://api.github.com/repos/Nevay/otel-sdk-config/zipball/0ff629e4b38165f7b78220f275ee9d59350ae51b",
+                "reference": "0ff629e4b38165f7b78220f275ee9d59350ae51b",
                 "shasum": ""
             },
             "require": {
@@ -5317,7 +5317,7 @@
                 "issues": "https://github.com/Nevay/otel-sdk-config/issues",
                 "source": "https://github.com/Nevay/otel-sdk-config/tree/main"
             },
-            "time": "2026-10-02T13:58:07+00:00"
+            "time": "2026-10-02T19:46:05+00:00"
         },
         {
             "name": "tbachert/otel-sdk-core",
@@ -5325,12 +5325,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/Nevay/otel-sdk-core.git",
-                "reference": "a0fae52381b738900b09283a12791e33c1750bd8"
+                "reference": "94e88722b4e7013bde848c178d622be70eacced7"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/Nevay/otel-sdk-core/zipball/a0fae52381b738900b09283a12791e33c1750bd8",
-                "reference": "a0fae52381b738900b09283a12791e33c1750bd8",
+                "url": "https://api.github.com/repos/Nevay/otel-sdk-core/zipball/94e88722b4e7013bde848c178d622be70eacced7",
+                "reference": "94e88722b4e7013bde848c178d622be70eacced7",
                 "shasum": ""
             },
             "require": {
@@ -5386,7 +5386,7 @@
                 "issues": "https://github.com/Nevay/otel-sdk-core/issues",
                 "source": "https://github.com/Nevay/otel-sdk-core/tree/main"
             },
-            "time": "2026-09-30T15:25:00+00:00"
+            "time": "2026-10-02T19:59:00+00:00"
         },
         {
             "name": "tbachert/otel-sdk-jaegerremotesampler",
