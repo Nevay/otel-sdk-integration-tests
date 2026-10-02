@@ -233,10 +233,15 @@ trait OTelEndpointTrait {
 
         $message = new $messageType();
         match ($request->getHeader('content-type')) {
-            # Raised recursion limit: deeply nested attribute values (truncated
-            # at the spec's default depth of 64) must round-trip through the
-            # capture endpoint.
-            'application/x-protobuf' => $message->mergeFromString($payload, 65535),
+            // Raised recursion limit: deeply nested attribute values (truncated
+            // at the spec's default depth of 64) must round-trip through the
+            // capture endpoint. The limit argument is only accepted by the C
+            // extension since protobuf 5.36
+            // (https://github.com/protocolbuffers/protobuf/pull/27874); on
+            // older versions fall back to the default limit.
+            'application/x-protobuf' => ($v = phpversion('protobuf')) === false || version_compare($v, '5.36.0', '>=')
+                ? $message->mergeFromString($payload, 65535)
+                : $message->mergeFromString($payload),
             'application/json' => $message->mergeFromJsonString($payload, true),
             default => null,
         };

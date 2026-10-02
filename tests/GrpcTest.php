@@ -183,7 +183,16 @@ final class GrpcTest extends TestCase {
         }
 
         $message = new $messageType();
-        $message->mergeFromString($payload, 65535);
+        // Raised recursion limit so deeply nested attribute values (truncated
+        // at the spec's default depth of 64) survive the capture. The limit
+        // argument is only accepted by the C extension since protobuf 5.36
+        // (https://github.com/protocolbuffers/protobuf/pull/27874); on older
+        // versions fall back to the default limit.
+        if (($v = phpversion('protobuf')) === false || version_compare($v, '5.36.0', '>=')) {
+            $message->mergeFromString($payload, 65535);
+        } else {
+            $message->mergeFromString($payload);
+        }
         $slot = $message->serializeToJsonString(\Google\Protobuf\PrintOptions::ALWAYS_PRINT_ENUMS_AS_INTS);
 
         $responseBody = (new $responseType())->serializeToString();
