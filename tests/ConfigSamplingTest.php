@@ -656,6 +656,180 @@ final class ConfigSamplingTest extends TestCase {
         );
     }
 
+    public function testRuleBasedSamplerRoutesByRemainingSpanKinds(): void
+    {
+        /*
+         * The span_kinds condition matches every kind except client, which
+         * is the only one not listed in the rule.
+         */
+        $this->runOTelConfig(
+            <<<'YAML'
+            file_format: "1.2"
+
+            tracer_provider:
+              sampler:
+                composite/development:
+                  rule_based:
+                    rules:
+                      - span_kinds: [server, producer, consumer, internal]
+                        sampler:
+                          always_on:
+              processors:
+                - batch:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${env:OTEL_EXPORTER_OTLP_TRACES_ENDPOINT}
+            YAML,
+            static function (): void {
+                $tracer = Globals::tracerProvider()->getTracer('config-test');
+
+                /* Each listed kind matches the rule -> sampled. */
+                foreach ([
+                    ['server', SpanKind::KIND_SERVER],
+                    ['producer', SpanKind::KIND_PRODUCER],
+                    ['consumer', SpanKind::KIND_CONSUMER],
+                    ['internal', SpanKind::KIND_INTERNAL],
+                ] as [$name, $kind]) {
+                    $tracer->spanBuilder($name)
+                        ->setSpanKind($kind)
+                        ->startSpan()
+                        ->end();
+                }
+
+                /* The unlisted client kind matches no rule -> dropped. */
+                $tracer->spanBuilder('client')
+                    ->setSpanKind(SpanKind::KIND_CLIENT)
+                    ->startSpan()
+                    ->end();
+            },
+        );
+
+        self::assertCount(1, $this->traces);
+        self::assertSame(
+            ['server', 'producer', 'consumer', 'internal'],
+            $this->spanNames($this->traces[0]),
+        );
+    }
+
+    public function testRuleBasedSamplerMatchesLocalParentOrigin(): void {
+        /*
+         * The parent: [local] condition matches only children of local
+         * (in-process) parents; roots and children of remote parents are
+         * dropped.
+         */
+        $this->runOTelConfig(
+            <<<'YAML'
+            file_format: "1.2"
+
+            tracer_provider:
+              sampler:
+                composite/development:
+                  rule_based:
+                    rules:
+                      - parent: [local]
+                        sampler:
+                          always_on:
+              processors:
+                - batch:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${env:OTEL_EXPORTER_OTLP_TRACES_ENDPOINT}
+            YAML,
+            static function (): void {
+                $tracer = Globals::tracerProvider()->getTracer('config-test');
+
+                /* No parent -> matches no rule -> dropped. */
+                $root = $tracer->spanBuilder('rule-root')->startSpan();
+                $root->end();
+
+                /* Remote parent -> matches no rule -> dropped. */
+                $remoteParent = SpanContext::createFromRemoteParent(
+                    '4193e569320548f7b71d4c5a750d504c',
+                    '6e0c63258deeeff4',
+                    TraceFlags::SAMPLED,
+                );
+
+                $tracer
+                    ->spanBuilder('rule-remote-child')
+                    ->setParent(Context::getCurrent()->withContextValue(Span::wrap($remoteParent)))
+                    ->startSpan()
+                    ->end();
+
+                /* Local parent -> matches the rule -> sampled. */
+                $tracer
+                    ->spanBuilder('rule-local-child')
+                    ->setParent(Context::getCurrent()->withContextValue($root))
+                    ->startSpan()
+                    ->end();
+            },
+        );
+
+        self::assertCount(1, $this->traces);
+        self::assertSame(
+            ['rule-local-child'],
+            $this->spanNames($this->traces[0]),
+        );
+    }
+
+    public function testConfigModeDefaultSamplerIsParentBasedAlwaysOn(): void {
+        /*
+         * Without a sampler node the default applies: a parent-based
+         * sampler with an always_on root. Roots are sampled, and children
+         * inherit the decision of their remote parent.
+         */
+        $this->runOTelConfig(
+            <<<'YAML'
+            file_format: "1.2"
+
+            tracer_provider:
+              processors:
+                - batch:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${env:OTEL_EXPORTER_OTLP_TRACES_ENDPOINT}
+            YAML,
+            static function (): void {
+                $tracer = Globals::tracerProvider()->getTracer('config-test');
+
+                /* Root span -> sampled by the always_on root. */
+                $root = $tracer->spanBuilder('default-root')->startSpan();
+                $root->end();
+
+                /* Child of a sampled remote parent -> sampled. */
+                $sampledRemote = SpanContext::createFromRemoteParent(
+                    '4193e569320548f7b71d4c5a750d504c',
+                    '6e0c63258deeeff4',
+                    TraceFlags::SAMPLED,
+                );
+
+                $tracer
+                    ->spanBuilder('default-remote-sampled')
+                    ->setParent(Context::getCurrent()->withContextValue(Span::wrap($sampledRemote)))
+                    ->startSpan()
+                    ->end();
+
+                /* Child of an unsampled remote parent -> dropped. */
+                $unsampledRemote = SpanContext::createFromRemoteParent(
+                    '4193e569320548f7b71d4c5a750d504d',
+                    '6e0c63258deeeff5',
+                    TraceFlags::DEFAULT,
+                );
+
+                $tracer
+                    ->spanBuilder('default-remote-unsampled')
+                    ->setParent(Context::getCurrent()->withContextValue(Span::wrap($unsampledRemote)))
+                    ->startSpan()
+                    ->end();
+            },
+        );
+
+        self::assertCount(1, $this->traces);
+        self::assertSame(
+            ['default-root', 'default-remote-sampled'],
+            $this->spanNames($this->traces[0]),
+        );
+    }
+
     #[Group('sampler')]
     public function testRuleBasedSamplerExcludedAttributePatterns(): void {
         $this->runOTelConfig(

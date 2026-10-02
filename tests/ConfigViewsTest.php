@@ -2,6 +2,7 @@
 namespace Nevay\OTelTest;
 
 use OpenTelemetry\API\Globals;
+use OpenTelemetry\API\Metrics\ObserverInterface;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 use function Amp\delay;
@@ -466,6 +467,256 @@ final class ConfigViewsTest extends TestCase {
                 $payload,
                 '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "selected.latency")].histogram.dataPoints[*].sum',
             )[0],
+        );
+    }
+
+    public function testViewSelectsGaugeByInstrumentType(): void
+    {
+        $this->runOTelConfig(
+            <<<'YAML'
+            file_format: "1.2"
+
+            meter_provider:
+              readers:
+                - periodic:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
+
+              views:
+                - selector:
+                    instrument_type: gauge
+                  stream:
+                    name: gauge.selected
+            YAML,
+            static function (): void {
+                $meter = Globals::meterProvider()->getMeter('config-test');
+
+                // Matches the instrument type -> renamed.
+                $meter->createGauge('temperature')->record(21.5);
+
+                // Different instrument type -> exported unchanged.
+                $meter->createCounter('temperature.counter')->add(1);
+            },
+        );
+
+        $payload = $this->metrics[0];
+
+        self::assertCount(
+            1,
+            $this->path($payload, '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "gauge.selected")]'),
+        );
+
+        self::assertEmpty(
+            $this->path($payload, '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "temperature")]'),
+        );
+
+        self::assertCount(
+            1,
+            $this->path($payload, '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "temperature.counter")]'),
+        );
+    }
+
+    public function testViewSelectsUpDownCounterByInstrumentType(): void
+    {
+        $this->runOTelConfig(
+            <<<'YAML'
+            file_format: "1.2"
+
+            meter_provider:
+              readers:
+                - periodic:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
+
+              views:
+                - selector:
+                    instrument_type: up_down_counter
+                  stream:
+                    name: updown.selected
+            YAML,
+            static function (): void {
+                $meter = Globals::meterProvider()->getMeter('config-test');
+
+                // Matches the instrument type -> renamed.
+                $meter->createUpDownCounter('active.requests')->add(1);
+
+                // Different instrument type -> exported unchanged.
+                $meter->createCounter('active.counter')->add(1);
+            },
+        );
+
+        $payload = $this->metrics[0];
+
+        self::assertCount(
+            1,
+            $this->path($payload, '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "updown.selected")]'),
+        );
+
+        self::assertEmpty(
+            $this->path($payload, '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "active.requests")]'),
+        );
+
+        self::assertCount(
+            1,
+            $this->path($payload, '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "active.counter")]'),
+        );
+    }
+
+    public function testViewSelectsObservableCounterByInstrumentType(): void
+    {
+        $this->runOTelConfig(
+            <<<'YAML'
+            file_format: "1.2"
+
+            meter_provider:
+              readers:
+                - periodic:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
+
+              views:
+                - selector:
+                    instrument_type: observable_counter
+                  stream:
+                    name: obs-counter.selected
+            YAML,
+            static function (): void {
+                $meter = Globals::meterProvider()->getMeter('config-test');
+
+                // Matches the instrument type -> renamed.
+                $meter->createObservableCounter('obs.counter')
+                    ->observe(
+                        static function (ObserverInterface $observer): void {
+                            $observer->observe(7);
+                        },
+                    );
+
+                // Different instrument type -> exported unchanged.
+                $meter->createCounter('obs.control')->add(1);
+            },
+        );
+
+        $payload = $this->metrics[0];
+
+        self::assertCount(
+            1,
+            $this->path($payload, '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "obs-counter.selected")]'),
+        );
+
+        self::assertEmpty(
+            $this->path($payload, '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "obs.counter")]'),
+        );
+
+        self::assertCount(
+            1,
+            $this->path($payload, '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "obs.control")]'),
+        );
+    }
+
+    public function testViewSelectsObservableGaugeByInstrumentType(): void
+    {
+        $this->runOTelConfig(
+            <<<'YAML'
+            file_format: "1.2"
+
+            meter_provider:
+              readers:
+                - periodic:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
+
+              views:
+                - selector:
+                    instrument_type: observable_gauge
+                  stream:
+                    name: obs-gauge.selected
+            YAML,
+            static function (): void {
+                $meter = Globals::meterProvider()->getMeter('config-test');
+
+                // Matches the instrument type -> renamed.
+                $meter->createObservableGauge('obs.gauge')
+                    ->observe(
+                        static function (ObserverInterface $observer): void {
+                            $observer->observe(3.5);
+                        },
+                    );
+
+                // Different instrument type -> exported unchanged.
+                $meter->createCounter('obs.control')->add(1);
+            },
+        );
+
+        $payload = $this->metrics[0];
+
+        self::assertCount(
+            1,
+            $this->path($payload, '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "obs-gauge.selected")]'),
+        );
+
+        self::assertEmpty(
+            $this->path($payload, '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "obs.gauge")]'),
+        );
+
+        self::assertCount(
+            1,
+            $this->path($payload, '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "obs.control")]'),
+        );
+    }
+
+    public function testViewSelectsObservableUpDownCounterByInstrumentType(): void
+    {
+        $this->runOTelConfig(
+            <<<'YAML'
+            file_format: "1.2"
+
+            meter_provider:
+              readers:
+                - periodic:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
+
+              views:
+                - selector:
+                    instrument_type: observable_up_down_counter
+                  stream:
+                    name: obs-updown.selected
+            YAML,
+            static function (): void {
+                $meter = Globals::meterProvider()->getMeter('config-test');
+
+                // Matches the instrument type -> renamed.
+                $meter->createObservableUpDownCounter('obs.updown')
+                    ->observe(
+                        static function (ObserverInterface $observer): void {
+                            $observer->observe(-2);
+                        },
+                    );
+
+                // Different instrument type -> exported unchanged.
+                $meter->createCounter('obs.control')->add(1);
+            },
+        );
+
+        $payload = $this->metrics[0];
+
+        self::assertCount(
+            1,
+            $this->path($payload, '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "obs-updown.selected")]'),
+        );
+
+        self::assertEmpty(
+            $this->path($payload, '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "obs.updown")]'),
+        );
+
+        self::assertCount(
+            1,
+            $this->path($payload, '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "obs.control")]'),
         );
     }
 

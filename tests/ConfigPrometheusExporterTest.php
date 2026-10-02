@@ -261,6 +261,96 @@ final class ConfigPrometheusExporterTest extends TestCase {
         self::assertStringContainsString('# TYPE test_counter counter', $exposition);
         self::assertStringNotContainsString('_requests_total', $exposition);
     }
+    public function testPrometheusTranslationStrategyUnderscoreEscapingWithoutSuffixes(): void {
+        $port = 39474;
+
+        $exposition = $this->runOTelConfig(
+            <<<'YAML'
+            file_format: "1.2"
+
+            meter_provider:
+              readers:
+                - pull:
+                    exporter:
+                      prometheus/development:
+                        host: 127.0.0.1
+                        port: ${OTEL_EXPORTER_PROMETHEUS_PORT}
+                        translation_strategy: underscore_escaping_without_suffixes/development
+            YAML,
+            static function () use ($port): void {
+                Globals::meterProvider()
+                    ->getMeter('prom-test')
+                    ->createCounter('test.counter', 'requests')
+                    ->add(42);
+
+                /*
+                 * The Prometheus exporter starts its HTTP server during
+                 * SDK initialization, which completes before this closure
+                 * runs, so a single scrape is sufficient.
+                 */
+                $client = HttpClientBuilder::buildDefault();
+                $request = new Request('http://127.0.0.1:' . $port . '/metrics');
+                $response = $client->request($request);
+
+                echo (string) $response->getBody();
+            },
+            'OTEL_EXPORTER_PROMETHEUS_PORT=' . $port,
+        );
+
+        /*
+         * Classic Prometheus compatibility: special characters are escaped
+         * to underscores, but no unit segment or _total suffix is appended.
+         */
+        self::assertStringContainsString('# TYPE test_counter counter', $exposition);
+        self::assertStringNotContainsString('_requests_total', $exposition);
+    }
+    public function testPrometheusTranslationStrategyNoUtf8EscapingWithSuffixes(): void {
+        $port = 39475;
+
+        $exposition = $this->runOTelConfig(
+            <<<'YAML'
+            file_format: "1.2"
+
+            meter_provider:
+              readers:
+                - pull:
+                    exporter:
+                      prometheus/development:
+                        host: 127.0.0.1
+                        port: ${OTEL_EXPORTER_PROMETHEUS_PORT}
+                        translation_strategy: no_utf8_escaping_with_suffixes/development
+            YAML,
+            static function () use ($port): void {
+                Globals::meterProvider()
+                    ->getMeter('prom-test')
+                    ->createCounter("a\xC3\xA9.counter", 'requests')
+                    ->add(42);
+
+                /*
+                 * The Prometheus exporter starts its HTTP server during
+                 * SDK initialization, which completes before this closure
+                 * runs, so a single scrape is sufficient.
+                 */
+                $client = HttpClientBuilder::buildDefault();
+                $request = new Request('http://127.0.0.1:' . $port . '/metrics');
+                $request->setHeader('accept', 'text/plain;version=1.0.0;charset=utf-8;escaping=allow-utf-8');
+                $response = $client->request($request);
+
+                echo (string) $response->getBody();
+            },
+            'OTEL_EXPORTER_PROMETHEUS_PORT=' . $port,
+        );
+
+        /*
+         * This strategy does not pre-escape special characters, so the
+         * allow-utf-8 exposition scheme passes the non-ASCII name through
+         * unaltered (quoted, as required for names outside the legacy
+         * character set) while the unit and _total suffixes are still
+         * appended.
+         */
+        self::assertStringContainsString('# TYPE "aé.counter_requests_total" counter', $exposition);
+        self::assertStringContainsString('{"aé.counter_requests_total",otel_scope_name="prom-test"} 42', $exposition);
+    }
     public function testPrometheusEscapingUnderscoresReplacesNonLegacyCharacters(): void {
         $port = 39470;
 

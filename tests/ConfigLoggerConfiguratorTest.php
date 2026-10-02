@@ -259,6 +259,69 @@ final class ConfigLoggerConfiguratorTest extends TestCase {
         self::assertContains('severity.unspecified', $bodies);
     }
 
+    public function testLoggerConfiguratorMinimumSeverityInfoThreshold(): void
+    {
+        /*
+         * With an info threshold the lower severity numbers (trace, debug)
+         * are filtered out while info and the higher levels up to fatal are
+         * kept.
+         */
+        $this->runOTelConfig(
+            <<<'YAML'
+            file_format: "1.2"
+
+            logger_provider:
+              logger_configurator/development:
+                loggers:
+                  - name: info-threshold.logger
+                    config:
+                      minimum_severity: info
+
+              processors:
+                - batch:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${OTEL_EXPORTER_OTLP_LOGS_ENDPOINT}
+            YAML,
+            static function (): void {
+                $logger = Globals::loggerProvider()
+                    ->getLogger('info-threshold.logger');
+
+                $logger->emit(
+                    (new LogRecord('threshold.trace'))
+                        ->setSeverityNumber(1)
+                        ->setSeverityText('TRACE'),
+                );
+
+                $logger->emit(
+                    (new LogRecord('threshold.debug'))
+                        ->setSeverityNumber(5)
+                        ->setSeverityText('DEBUG'),
+                );
+
+                $logger->emit(
+                    (new LogRecord('threshold.info'))
+                        ->setSeverityNumber(9)
+                        ->setSeverityText('INFO'),
+                );
+
+                $logger->emit(
+                    (new LogRecord('threshold.fatal'))
+                        ->setSeverityNumber(21)
+                        ->setSeverityText('FATAL'),
+                );
+            },
+        );
+
+        self::assertSame(
+            ['threshold.info', 'threshold.fatal'],
+            $this->path(
+                $this->logs[0],
+                '$.resourceLogs[*].scopeLogs[*].logRecords[*].body.stringValue',
+            ),
+        );
+    }
+
     public function testLoggerConfiguratorTraceBasedFalseDoesNotFilterUnsampledTraces(): void
     {
         $this->runOTelConfig(

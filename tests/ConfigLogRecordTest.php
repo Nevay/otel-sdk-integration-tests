@@ -614,4 +614,49 @@ final class ConfigLogRecordTest extends TestCase {
         self::assertStringContainsString('console-log', $output);
         self::assertSame([], $this->logs);
     }
+
+    #[Group('logs')]
+    public function testOtlpFileExporterWritesLogsToNewlineDelimitedJson(): void {
+        $file = tempnam(sys_get_temp_dir(), 'otlp-file-logs');
+
+        try {
+            $this->runOTelConfig(
+                <<<YAML
+                file_format: "1.2"
+
+                logger_provider:
+                  processors:
+                    - batch:
+                        exporter:
+                          otlp_file/development:
+                            output_stream: "{$file}"
+                YAML, static function (): void {
+                Globals::loggerProvider()
+                    ->getLogger('config-test')
+                    ->emit(new LogRecord('file-log'));
+            });
+
+            $payloads = array_values(array_filter(
+                explode("\n", (string) file_get_contents($file)),
+            ));
+
+            self::assertCount(1, $payloads);
+
+            /*
+             * Each line is a standalone OTLP/JSON export; json_decode
+             * doubles as the well-formedness check.
+             */
+            json_decode($payloads[0], true, 512, JSON_THROW_ON_ERROR);
+
+            self::assertSame(
+                ['file-log'],
+                $this->path(
+                    $payloads[0],
+                    '$.resourceLogs[*].scopeLogs[*].logRecords[*].body.stringValue',
+                ),
+            );
+        } finally {
+            @unlink($file);
+        }
+    }
 }

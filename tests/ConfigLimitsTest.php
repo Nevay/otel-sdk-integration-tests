@@ -61,6 +61,106 @@ final class ConfigLimitsTest extends TestCase {
         );
     }
 
+    public function testDefaultAttributeCountLimitIs128(): void
+    {
+        /*
+         * Without any attribute limits configured, the spec default applies:
+         * a span keeps at most 128 attributes.
+         */
+        $this->runOTelConfig(
+            <<<'YAML'
+            file_format: "1.2"
+
+            tracer_provider:
+              processors:
+                - batch:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT}
+            YAML,
+            static function (): void {
+                $span = Globals::tracerProvider()
+                    ->getTracer('config-test')
+                    ->spanBuilder('default-count-limit');
+
+                for ($i = 0; $i < 130; $i++) {
+                    $span->setAttribute(sprintf('attr-%03d', $i), 'v' . $i);
+                }
+
+                $span->startSpan()->end();
+            },
+        );
+
+        self::assertCount(
+            128,
+            $this->spanAttributes('default-count-limit'),
+        );
+
+        self::assertSame(
+            'v0',
+            $this->spanAttribute('default-count-limit', 'attr-000'),
+        );
+    }
+
+    public function testDefaultAttributeValueDepthLimitIs64(): void
+    {
+        /*
+         * Without any attribute limits configured, the spec default applies:
+         * nested array values are truncated at a depth of 64.
+         */
+        $this->runOTelConfig(
+            <<<'YAML'
+            file_format: "1.2"
+
+            tracer_provider:
+              processors:
+                - batch:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT}
+            YAML,
+            static function (): void {
+                $value = 'leaf';
+
+                /* A chain of 69 nested arrays; the leaf sits at depth 70. */
+                for ($i = 0; $i < 69; $i++) {
+                    $value = [$value];
+                }
+
+                Globals::tracerProvider()
+                    ->getTracer('config-test')
+                    ->spanBuilder('default-depth-limit')
+                    ->setAttribute('deep', $value)
+                    ->startSpan()
+                    ->end();
+            },
+        );
+
+        $values = $this->path(
+            $this->combinedTracePayload(),
+            '$.resourceSpans[*].scopeSpans[*].spans[?(@.name == "default-depth-limit")].attributes[?(@.key == "deep")].value.arrayValue',
+        );
+
+        self::assertCount(1, $values);
+
+        /*
+         * Walk the nested arrays: levels 1 through 64 are intact, and the
+         * value at level 65 has been replaced by an empty array.
+         */
+        $node = $values[0];
+        $levels = 0;
+
+        while (is_array($node) && !empty($node['values'])) {
+            $levels++;
+            /* Elements of `values` are AnyValue objects: the nested
+             * ArrayValue sits directly under `arrayValue`. */
+            $inner = $node['values'][0] ?? [];
+            $node = is_array($inner) ? ($inner['arrayValue'] ?? []) : [];
+        }
+
+        self::assertSame(64, $levels);
+    }
+
     public function testAttributeValueDepthLimitTruncatesNestedValues(): void
     {
         /*

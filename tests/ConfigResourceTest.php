@@ -216,6 +216,71 @@ final class ConfigResourceTest extends TestCase {
         );
     }
 
+    public function testResourceAttributesSupportArrayValues(): void
+    {
+        /*
+         * Attribute values may be homogeneous arrays; the element type of
+         * the value determines the exported array type (string, bool, int
+         * or double) without an explicit type field.
+         */
+        $this->runOTelConfig(
+            <<<'YAML'
+            file_format: "1.2"
+
+            resource:
+              attributes:
+                - name: string.list
+                  value: [alpha, beta]
+                - name: bool.list
+                  value: [true, false]
+                - name: int.list
+                  value: [1, 2]
+                - name: double.list
+                  value: [1.5, 2.5]
+
+            tracer_provider:
+              processors:
+                - batch:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT}
+            YAML,
+            static function (): void {
+                Globals::tracerProvider()
+                    ->getTracer('config-test')
+                    ->spanBuilder('resource-array-attributes')
+                    ->startSpan()
+                    ->end();
+            },
+        );
+
+        $payload = $this->traces[0];
+        $base = '$.resourceSpans[*].resource.attributes[?(@.key == "%s")].value.arrayValue.values[*]';
+
+        self::assertSame(
+            ['alpha', 'beta'],
+            $this->path($payload, sprintf($base, 'string.list') . '.stringValue'),
+        );
+
+        self::assertSame(
+            [true, false],
+            $this->path($payload, sprintf($base, 'bool.list') . '.boolValue'),
+        );
+
+        /*
+         * OTLP JSON encodes int64 values as strings.
+         */
+        self::assertSame(
+            ['1', '2'],
+            $this->path($payload, sprintf($base, 'int.list') . '.intValue'),
+        );
+
+        self::assertSame(
+            [1.5, 2.5],
+            $this->path($payload, sprintf($base, 'double.list') . '.doubleValue'),
+        );
+    }
+
     public function testResourceSchemaUrlMatchingDetectedResourcesIsExported(): void
     {
         $this->runOTelConfig(

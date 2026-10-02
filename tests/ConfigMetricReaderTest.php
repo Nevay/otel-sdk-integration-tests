@@ -136,6 +136,125 @@ final class ConfigMetricReaderTest extends TestCase {
         self::assertArrayNotHasKey('spanId', $exemplars[0]);
     }
 
+    public function testMetricsExemplarFilterTraceBasedCapturesOnlyUnderSampledSpans(): void
+    {
+        $this->runOTelConfig(
+            <<<'YAML'
+            file_format: "1.2"
+
+            meter_provider:
+              exemplar_filter: trace_based
+
+              readers:
+                - periodic:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
+            YAML,
+            static function (): void {
+                $tracer = Globals::tracerProvider()->getTracer('config-test');
+
+                $span = $tracer->spanBuilder('trace-based')->startSpan();
+                $scope = $span->activate();
+
+                Globals::meterProvider()
+                    ->getMeter('config-test')
+                    ->createCounter('in-span.counter')
+                    ->add(3);
+
+                $scope->detach();
+                $span->end();
+
+                Globals::meterProvider()
+                    ->getMeter('config-test')
+                    ->createCounter('no-span.counter')
+                    ->add(4);
+            },
+        );
+
+        self::assertNotEmpty($this->metrics);
+
+        /*
+         * trace_based captures exemplars only while a sampled span is
+         * active: the measurement inside the root span carries its trace
+         * context, the one outside any span is not captured at all.
+         */
+        $exemplars = $this->path(
+            $this->metrics[0],
+            '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "in-span.counter")]..exemplars[*]',
+        );
+
+        self::assertCount(1, $exemplars);
+        self::assertSame('3', $exemplars[0]['asInt']);
+        self::assertArrayHasKey('traceId', $exemplars[0]);
+        self::assertArrayHasKey('spanId', $exemplars[0]);
+
+        self::assertEmpty(
+            $this->path(
+                $this->metrics[0],
+                '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "no-span.counter")]..exemplars[*]',
+            ),
+        );
+    }
+
+    public function testMetricsExemplarFilterDefaultsToTraceBased(): void
+    {
+        /*
+         * Without an exemplar_filter node the trace_based default applies:
+         * exemplars are captured only while a sampled span is active.
+         */
+        $this->runOTelConfig(
+            <<<'YAML'
+            file_format: "1.2"
+
+            meter_provider:
+              readers:
+                - periodic:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
+            YAML,
+            static function (): void {
+                $tracer = Globals::tracerProvider()->getTracer('config-test');
+
+                $span = $tracer->spanBuilder('default-trace-based')->startSpan();
+                $scope = $span->activate();
+
+                Globals::meterProvider()
+                    ->getMeter('config-test')
+                    ->createCounter('in-span.counter')
+                    ->add(3);
+
+                $scope->detach();
+                $span->end();
+
+                Globals::meterProvider()
+                    ->getMeter('config-test')
+                    ->createCounter('no-span.counter')
+                    ->add(4);
+            },
+        );
+
+        self::assertNotEmpty($this->metrics);
+
+        $exemplars = $this->path(
+            $this->metrics[0],
+            '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "in-span.counter")]..exemplars[*]',
+        );
+
+        self::assertCount(1, $exemplars);
+        self::assertSame('3', $exemplars[0]['asInt']);
+        self::assertArrayHasKey('traceId', $exemplars[0]);
+        self::assertArrayHasKey('spanId', $exemplars[0]);
+
+        self::assertEmpty(
+            $this->path(
+                $this->metrics[0],
+                '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "no-span.counter")]..exemplars[*]',
+            ),
+        );
+    }
+
 
 
 
@@ -683,6 +802,296 @@ final class ConfigMetricReaderTest extends TestCase {
         self::assertCount(3, $unlimited);
     }
 
+    #[Group('aggregation')]
+    public function testReaderCardinalityLimitAppliesToGauge(): void {
+        /*
+         * The per-instrument gauge limit buckets the second attribute set
+         * into the overflow series; the counter keeps both of its sets.
+         */
+        $this->runOTelConfig(
+            <<<'YAML'
+            file_format: "1.2"
+
+            meter_provider:
+              readers:
+                - periodic:
+                    interval: 60000
+                    timeout: 1000
+                    exporter:
+                      otlp_http:
+                        endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
+                    cardinality_limits:
+                      gauge: 1
+            YAML, static function (): void {
+            $meter = Globals::meterProvider()->getMeter('config-test');
+
+            $gauge = $meter->createGauge('cardinality.gauge');
+            $gauge->record(1, ['k' => 'a']);
+            $gauge->record(2, ['k' => 'b']);
+
+            $counter = $meter->createCounter('cardinality.control');
+            $counter->add(1, ['k' => 'a']);
+            $counter->add(1, ['k' => 'b']);
+        });
+
+        $base = '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "cardinality.gauge")].gauge';
+
+        self::assertCount(
+            2,
+            $this->path($this->metrics[0], $base . '.dataPoints[*]'),
+        );
+        self::assertSame(
+            ['k', 'otel.metric.overflow'],
+            $this->path($this->metrics[0], $base . '.dataPoints[*].attributes[*].key'),
+        );
+
+        /*
+         * The limit is per instrument type: the counter is not subject to
+         * the gauge limit and keeps both attribute sets.
+         */
+        self::assertCount(
+            2,
+            $this->dataPoints($this->metrics[0], 'cardinality.control'),
+        );
+    }
+
+    #[Group('aggregation')]
+    public function testReaderCardinalityLimitAppliesToHistogram(): void {
+        $this->runOTelConfig(
+            <<<'YAML'
+            file_format: "1.2"
+
+            meter_provider:
+              readers:
+                - periodic:
+                    interval: 60000
+                    timeout: 1000
+                    exporter:
+                      otlp_http:
+                        endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
+                    cardinality_limits:
+                      histogram: 1
+            YAML, static function (): void {
+            $meter = Globals::meterProvider()->getMeter('config-test');
+
+            $histogram = $meter->createHistogram('cardinality.histogram');
+            $histogram->record(1, ['k' => 'a']);
+            $histogram->record(2, ['k' => 'b']);
+
+            $counter = $meter->createCounter('cardinality.control');
+            $counter->add(1, ['k' => 'a']);
+            $counter->add(1, ['k' => 'b']);
+        });
+
+        $base = '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "cardinality.histogram")].histogram';
+
+        self::assertCount(
+            2,
+            $this->path($this->metrics[0], $base . '.dataPoints[*].count'),
+        );
+        self::assertSame(
+            ['k', 'otel.metric.overflow'],
+            $this->path($this->metrics[0], $base . '.dataPoints[*].attributes[*].key'),
+        );
+
+        self::assertCount(
+            2,
+            $this->dataPoints($this->metrics[0], 'cardinality.control'),
+        );
+    }
+
+    #[Group('aggregation')]
+    public function testReaderCardinalityLimitAppliesToObservableCounter(): void {
+        $this->runOTelConfig(
+            <<<'YAML'
+            file_format: "1.2"
+
+            meter_provider:
+              readers:
+                - periodic:
+                    interval: 60000
+                    timeout: 1000
+                    exporter:
+                      otlp_http:
+                        endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
+                    cardinality_limits:
+                      observable_counter: 1
+            YAML, static function (): void {
+            $meter = Globals::meterProvider()->getMeter('config-test');
+
+            $meter->createObservableCounter('cardinality.observable.counter')
+                ->observe(
+                    static function (ObserverInterface $observer): void {
+                        $observer->observe(1, ['k' => 'a']);
+                        $observer->observe(2, ['k' => 'b']);
+                    },
+                );
+
+            $counter = $meter->createCounter('cardinality.control');
+            $counter->add(1, ['k' => 'a']);
+            $counter->add(1, ['k' => 'b']);
+        });
+
+        $base = '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "cardinality.observable.counter")].sum';
+
+        self::assertCount(
+            2,
+            $this->path($this->metrics[0], $base . '.dataPoints[*].asInt'),
+        );
+        self::assertSame(
+            ['k', 'otel.metric.overflow'],
+            $this->path($this->metrics[0], $base . '.dataPoints[*].attributes[*].key'),
+        );
+
+        self::assertCount(
+            2,
+            $this->dataPoints($this->metrics[0], 'cardinality.control'),
+        );
+    }
+
+    #[Group('aggregation')]
+    public function testReaderCardinalityLimitAppliesToObservableGauge(): void {
+        $this->runOTelConfig(
+            <<<'YAML'
+            file_format: "1.2"
+
+            meter_provider:
+              readers:
+                - periodic:
+                    interval: 60000
+                    timeout: 1000
+                    exporter:
+                      otlp_http:
+                        endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
+                    cardinality_limits:
+                      observable_gauge: 1
+            YAML, static function (): void {
+            $meter = Globals::meterProvider()->getMeter('config-test');
+
+            $meter->createObservableGauge('cardinality.observable.gauge')
+                ->observe(
+                    static function (ObserverInterface $observer): void {
+                        $observer->observe(1, ['k' => 'a']);
+                        $observer->observe(2, ['k' => 'b']);
+                    },
+                );
+
+            $counter = $meter->createCounter('cardinality.control');
+            $counter->add(1, ['k' => 'a']);
+            $counter->add(1, ['k' => 'b']);
+        });
+
+        $base = '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "cardinality.observable.gauge")].gauge';
+
+        self::assertCount(
+            2,
+            $this->path($this->metrics[0], $base . '.dataPoints[*]'),
+        );
+        self::assertSame(
+            ['k', 'otel.metric.overflow'],
+            $this->path($this->metrics[0], $base . '.dataPoints[*].attributes[*].key'),
+        );
+
+        self::assertCount(
+            2,
+            $this->dataPoints($this->metrics[0], 'cardinality.control'),
+        );
+    }
+
+    #[Group('aggregation')]
+    public function testReaderCardinalityLimitAppliesToObservableUpDownCounter(): void {
+        $this->runOTelConfig(
+            <<<'YAML'
+            file_format: "1.2"
+
+            meter_provider:
+              readers:
+                - periodic:
+                    interval: 60000
+                    timeout: 1000
+                    exporter:
+                      otlp_http:
+                        endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
+                    cardinality_limits:
+                      observable_up_down_counter: 1
+            YAML, static function (): void {
+            $meter = Globals::meterProvider()->getMeter('config-test');
+
+            $meter->createObservableUpDownCounter('cardinality.observable.updown')
+                ->observe(
+                    static function (ObserverInterface $observer): void {
+                        $observer->observe(1, ['k' => 'a']);
+                        $observer->observe(-2, ['k' => 'b']);
+                    },
+                );
+
+            $counter = $meter->createCounter('cardinality.control');
+            $counter->add(1, ['k' => 'a']);
+            $counter->add(1, ['k' => 'b']);
+        });
+
+        $base = '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "cardinality.observable.updown")].sum';
+
+        self::assertCount(
+            2,
+            $this->path($this->metrics[0], $base . '.dataPoints[*].asInt'),
+        );
+        self::assertSame(
+            ['k', 'otel.metric.overflow'],
+            $this->path($this->metrics[0], $base . '.dataPoints[*].attributes[*].key'),
+        );
+
+        self::assertCount(
+            2,
+            $this->dataPoints($this->metrics[0], 'cardinality.control'),
+        );
+    }
+
+    #[Group('aggregation')]
+    public function testReaderCardinalityLimitAppliesToUpDownCounter(): void {
+        $this->runOTelConfig(
+            <<<'YAML'
+            file_format: "1.2"
+
+            meter_provider:
+              readers:
+                - periodic:
+                    interval: 60000
+                    timeout: 1000
+                    exporter:
+                      otlp_http:
+                        endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
+                    cardinality_limits:
+                      up_down_counter: 1
+            YAML, static function (): void {
+            $meter = Globals::meterProvider()->getMeter('config-test');
+
+            $upDownCounter = $meter->createUpDownCounter('cardinality.updown');
+            $upDownCounter->add(1, ['k' => 'a']);
+            $upDownCounter->add(-2, ['k' => 'b']);
+
+            $counter = $meter->createCounter('cardinality.control');
+            $counter->add(1, ['k' => 'a']);
+            $counter->add(1, ['k' => 'b']);
+        });
+
+        $base = '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "cardinality.updown")].sum';
+
+        self::assertCount(
+            2,
+            $this->path($this->metrics[0], $base . '.dataPoints[*].asInt'),
+        );
+        self::assertSame(
+            ['k', 'otel.metric.overflow'],
+            $this->path($this->metrics[0], $base . '.dataPoints[*].attributes[*].key'),
+        );
+
+        self::assertCount(
+            2,
+            $this->dataPoints($this->metrics[0], 'cardinality.control'),
+        );
+    }
+
     /*
      * =========================================================================
      * otlp_http exporter options (metrics)
@@ -722,6 +1131,112 @@ final class ConfigMetricReaderTest extends TestCase {
         self::assertSame(['v2'], $headers['x-custom']);
     }
 
+    public function testOtlpHttpHeadersListIsSentToCollector(): void {
+        /*
+         * headers_list uses the OTEL_EXPORTER_OTLP_HEADERS wire format: a
+         * comma separated list of key=value pairs.
+         */
+        $this->runOTelConfig(
+            <<<'YAML'
+            file_format: "1.2"
+
+            meter_provider:
+              readers:
+                - periodic:
+                    interval: 60000
+                    exporter:
+                      otlp_http:
+                        endpoint: ${env:OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
+                        headers_list: "list-header=list-value,x-listed=2"
+            YAML,
+            static function (): void {
+                Globals::meterProvider()
+                    ->getMeter('config-test')
+                    ->createCounter('config.headers-list')
+                    ->add(1);
+            },
+        );
+
+        self::assertNotEmpty($this->metrics);
+
+        $headers = array_change_key_case($this->requestHeaders[0]);
+        self::assertSame(['list-value'], $headers['list-header']);
+        self::assertSame(['2'], $headers['x-listed']);
+    }
+
+    public function testOtlpHttpHeadersTakePrecedenceOverHeadersList(): void {
+        /*
+         * An entry present in both headers and headers_list is sent with
+         * the headers value; entries only in the list are still sent.
+         */
+        $this->runOTelConfig(
+            <<<'YAML'
+            file_format: "1.2"
+
+            meter_provider:
+              readers:
+                - periodic:
+                    interval: 60000
+                    exporter:
+                      otlp_http:
+                        endpoint: ${env:OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
+                        headers:
+                          - name: auth
+                            value: from-map
+                        headers_list: "auth=from-list,listed-only=1"
+            YAML,
+            static function (): void {
+                Globals::meterProvider()
+                    ->getMeter('config-test')
+                    ->createCounter('config.headers-precedence')
+                    ->add(1);
+            },
+        );
+
+        self::assertNotEmpty($this->metrics);
+
+        $headers = array_change_key_case($this->requestHeaders[0]);
+        self::assertSame(['from-map'], $headers['auth']);
+        self::assertSame(['1'], $headers['listed-only']);
+    }
+
+    public function testOtlpHttpHeaderWithNullValueIsIgnored(): void {
+        /*
+         * A headers entry whose value is null is ignored: the header is
+         * not sent at all, while sibling entries are unaffected.
+         */
+        $this->runOTelConfig(
+            <<<'YAML'
+            file_format: "1.2"
+
+            meter_provider:
+              readers:
+                - periodic:
+                    interval: 60000
+                    exporter:
+                      otlp_http:
+                        endpoint: ${env:OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
+                        headers:
+                          - name: dropped
+                            value:
+                          - name: kept
+                            value: v1
+            YAML,
+            static function (): void {
+                Globals::meterProvider()
+                    ->getMeter('config-test')
+                    ->createCounter('config.headers-null')
+                    ->add(1);
+            },
+        );
+
+        self::assertNotEmpty($this->metrics);
+
+        $headers = array_change_key_case($this->requestHeaders[0]);
+        self::assertArrayNotHasKey('dropped', $headers);
+        self::assertSame(['v1'], $headers['kept']);
+    }
+
     public function testOtlpHttpGzipCompressionIsApplied(): void {
         $this->runOTelConfig(
             <<<'YAML'
@@ -757,6 +1272,38 @@ final class ConfigMetricReaderTest extends TestCase {
         );
     }
 
+    public function testOtlpHttpCompressionNoneSendsUncompressedExport(): void {
+        /*
+         * Explicitly selecting the none compression (the default) must not
+         * add a content-encoding header.
+         */
+        $this->runOTelConfig(
+            <<<'YAML'
+            file_format: "1.2"
+
+            meter_provider:
+              readers:
+                - periodic:
+                    interval: 60000
+                    exporter:
+                      otlp_http:
+                        endpoint: ${env:OTEL_EXPORTER_OTLP_METRICS_ENDPOINT}
+                        compression: none
+            YAML,
+            static function (): void {
+                Globals::meterProvider()
+                    ->getMeter('config-test')
+                    ->createCounter('config.no-compression')
+                    ->add(1);
+            },
+        );
+
+        self::assertNotEmpty($this->metrics);
+
+        $headers = array_change_key_case($this->requestHeaders[0]);
+        self::assertArrayNotHasKey('content-encoding', $headers);
+    }
+
     public function testOtlpHttpEncodingJsonIsApplied(): void {
         $this->runOTelConfig(
             <<<'YAML'
@@ -783,6 +1330,61 @@ final class ConfigMetricReaderTest extends TestCase {
 
         $headers = array_change_key_case($this->requestHeaders[0]);
         self::assertSame(['application/json'], $headers['content-type']);
+    }
+
+    #[Group('metrics')]
+    public function testOtlpFileMetricExporterWritesNewlineDelimitedJson(): void {
+        $file = tempnam(sys_get_temp_dir(), 'otlp-file-metrics');
+
+        try {
+            $this->runOTelConfig(
+                <<<YAML
+                file_format: "1.2"
+
+                meter_provider:
+                  readers:
+                    - periodic:
+                        interval: 60000
+                        exporter:
+                          otlp_file/development:
+                            output_stream: "{$file}"
+                YAML, static function (): void {
+                Globals::meterProvider()
+                    ->getMeter('config-test')
+                    ->createCounter('file-metrics.counter', 'requests')
+                    ->add(5);
+            });
+
+            $payloads = array_values(array_filter(
+                explode("\n", (string) file_get_contents($file)),
+            ));
+
+            self::assertCount(1, $payloads);
+
+            /*
+             * Each line is a standalone OTLP/JSON export; json_decode
+             * doubles as the well-formedness check.
+             */
+            json_decode($payloads[0], true, 512, JSON_THROW_ON_ERROR);
+
+            self::assertSame(
+                ['file-metrics.counter'],
+                $this->path(
+                    $payloads[0],
+                    '$.resourceMetrics[*].scopeMetrics[*].metrics[*].name',
+                ),
+            );
+
+            self::assertSame(
+                ['5'],
+                $this->path(
+                    $payloads[0],
+                    '$.resourceMetrics[*].scopeMetrics[*].metrics[*].sum.dataPoints[*].asInt',
+                ),
+            );
+        } finally {
+            @unlink($file);
+        }
     }
 
     #[Group('async')]
