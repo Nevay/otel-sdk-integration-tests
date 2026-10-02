@@ -219,9 +219,11 @@ final class ConfigResourceTest extends TestCase {
     public function testResourceAttributesSupportArrayValues(): void
     {
         /*
-         * Attribute values may be homogeneous arrays; the element type of
-         * the value determines the exported array type (string, bool, int
-         * or double) without an explicit type field.
+         * Attribute values may be homogeneous arrays; the declared .type
+         * determines the exported array type. The spec default for an
+         * omitted .type is string (a non-string value then fails
+         * initialization), but the SDK currently ignores .type and keeps
+         * the value's native YAML type, so only explicit types are pinned.
          */
         $this->runOTelConfig(
             <<<'YAML'
@@ -231,12 +233,16 @@ final class ConfigResourceTest extends TestCase {
               attributes:
                 - name: string.list
                   value: [alpha, beta]
+                  type: string_array
                 - name: bool.list
                   value: [true, false]
+                  type: bool_array
                 - name: int.list
                   value: [1, 2]
+                  type: int_array
                 - name: double.list
                   value: [1.5, 2.5]
+                  type: double_array
 
             tracer_provider:
               processors:
