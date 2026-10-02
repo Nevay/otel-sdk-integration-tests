@@ -1956,12 +1956,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/opentelemetry-php/api.git",
-                "reference": "7db7345227b57cb0f64d7f66d4536cd43f66f2f3"
+                "reference": "67a5402849c687b9c3c48c4352d0bebdac32d4a2"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/opentelemetry-php/api/zipball/7db7345227b57cb0f64d7f66d4536cd43f66f2f3",
-                "reference": "7db7345227b57cb0f64d7f66d4536cd43f66f2f3",
+                "url": "https://api.github.com/repos/opentelemetry-php/api/zipball/67a5402849c687b9c3c48c4352d0bebdac32d4a2",
+                "reference": "67a5402849c687b9c3c48c4352d0bebdac32d4a2",
                 "shasum": ""
             },
             "require": {
@@ -2019,7 +2019,7 @@
                 "issues": "https://github.com/open-telemetry/opentelemetry-php/issues",
                 "source": "https://github.com/open-telemetry/opentelemetry-php"
             },
-            "time": "2026-09-30T23:10:15+00:00"
+            "time": "2026-10-02T05:21:47+00:00"
         },
         {
             "name": "open-telemetry/context",
@@ -2772,16 +2772,16 @@
         },
         {
             "name": "phpunit/phpunit",
-            "version": "13.3.6",
+            "version": "13.4.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/sebastianbergmann/phpunit.git",
-                "reference": "b7d0ee4ea89121cb963302b8708b1c09d9ebc7d6"
+                "reference": "ef714df238ae4d050e74efaa23f7c428bd01034e"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/sebastianbergmann/phpunit/zipball/b7d0ee4ea89121cb963302b8708b1c09d9ebc7d6",
-                "reference": "b7d0ee4ea89121cb963302b8708b1c09d9ebc7d6",
+                "url": "https://api.github.com/repos/sebastianbergmann/phpunit/zipball/ef714df238ae4d050e74efaa23f7c428bd01034e",
+                "reference": "ef714df238ae4d050e74efaa23f7c428bd01034e",
                 "shasum": ""
             },
             "require": {
@@ -2795,7 +2795,7 @@
                 "phar-io/manifest": "^2.0.4",
                 "phar-io/version": "^3.2.1",
                 "php": ">=8.4.1",
-                "phpunit/php-code-coverage": "^14.3.5",
+                "phpunit/php-code-coverage": "^14.4",
                 "phpunit/php-file-iterator": "^7.0.2",
                 "phpunit/php-invoker": "^7.0.0",
                 "phpunit/php-text-template": "^6.0.0",
@@ -2803,7 +2803,7 @@
                 "sebastian/cli-parser": "^5.0.1",
                 "sebastian/comparator": "^8.4",
                 "sebastian/diff": "^9.0.1",
-                "sebastian/environment": "^9.3.2",
+                "sebastian/environment": "^9.3.3",
                 "sebastian/exporter": "^8.2.1",
                 "sebastian/file-filter": "^1.0",
                 "sebastian/git-state": "^1.0",
@@ -2820,7 +2820,7 @@
             "type": "library",
             "extra": {
                 "branch-alias": {
-                    "dev-main": "13.3-dev"
+                    "dev-main": "13.4-dev"
                 }
             },
             "autoload": {
@@ -2852,7 +2852,7 @@
             "support": {
                 "issues": "https://github.com/sebastianbergmann/phpunit/issues",
                 "security": "https://github.com/sebastianbergmann/phpunit/security/policy",
-                "source": "https://github.com/sebastianbergmann/phpunit/tree/13.3.6"
+                "source": "https://github.com/sebastianbergmann/phpunit/tree/13.4.0"
             },
             "funding": [
                 {
@@ -2860,7 +2860,7 @@
                     "type": "other"
                 }
             ],
-            "time": "2026-09-29T12:12:05+00:00"
+            "time": "2026-10-02T03:20:44+00:00"
         },
         {
             "name": "psr/http-factory",
@@ -5251,12 +5251,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/Nevay/otel-sdk-config.git",
-                "reference": "069e95701302cafeecc00459ed06b03a7d104826"
+                "reference": "27d60052b6f5d76bbd0fff400be020401f216097"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/Nevay/otel-sdk-config/zipball/069e95701302cafeecc00459ed06b03a7d104826",
-                "reference": "069e95701302cafeecc00459ed06b03a7d104826",
+                "url": "https://api.github.com/repos/Nevay/otel-sdk-config/zipball/27d60052b6f5d76bbd0fff400be020401f216097",
+                "reference": "27d60052b6f5d76bbd0fff400be020401f216097",
                 "shasum": ""
             },
             "require": {
@@ -5317,7 +5317,7 @@
                 "issues": "https://github.com/Nevay/otel-sdk-config/issues",
                 "source": "https://github.com/Nevay/otel-sdk-config/tree/main"
             },
-            "time": "2026-10-01T17:13:06+00:00"
+            "time": "2026-10-02T13:58:07+00:00"
         },
         {
             "name": "tbachert/otel-sdk-core",
@@ -5450,12 +5450,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/Nevay/otel-sdk-otlpexporter.git",
-                "reference": "fa5726a5e874750df558c692aeeebddd4b72ad51"
+                "reference": "794ee6f7b179fcda4f3eb37b5bfb261bb0617303"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/Nevay/otel-sdk-otlpexporter/zipball/fa5726a5e874750df558c692aeeebddd4b72ad51",
-                "reference": "fa5726a5e874750df558c692aeeebddd4b72ad51",
+                "url": "https://api.github.com/repos/Nevay/otel-sdk-otlpexporter/zipball/794ee6f7b179fcda4f3eb37b5bfb261bb0617303",
+                "reference": "794ee6f7b179fcda4f3eb37b5bfb261bb0617303",
                 "shasum": ""
             },
             "require": {
@@ -5501,7 +5501,7 @@
                 "issues": "https://github.com/Nevay/otel-sdk-otlpexporter/issues",
                 "source": "https://github.com/Nevay/otel-sdk-otlpexporter/tree/main"
             },
-            "time": "2026-09-13T20:36:26+00:00"
+            "time": "2026-10-02T14:00:51+00:00"
         },
         {
             "name": "tbachert/otel-sdk-prometheusexporter",
@@ -5567,12 +5567,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/Nevay/otel-sdk-resourcedetectors.git",
-                "reference": "3e371f418c4bf301b5581dacb07d9a32eed278b6"
+                "reference": "719f2d04a7c07c5e98284111e7a3a5d85a99ac7a"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/Nevay/otel-sdk-resourcedetectors/zipball/3e371f418c4bf301b5581dacb07d9a32eed278b6",
-                "reference": "3e371f418c4bf301b5581dacb07d9a32eed278b6",
+                "url": "https://api.github.com/repos/Nevay/otel-sdk-resourcedetectors/zipball/719f2d04a7c07c5e98284111e7a3a5d85a99ac7a",
+                "reference": "719f2d04a7c07c5e98284111e7a3a5d85a99ac7a",
                 "shasum": ""
             },
             "require": {
@@ -5612,7 +5612,7 @@
                 "issues": "https://github.com/Nevay/otel-sdk-resourcedetectors/issues",
                 "source": "https://github.com/Nevay/otel-sdk-resourcedetectors/tree/main"
             },
-            "time": "2026-09-13T20:23:21+00:00"
+            "time": "2026-10-02T13:58:44+00:00"
         },
         {
             "name": "tbachert/spi",
