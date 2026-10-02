@@ -32,6 +32,7 @@ final class ConfigResourceTest extends TestCase {
                   value: test
                 - name: custom.attribute
                   value: value
+                  type: string
 
             tracer_provider:
               processors:
@@ -174,10 +175,13 @@ final class ConfigResourceTest extends TestCase {
                   value: non-string-test
                 - name: limits.concurrency
                   value: 42
+                  type: int
                 - name: feature.enabled
                   value: true
+                  type: bool
                 - name: ratio.keepalive
                   value: 0.5
+                  type: double
 
             tracer_provider:
               processors:
