@@ -42,6 +42,7 @@
     "ConfigSamplingTest::testAlwaysOnSampler",
     "ConfigSamplingTest::testConfigModeDefaultSamplerIsParentBasedAlwaysOn",
     "ConfigSamplingTest::testParentBasedSampler",
+    "ConfigSamplingTest::testParentBasedSamplerDefaultsToAlwaysOnForSampledParents",
     "ConfigSamplingTest::testParentBasedSamplerHonorsPerParentOriginSamplers",
     "ConfigSamplingTest::testParentBasedSamplerRootAlwaysOff",
     "ConfigSamplingTest::testParentBasedSamplerRootRatioZeroStillSamplesRemoteChild",
@@ -63,6 +64,7 @@
   "Composite & rule-based samplers (`rule_based`, `probability`, `parent_threshold`, `always_record`)": [
     "ConfigProbabilitySamplerTest::testComposableProbabilitySampler",
     "ConfigProbabilitySamplerTest::testComposableProbabilitySamplerConsistentAcrossThresholds",
+    "ConfigProbabilitySamplerTest::testComposableProbabilitySamplerDefaultsToRatioOne",
     "ConfigProbabilitySamplerTest::testComposableProbabilitySamplerUsesPropagatedExplicitRandomness",
     "ConfigProbabilitySamplerTest::testComposableProbabilitySamplerWritesThresholdTraceState",
     "ConfigProbabilitySamplerTest::testParentThresholdSamplerFollowsSampledRemoteParent",
@@ -80,11 +82,13 @@
     "ConfigSamplingTest::testRuleBasedSamplerMatchesLocalParentOrigin",
     "ConfigSamplingTest::testRuleBasedSamplerMatchesParentOrigin",
     "ConfigSamplingTest::testRuleBasedSamplerRoutesByRemainingSpanKinds",
-    "ConfigSamplingTest::testRuleBasedSamplerRoutesBySpanKindAndAttributes"
+    "ConfigSamplingTest::testRuleBasedSamplerRoutesBySpanKindAndAttributes",
+    "ConfigSamplingTest::testRuleBasedSamplerWithoutRulesDropsAllSpans"
   ],
   "`jaeger_remote` sampler (remote dial, strategies, initial sampler)": [
     "ConfigSamplingTest::testJaegerRemoteInitialSamplerAppliesWhileBackendUnreachable",
     "ConfigSamplingTest::testJaegerRemoteSamplerDialsPlaintextEndpoint",
+    "ConfigSamplingTest::testJaegerRemoteSamplerInitializesWithoutExplicitInterval",
     "EnvSamplingTest::testJaegerRemoteInitialSamplerAppliesWhileBackendUnreachable",
     "EnvSamplingTest::testJaegerRemotePerOperationStrategyMatchesSpanNames",
     "EnvSamplingTest::testJaegerRemoteProbabilityStrategyIsApplied",
@@ -155,12 +159,15 @@
     "ConfigMetricReaderTest::testMetricsExporterUsesCumulativeTemporality",
     "ConfigMetricReaderTest::testMetricsExporterUsesDeltaTemporality",
     "ConfigMetricReaderTest::testMetricsExporterUsesLowMemoryTemporality",
+    "ConfigMetricReaderTest::testOtlpFileMetricExporterDefaultsToCumulativeTemporality",
     "EnvMetricsTest::testMetricsTemporalityPreferenceEnvVarUsesDelta",
     "EnvMetricsTest::testMetricsTemporalityPreferenceEnvVarUsesLowMemory"
   ],
   "Default histogram aggregation (exponential buckets, spec boundaries)": [
     "ConfigMetricPipelineTest::testDefaultHistogramUsesSpecBoundaries",
+    "ConfigMetricReaderTest::testBase2ExponentialBucketHistogramDefaultsToSpecMaxScaleAndSize",
     "ConfigMetricReaderTest::testExporterDefaultBase2ExponentialHistogramAggregation",
+    "ConfigMetricReaderTest::testOtlpFileMetricExporterDefaultsToExplicitBucketHistogramAggregation",
     "EnvMetricsTest::testDefaultHistogramAggregationEnvVarUsesExponentialBuckets"
   ],
   "Collection interval & periodic reader (batch size)": [
@@ -295,6 +302,7 @@
     "ConfigResourceTest::testContainerDetectorReportsContainerId",
     "ConfigResourceTest::testHostDetectorPopulatesHostAndOsAttributes",
     "ConfigResourceTest::testMultipleResourceDetectorsAreCombined",
+    "ConfigResourceTest::testProcessDetectorReportsProcessAttributes",
     "ConfigResourceTest::testResourceDetectionIsDisabledWithoutDetectionNode",
     "ConfigResourceTest::testResourceDetectorExcludesSelectedAttributes",
     "ConfigResourceTest::testResourceDetectorExclusionTakesPrecedenceOverInclusion",
@@ -308,6 +316,7 @@
     "ConfigResourceTest::testUnrecognizedResourceDetectorIsIgnoredWithWarning"
   ],
   "OTLP HTTP exporter options: protocol, headers, compression, endpoints, timeouts, size limits, retries": [
+    "ConfigBasicTest::testOtlpHttpDefaultsToProtobufEncodingWithoutCompression",
     "ConfigBasicTest::testOtlpHttpEncodingJsonIsApplied",
     "ConfigBasicTest::testOtlpHttpExporterHeadersAreSentToCollector",
     "ConfigBasicTest::testOtlpHttpGzipCompressionIsApplied",
@@ -460,6 +469,7 @@
     "EnvEdgeCasesTest::testUnknownPropagatorDisablesPropagationWithoutBreakingStartup"
   ],
   "`OTEL_LOG_LEVEL` (self-diagnostic output)": [
+    "ConfigBasicTest::testLogLevelDefaultsToInfo",
     "ConfigBasicTest::testLogLevelErrorSuppressesSdkWarnings",
     "EnvSdkTest::testLogLevelNoneSuppressesSelfDiagnostics"
   ],
