@@ -7,18 +7,18 @@ test that verifies specification-defined behavior — against the two SDKs under
 
 - **tbachert run:** 420 tests executed, **420 passing** (`spec` + `tbachert`
   groups).
-- **official run:** 422 tests executed, **109 passing / 313 failing**
-  (`spec` + `official` groups). Most failures (251 of 313) are gated by
-  not-yet-updated config-file support: the SDK only accepts
-  `file_format: '1.0-rc.2'`, while the suite uses data model version 1.2, so
-  every config-file test fails at initialization.
+- **official run:** 422 tests executed, **315 passing / 107 failing**
+  (`spec` + `official` groups). All 107 failures are shared spec tests: 29 in
+  environment-variable mode, 78 in configuration-file mode.
 
-The matrix below covers the 416 shared `spec` tests; vendor-specific tests
+The matrix covers the 416 shared `spec` tests (160 environment-variable mode,
+256 configuration-file mode per SDK); vendor-specific tests
 (`TbachertSpecificTest`, `OfficialSpecificTest`) are documented in the README
-and not part of this overview. Sections follow the specification's structure
-(context propagation, then the signals in spec order: traces, metrics, logs);
-rows within a section are organized by tested behavior. Since the
-configuration file must support at least every option available via
+and are not part of this overview. On the official SDK that means 131/160
+env-mode and 178/256 config-file-mode spec tests pass. Sections follow the
+specification's structure (context propagation, then the signals in spec order:
+traces, metrics, logs); rows within a section are organized by tested behavior.
+Since the configuration file must support at least every option available via
 environment variables, each env-based row has a config-file counterpart; rows
 missing one side cover either data-model nodes without an environment
 equivalent (config-only) or environment-value parsing semantics that have no
@@ -27,7 +27,7 @@ config-file equivalent (env-only).
 Legend: ✅ all passing · 🟨 only `async`-group tests failing (passing once the
 `async` tests are excluded) · ⚠️ partially passing · ❌ fully failing · – no tests
 for that mode. Each spec test is counted in exactly one cell; the "Upstream
-tracking" table at the bottom accounts for all 313 failures by root cause.
+tracking" table at the bottom accounts for all 107 failures by root cause.
 
 Accounting is machine-checkable: `matrix-map.json` assigns every spec test to
 exactly one row, and `python3 check-matrix.py` verifies that assignment against
@@ -40,19 +40,19 @@ Footnotes are collected below the tables.
 
 | Behavior | tbachert env | tbachert config | official env | official config |
 |---|---|---|---|---|
-| Propagators: tracecontext, baggage, b3 (injection & extraction) | ✅ 17/17 | ✅ 7/7 | ⚠️ 16/17¹ | ❌ 0/7³ |
-| Cross-signal correlation: logs & metrics carry the active span context | ✅ 4/4 | ✅ 1/1 | ⚠️ 2/4² | ❌ 0/1³ |
+| Propagators: tracecontext, baggage, b3 (injection & extraction) | ✅ 17/17 | ✅ 7/7 | ⚠️ 16/17¹ | ✅ 7/7 |
+| Cross-signal correlation: logs & metrics carry the active span context | ✅ 4/4 | ✅ 1/1 | ✅ 4/4 | ❌ 0/1² |
 
 <details>
 <summary>Propagators: tracecontext, baggage, b3 (injection & extraction) — 24 tests (17 env · 7 config)</summary>
 
-- `ConfigPropagatorTest::testConfigFileCanConfigureOnlyTraceContextPropagator` — tbachert ✅ · official ❌
-- `ConfigPropagatorTest::testConfigFileCompositeListConfiguresPropagators` — tbachert ✅ · official ❌
-- `ConfigPropagatorTest::testConfigFilePropagatorB3CompositeInjectsSingleHeader` — tbachert ✅ · official ❌
-- `ConfigPropagatorTest::testConfigFilePropagatorB3MultiCompositeInjectsHeaders` — tbachert ✅ · official ❌
-- `ConfigPropagatorTest::testConfigFilePropagatorsAreUsedForInjection` — tbachert ✅ · official ❌
-- `ConfigPropagatorTest::testConfigFilePropagatorsConfigureTraceContextAndBaggage` — tbachert ✅ · official ❌
-- `ConfigPropagatorTest::testConfigFileWithoutPropagatorInjectsNothing` — tbachert ✅ · official ❌
+- `ConfigPropagatorTest::testConfigFileCanConfigureOnlyTraceContextPropagator` — tbachert ✅ · official ✅
+- `ConfigPropagatorTest::testConfigFileCompositeListConfiguresPropagators` — tbachert ✅ · official ✅
+- `ConfigPropagatorTest::testConfigFilePropagatorB3CompositeInjectsSingleHeader` — tbachert ✅ · official ✅
+- `ConfigPropagatorTest::testConfigFilePropagatorB3MultiCompositeInjectsHeaders` — tbachert ✅ · official ✅
+- `ConfigPropagatorTest::testConfigFilePropagatorsAreUsedForInjection` — tbachert ✅ · official ✅
+- `ConfigPropagatorTest::testConfigFilePropagatorsConfigureTraceContextAndBaggage` — tbachert ✅ · official ✅
+- `ConfigPropagatorTest::testConfigFileWithoutPropagatorInjectsNothing` — tbachert ✅ · official ✅
 - `EnvPropagatorTest::testB3MultiPropagatorExtractsParentContext` — tbachert ✅ · official ✅
 - `EnvPropagatorTest::testB3MultiPropagatorInjectsHeaders` — tbachert ✅ · official ✅
 - `EnvPropagatorTest::testB3NotSampledRemoteParentIsDropped` — tbachert ✅ · official ✅
@@ -77,10 +77,10 @@ Footnotes are collected below the tables.
 <summary>Cross-signal correlation: logs & metrics carry the active span context — 5 tests (4 env · 1 config)</summary>
 
 - `ConfigLogRecordTest::testLogRecordWithEventNameIsBridgedToSpanEvent` — tbachert ✅ · official ❌
-- `EnvCorrelationTest::testAllSignalsCorrelateWithinOneTrace` — tbachert ✅ · official ❌
+- `EnvCorrelationTest::testAllSignalsCorrelateWithinOneTrace` — tbachert ✅ · official ✅
 - `EnvCorrelationTest::testLogRecordEmittedInSpanCarriesTraceContext` — tbachert ✅ · official ✅
 - `EnvCorrelationTest::testLogRecordInNestedSpanReferencesInnerSpan` — tbachert ✅ · official ✅
-- `EnvCorrelationTest::testMetricsExemplarCarriesActiveSpanContext` — tbachert ✅ · official ❌
+- `EnvCorrelationTest::testMetricsExemplarCarriesActiveSpanContext` — tbachert ✅ · official ✅
 
 </details>
 
@@ -88,37 +88,37 @@ Footnotes are collected below the tables.
 
 | Behavior | tbachert env | tbachert config | official env | official config |
 |---|---|---|---|---|
-| End-to-end span export & cross-service context propagation (incl. mixed env/config-file services) | ✅ 1/1 | ✅ 2/2 | ✅ 1/1 | ❌ 0/2³ |
-| Sampling: always_on/off, trace-id ratio, parent-based (simple samplers) | ✅ 11/11 | ✅ 11/11 | ⚠️ 9/11¹ | ❌ 0/11³ |
-| Composite & rule-based samplers (`rule_based`, `probability`, `parent_threshold`, `always_record`) | – | ✅ 22/22 | – | ❌ 0/22³ |
-| `jaeger_remote` sampler (remote dial, strategies, initial sampler) | ✅ 5/5⁴ | ✅ 3/3⁴ | ❌ 0/5⁴ | ❌ 0/3³⁴ |
-| Span & attribute limits (count, value length, depth) | ✅ 11/11 | ✅ 6/6 | ⚠️ 8/11¹⁵ | ❌ 0/6³ |
-| Batch & simple span processors | ✅ 5/5 | ✅ 5/5 | ⚠️ 4/5⁶ | ❌ 0/5³ |
-| Span details: status, events, kinds, links, attribute value types | ✅ 5/5 | ✅ 1/1 | ✅ 5/5 | ❌ 0/1³ |
+| End-to-end span export & cross-service context propagation (incl. mixed env/config-file services) | ✅ 1/1 | ✅ 2/2 | ✅ 1/1 | ✅ 2/2 |
+| Sampling: always_on/off, trace-id ratio, parent-based (simple samplers) | ✅ 11/11 | ✅ 11/11 | ⚠️ 9/11¹ | ✅ 11/11 |
+| Composite & rule-based samplers (`rule_based`, `probability`, `parent_threshold`, `always_record`) | – | ✅ 22/22 | – | ⚠️ 19/22³ |
+| `jaeger_remote` sampler (remote dial, strategies, initial sampler) | ✅ 5/5 | ✅ 3/3 | ❌ 0/5⁴ | ❌ 0/3⁴ |
+| Span & attribute limits (count, value length, depth) | ✅ 11/11 | ✅ 6/6 | ⚠️ 10/11¹ | ⚠️ 3/6⁵ |
+| Batch & simple span processors | ✅ 5/5 | ✅ 5/5 | ⚠️ 4/5⁶ | ✅ 5/5 |
+| Span details: status, events, kinds, links, attribute value types | ✅ 5/5 | ✅ 1/1 | ✅ 5/5 | ✅ 1/1 |
 
 <details>
 <summary>End-to-end span export & cross-service context propagation (incl. mixed env/config-file services) — 3 tests (1 env · 2 config)</summary>
 
-- `ConfigBasicTest::testConfigFileConfiguresTracerProvider` — tbachert ✅ · official ❌
+- `ConfigBasicTest::testConfigFileConfiguresTracerProvider` — tbachert ✅ · official ✅
 - `EnvEndToEndTest::testTraceContextPropagatesAcrossServices` — tbachert ✅ · official ✅
-- `EnvEndToEndTest::testTraceContextPropagatesBetweenEnvAndConfigFileModes` — tbachert ✅ · official ❌
+- `EnvEndToEndTest::testTraceContextPropagatesBetweenEnvAndConfigFileModes` — tbachert ✅ · official ✅
 
 </details>
 
 <details>
 <summary>Sampling: always_on/off, trace-id ratio, parent-based (simple samplers) — 22 tests (11 env · 11 config)</summary>
 
-- `ConfigSamplingTest::testAlwaysOffSampler` — tbachert ✅ · official ❌
-- `ConfigSamplingTest::testAlwaysOnSampler` — tbachert ✅ · official ❌
-- `ConfigSamplingTest::testConfigModeDefaultSamplerIsParentBasedAlwaysOn` — tbachert ✅ · official ❌
-- `ConfigSamplingTest::testParentBasedSampler` — tbachert ✅ · official ❌
-- `ConfigSamplingTest::testParentBasedSamplerDefaultsToAlwaysOnForSampledParents` — tbachert ✅ · official ❌
-- `ConfigSamplingTest::testParentBasedSamplerHonorsPerParentOriginSamplers` — tbachert ✅ · official ❌
-- `ConfigSamplingTest::testParentBasedSamplerRootAlwaysOff` — tbachert ✅ · official ❌
-- `ConfigSamplingTest::testParentBasedSamplerRootRatioZeroStillSamplesRemoteChild` — tbachert ✅ · official ❌
-- `ConfigSamplingTest::testTraceIdRatioBasedSampler` — tbachert ✅ · official ❌
-- `ConfigSamplingTest::testTraceIdRatioBasedSamplerSamplesOnlyAFractionOfSpans` — tbachert ✅ · official ❌
-- `ConfigSamplingTest::testTraceIdRatioBasedSamplerZero` — tbachert ✅ · official ❌
+- `ConfigSamplingTest::testAlwaysOffSampler` — tbachert ✅ · official ✅
+- `ConfigSamplingTest::testAlwaysOnSampler` — tbachert ✅ · official ✅
+- `ConfigSamplingTest::testConfigModeDefaultSamplerIsParentBasedAlwaysOn` — tbachert ✅ · official ✅
+- `ConfigSamplingTest::testParentBasedSampler` — tbachert ✅ · official ✅
+- `ConfigSamplingTest::testParentBasedSamplerDefaultsToAlwaysOnForSampledParents` — tbachert ✅ · official ✅
+- `ConfigSamplingTest::testParentBasedSamplerHonorsPerParentOriginSamplers` — tbachert ✅ · official ✅
+- `ConfigSamplingTest::testParentBasedSamplerRootAlwaysOff` — tbachert ✅ · official ✅
+- `ConfigSamplingTest::testParentBasedSamplerRootRatioZeroStillSamplesRemoteChild` — tbachert ✅ · official ✅
+- `ConfigSamplingTest::testTraceIdRatioBasedSampler` — tbachert ✅ · official ✅
+- `ConfigSamplingTest::testTraceIdRatioBasedSamplerSamplesOnlyAFractionOfSpans` — tbachert ✅ · official ✅
+- `ConfigSamplingTest::testTraceIdRatioBasedSamplerZero` — tbachert ✅ · official ✅
 - `EnvSamplingTest::testAlwaysOffSampler` — tbachert ✅ · official ✅
 - `EnvSamplingTest::testAlwaysOnSampler` — tbachert ✅ · official ✅
 - `EnvSamplingTest::testEmptySamplerEnvironmentVariableFallsBackToDefault` — tbachert ✅ · official ✅
@@ -136,28 +136,28 @@ Footnotes are collected below the tables.
 <details>
 <summary>Composite & rule-based samplers (`rule_based`, `probability`, `parent_threshold`, `always_record`) — 22 tests (0 env · 22 config)</summary>
 
-- `ConfigProbabilitySamplerTest::testComposableProbabilitySampler` — tbachert ✅ · official ❌
-- `ConfigProbabilitySamplerTest::testComposableProbabilitySamplerConsistentAcrossThresholds` — tbachert ✅ · official ❌
-- `ConfigProbabilitySamplerTest::testComposableProbabilitySamplerDefaultsToRatioOne` — tbachert ✅ · official ❌
-- `ConfigProbabilitySamplerTest::testComposableProbabilitySamplerUsesPropagatedExplicitRandomness` — tbachert ✅ · official ❌
-- `ConfigProbabilitySamplerTest::testComposableProbabilitySamplerWritesThresholdTraceState` — tbachert ✅ · official ❌
-- `ConfigProbabilitySamplerTest::testParentThresholdSamplerFollowsSampledRemoteParent` — tbachert ✅ · official ❌
+- `ConfigProbabilitySamplerTest::testComposableProbabilitySampler` — tbachert ✅ · official ✅
+- `ConfigProbabilitySamplerTest::testComposableProbabilitySamplerConsistentAcrossThresholds` — tbachert ✅ · official ✅
+- `ConfigProbabilitySamplerTest::testComposableProbabilitySamplerDefaultsToRatioOne` — tbachert ✅ · official ✅
+- `ConfigProbabilitySamplerTest::testComposableProbabilitySamplerUsesPropagatedExplicitRandomness` — tbachert ✅ · official ✅
+- `ConfigProbabilitySamplerTest::testComposableProbabilitySamplerWritesThresholdTraceState` — tbachert ✅ · official ✅
+- `ConfigProbabilitySamplerTest::testParentThresholdSamplerFollowsSampledRemoteParent` — tbachert ✅ · official ✅
 - `ConfigProbabilitySamplerTest::testParentThresholdSamplerInheritsRemoteParentThreshold` — tbachert ✅ · official ❌
 - `ConfigProbabilitySamplerTest::testProbabilitySamplerIgnoresInvalidExplicitRandomness` — tbachert ✅ · official ❌
-- `ConfigProbabilitySamplerTest::testProbabilitySamplerPreservesPropagatedExplicitRandomness` — tbachert ✅ · official ❌
-- `ConfigProbabilitySamplerTest::testProbabilitySamplerThresholdMatchesSamplingDecisions` — tbachert ✅ · official ❌
-- `ConfigProbabilitySamplerTest::testProbabilitySamplerTraceStatePropagatesToChildSpans` — tbachert ✅ · official ❌
-- `ConfigProbabilitySamplerTest::testProbabilitySamplerWritesThresholdTraceState` — tbachert ✅ · official ❌
+- `ConfigProbabilitySamplerTest::testProbabilitySamplerPreservesPropagatedExplicitRandomness` — tbachert ✅ · official ✅
+- `ConfigProbabilitySamplerTest::testProbabilitySamplerThresholdMatchesSamplingDecisions` — tbachert ✅ · official ✅
+- `ConfigProbabilitySamplerTest::testProbabilitySamplerTraceStatePropagatesToChildSpans` — tbachert ✅ · official ✅
+- `ConfigProbabilitySamplerTest::testProbabilitySamplerWritesThresholdTraceState` — tbachert ✅ · official ✅
 - `ConfigSamplingTest::testAlwaysRecordSamplerRecordsWithoutReporting` — tbachert ✅ · official ❌
-- `ConfigSamplingTest::testCompositeAlwaysOffDropsAllSpans` — tbachert ✅ · official ❌
-- `ConfigSamplingTest::testCompositeAlwaysOnSamplesAllSpans` — tbachert ✅ · official ❌
-- `ConfigSamplingTest::testRuleBasedSamplerExcludedAttributePatterns` — tbachert ✅ · official ❌
-- `ConfigSamplingTest::testRuleBasedSamplerMatchesAttributePatterns` — tbachert ✅ · official ❌
-- `ConfigSamplingTest::testRuleBasedSamplerMatchesLocalParentOrigin` — tbachert ✅ · official ❌
-- `ConfigSamplingTest::testRuleBasedSamplerMatchesParentOrigin` — tbachert ✅ · official ❌
-- `ConfigSamplingTest::testRuleBasedSamplerRoutesByRemainingSpanKinds` — tbachert ✅ · official ❌
-- `ConfigSamplingTest::testRuleBasedSamplerRoutesBySpanKindAndAttributes` — tbachert ✅ · official ❌
-- `ConfigSamplingTest::testRuleBasedSamplerWithoutRulesDropsAllSpans` — tbachert ✅ · official ❌
+- `ConfigSamplingTest::testCompositeAlwaysOffDropsAllSpans` — tbachert ✅ · official ✅
+- `ConfigSamplingTest::testCompositeAlwaysOnSamplesAllSpans` — tbachert ✅ · official ✅
+- `ConfigSamplingTest::testRuleBasedSamplerExcludedAttributePatterns` — tbachert ✅ · official ✅
+- `ConfigSamplingTest::testRuleBasedSamplerMatchesAttributePatterns` — tbachert ✅ · official ✅
+- `ConfigSamplingTest::testRuleBasedSamplerMatchesLocalParentOrigin` — tbachert ✅ · official ✅
+- `ConfigSamplingTest::testRuleBasedSamplerMatchesParentOrigin` — tbachert ✅ · official ✅
+- `ConfigSamplingTest::testRuleBasedSamplerRoutesByRemainingSpanKinds` — tbachert ✅ · official ✅
+- `ConfigSamplingTest::testRuleBasedSamplerRoutesBySpanKindAndAttributes` — tbachert ✅ · official ✅
+- `ConfigSamplingTest::testRuleBasedSamplerWithoutRulesDropsAllSpans` — tbachert ✅ · official ✅
 
 </details>
 
@@ -179,13 +179,13 @@ Footnotes are collected below the tables.
 <summary>Span & attribute limits (count, value length, depth) — 17 tests (11 env · 6 config)</summary>
 
 - `ConfigLimitsTest::testAttributeValueDepthLimitTruncatesNestedValues` — tbachert ✅ · official ❌
-- `ConfigLimitsTest::testDefaultAttributeCountLimitIs128` — tbachert ✅ · official ❌
+- `ConfigLimitsTest::testDefaultAttributeCountLimitIs128` — tbachert ✅ · official ✅
 - `ConfigLimitsTest::testDefaultAttributeValueDepthLimitIs64` — tbachert ✅ · official ❌
-- `ConfigLimitsTest::testGeneralAttributeLimits` — tbachert ✅ · official ❌
-- `ConfigLimitsTest::testSpanLimits` — tbachert ✅ · official ❌
+- `ConfigLimitsTest::testGeneralAttributeLimits` — tbachert ✅ · official ✅
+- `ConfigLimitsTest::testSpanLimits` — tbachert ✅ · official ✅
 - `ConfigLimitsTest::testTracerProviderAttributeValueDepthLimitTruncatesNestedValues` — tbachert ✅ · official ❌
-- `EnvSpanLimitsTest::testAttributeCountLimit` — tbachert ✅ · official ❌
-- `EnvSpanLimitsTest::testAttributeValueLengthLimit` — tbachert ✅ · official ❌
+- `EnvSpanLimitsTest::testAttributeCountLimit` — tbachert ✅ · official ✅
+- `EnvSpanLimitsTest::testAttributeValueLengthLimit` — tbachert ✅ · official ✅
 - `EnvSpanLimitsTest::testEventAttributeCountLimit` — tbachert ✅ · official ✅
 - `EnvSpanLimitsTest::testLinkAttributeCountLimit` — tbachert ✅ · official ✅
 - `EnvSpanLimitsTest::testSpanAttributeCountLimit` — tbachert ✅ · official ✅
@@ -201,11 +201,11 @@ Footnotes are collected below the tables.
 <details>
 <summary>Batch & simple span processors — 10 tests (5 env · 5 config)</summary>
 
-- `ConfigBatchSpanProcessorTest::testBatchSpanProcessorExportTimeoutIsAccepted` — tbachert ✅ · official ❌
-- `ConfigBatchSpanProcessorTest::testBatchSpanProcessorMaxExportBatchSize` — tbachert ✅ · official ❌
-- `ConfigBatchSpanProcessorTest::testBatchSpanProcessorScheduleDelay` — tbachert ✅ · official ❌
-- `ConfigBatchSpanProcessorTest::testMultipleProcessorsExportEachSpanToAllConfiguredExporters` — tbachert ✅ · official ❌
-- `ConfigBatchSpanProcessorTest::testSimpleSpanProcessorExportsOnSpanEnd` — tbachert ✅ · official ❌
+- `ConfigBatchSpanProcessorTest::testBatchSpanProcessorExportTimeoutIsAccepted` — tbachert ✅ · official ✅
+- `ConfigBatchSpanProcessorTest::testBatchSpanProcessorMaxExportBatchSize` — tbachert ✅ · official ✅
+- `ConfigBatchSpanProcessorTest::testBatchSpanProcessorScheduleDelay` — tbachert ✅ · official ✅
+- `ConfigBatchSpanProcessorTest::testMultipleProcessorsExportEachSpanToAllConfiguredExporters` — tbachert ✅ · official ✅
+- `ConfigBatchSpanProcessorTest::testSimpleSpanProcessorExportsOnSpanEnd` — tbachert ✅ · official ✅
 - `EnvBatchSpanProcessorTest::testBspDropsSpansWhenQueueIsFull` — tbachert ✅ · official ❌
 - `EnvBatchSpanProcessorTest::testBspExportTimeout` — tbachert ✅ · official ✅
 - `EnvBatchSpanProcessorTest::testBspMaxExportBatchSize` — tbachert ✅ · official ✅
@@ -217,7 +217,7 @@ Footnotes are collected below the tables.
 <details>
 <summary>Span details: status, events, kinds, links, attribute value types — 6 tests (5 env · 1 config)</summary>
 
-- `ConfigBasicTest::testSpansExportedWithStatusEventsKindsAndLinks` — tbachert ✅ · official ❌
+- `ConfigBasicTest::testSpansExportedWithStatusEventsKindsAndLinks` — tbachert ✅ · official ✅
 - `EnvSpanDetailsTest::testSpanAttributesPreserveValueTypes` — tbachert ✅ · official ✅
 - `EnvSpanDetailsTest::testSpanEventsAreExportedWithAttributes` — tbachert ✅ · official ✅
 - `EnvSpanDetailsTest::testSpanKindsAreExported` — tbachert ✅ · official ✅
@@ -230,18 +230,18 @@ Footnotes are collected below the tables.
 
 | Behavior | tbachert env | tbachert config | official env | official config |
 |---|---|---|---|---|
-| Metric pipeline: instruments, series separation, gauge/counter semantics | – | ✅ 8/8 | – | ❌ 0/8³ |
-| Exemplar filter (always_on/off, trace_based, invalid fallback) | ✅ 4/4 | ✅ 4/4 | ⚠️ 1/4² | ❌ 0/4³ |
-| Temporality preference (cumulative/delta/lowmemory) | ✅ 2/2 | ✅ 5/5 | 🟨 1/2⁷¹⁵ | ❌ 0/5³ |
-| Default histogram aggregation (exponential buckets, spec boundaries) | ✅ 1/1 | ✅ 4/4 | ❌ 0/1⁸ | ❌ 0/4³ |
-| Collection interval & periodic reader (batch size) | ✅ 1/1 | ✅ 3/3 | 🟨 0/1⁷¹⁵ | ❌ 0/3³ |
-| Views: instrument & meter selection (incl. wildcards) | – | ✅ 14/14 | – | ❌ 0/14³ |
-| Views: attribute key filtering (include/exclude, precedence) | – | ✅ 4/4 | – | ❌ 0/4³ |
-| Views: aggregation overrides (histogram buckets, drop, sum/last-value) | – | ✅ 7/7 | – | ❌ 0/7³ |
-| Views: metric renaming & description | – | ✅ 4/4 | – | ❌ 0/4³ |
-| Views: matching behavior (no-match, multiple streams, ordering) | – | ✅ 5/5 | – | ❌ 0/5³ |
-| Composable views (same-name merging, unnamed join, application order) | – | ✅ 6/6 | – | ❌ 0/6³ |
-| Cardinality limits (overflow series) | – | ✅ 10/10 | – | ❌ 0/10³ |
+| Metric pipeline: instruments, series separation, gauge/counter semantics | – | ✅ 8/8 | – | 🟨 2/8⁷⁸ |
+| Exemplar filter (always_on/off, trace_based, invalid fallback) | ✅ 4/4 | ✅ 4/4 | ⚠️ 3/4⁹ | ⚠️ 1/4⁹ |
+| Temporality preference (cumulative/delta/lowmemory) | ✅ 2/2 | ✅ 5/5 | 🟨 1/2⁷⁸ | 🟨 1/5⁷⁸ |
+| Default histogram aggregation (exponential buckets, spec boundaries) | ✅ 1/1 | ✅ 4/4 | ❌ 0/1¹⁰ | ⚠️ 1/4¹⁰ |
+| Collection interval & periodic reader (batch size) | ✅ 1/1 | ✅ 3/3 | 🟨 0/1⁷⁸ | ⚠️ 1/3¹¹ |
+| Views: instrument & meter selection (incl. wildcards) | – | ✅ 14/14 | – | ✅ 14/14 |
+| Views: attribute key filtering (include/exclude, precedence) | – | ✅ 4/4 | – | ✅ 4/4 |
+| Views: aggregation overrides (histogram buckets, drop, sum/last-value) | – | ✅ 7/7 | – | ⚠️ 5/7¹² |
+| Views: metric renaming & description | – | ✅ 4/4 | – | ✅ 4/4 |
+| Views: matching behavior (no-match, multiple streams, ordering) | – | ✅ 5/5 | – | ✅ 5/5 |
+| Composable views (same-name merging, unnamed join, application order) | – | ✅ 6/6 | – | ❌ 0/6¹³ |
+| Cardinality limits (overflow series) | – | ✅ 10/10 | – | ⚠️ 1/10¹⁴ |
 
 <details>
 <summary>Metric pipeline: instruments, series separation, gauge/counter semantics — 8 tests (0 env · 8 config)</summary>
@@ -250,24 +250,24 @@ Footnotes are collected below the tables.
 - `ConfigMetricPipelineTest::testMetricsPipelineExportsHistogramAggregationAcrossCollections` — tbachert ✅ · official ❌
 - `ConfigMetricPipelineTest::testMetricsPipelineExportsMultipleInstrumentsAcrossMultipleCollectionCycles` — tbachert ✅ · official ❌
 - `ConfigMetricPipelineTest::testMetricsPipelineKeepsMetricSeriesSeparateByAttributes` — tbachert ✅ · official ❌
-- `ConfigMetricPipelineTest::testMultipleMetersProduceSeparateScopesInOneExport` — tbachert ✅ · official ❌
+- `ConfigMetricPipelineTest::testMultipleMetersProduceSeparateScopesInOneExport` — tbachert ✅ · official ✅
 - `ConfigMetricPipelineTest::testObservableCounterExportsCumulativeObservedValue` — tbachert ✅ · official ❌
 - `ConfigMetricPipelineTest::testObservableGaugeExportsObservedValue` — tbachert ✅ · official ❌
-- `ConfigMetricPipelineTest::testUpDownCounterExportsNonMonotonicSum` — tbachert ✅ · official ❌
+- `ConfigMetricPipelineTest::testUpDownCounterExportsNonMonotonicSum` — tbachert ✅ · official ✅
 
 </details>
 
 <details>
 <summary>Exemplar filter (always_on/off, trace_based, invalid fallback) — 8 tests (4 env · 4 config)</summary>
 
-- `ConfigMetricReaderTest::testMetricsExemplarFilterAlwaysOff` — tbachert ✅ · official ❌
+- `ConfigMetricReaderTest::testMetricsExemplarFilterAlwaysOff` — tbachert ✅ · official ✅
 - `ConfigMetricReaderTest::testMetricsExemplarFilterAlwaysOn` — tbachert ✅ · official ❌
 - `ConfigMetricReaderTest::testMetricsExemplarFilterDefaultsToTraceBased` — tbachert ✅ · official ❌
 - `ConfigMetricReaderTest::testMetricsExemplarFilterTraceBasedCapturesOnlyUnderSampledSpans` — tbachert ✅ · official ❌
 - `EnvMetricsTest::testInvalidExemplarFilterFallsBackToTraceBased` — tbachert ✅ · official ❌
 - `EnvMetricsTest::testMetricsExemplarFilterAlwaysOff` — tbachert ✅ · official ✅
-- `EnvMetricsTest::testMetricsExemplarFilterAlwaysOnCapturesWithoutSpan` — tbachert ✅ · official ❌
-- `EnvMetricsTest::testMetricsExemplarFilterTraceBasedOnlyCapturesInSampledSpans` — tbachert ✅ · official ❌
+- `EnvMetricsTest::testMetricsExemplarFilterAlwaysOnCapturesWithoutSpan` — tbachert ✅ · official ✅
+- `EnvMetricsTest::testMetricsExemplarFilterTraceBasedOnlyCapturesInSampledSpans` — tbachert ✅ · official ✅
 
 </details>
 
@@ -277,7 +277,7 @@ Footnotes are collected below the tables.
 - `ConfigMetricReaderTest::testMetricsCumulativeTemporalityPreservesStartTimestamp` — tbachert ✅ · official ❌
 - `ConfigMetricReaderTest::testMetricsExporterUsesCumulativeTemporality` — tbachert ✅ · official ❌
 - `ConfigMetricReaderTest::testMetricsExporterUsesDeltaTemporality` — tbachert ✅ · official ❌
-- `ConfigMetricReaderTest::testMetricsExporterUsesLowMemoryTemporality` — tbachert ✅ · official ❌
+- `ConfigMetricReaderTest::testMetricsExporterUsesLowMemoryTemporality` — tbachert ✅ · official ✅
 - `ConfigMetricReaderTest::testOtlpFileMetricExporterDefaultsToCumulativeTemporality` — tbachert ✅ · official ❌
 - `EnvMetricsTest::testMetricsTemporalityPreferenceEnvVarUsesDelta` — tbachert ✅ · official ❌
 - `EnvMetricsTest::testMetricsTemporalityPreferenceEnvVarUsesLowMemory` — tbachert ✅ · official ✅
@@ -290,7 +290,7 @@ Footnotes are collected below the tables.
 - `ConfigMetricPipelineTest::testDefaultHistogramUsesSpecBoundaries` — tbachert ✅ · official ❌
 - `ConfigMetricReaderTest::testBase2ExponentialBucketHistogramDefaultsToSpecMaxScaleAndSize` — tbachert ✅ · official ❌
 - `ConfigMetricReaderTest::testExporterDefaultBase2ExponentialHistogramAggregation` — tbachert ✅ · official ❌
-- `ConfigMetricReaderTest::testOtlpFileMetricExporterDefaultsToExplicitBucketHistogramAggregation` — tbachert ✅ · official ❌
+- `ConfigMetricReaderTest::testOtlpFileMetricExporterDefaultsToExplicitBucketHistogramAggregation` — tbachert ✅ · official ✅
 - `EnvMetricsTest::testDefaultHistogramAggregationEnvVarUsesExponentialBuckets` — tbachert ✅ · official ❌
 
 </details>
@@ -298,7 +298,7 @@ Footnotes are collected below the tables.
 <details>
 <summary>Collection interval & periodic reader (batch size) — 4 tests (1 env · 3 config)</summary>
 
-- `ConfigMetricReaderTest::testPeriodicMetricReader` — tbachert ✅ · official ❌
+- `ConfigMetricReaderTest::testPeriodicMetricReader` — tbachert ✅ · official ✅
 - `ConfigMetricReaderTest::testPeriodicReaderMaxExportBatchSizeCountsDataPointsNotMetrics` — tbachert ✅ · official ❌
 - `ConfigMetricReaderTest::testPeriodicReaderMaxExportBatchSizeSplitsExports` — tbachert ✅ · official ❌
 - `EnvMetricsTest::testMetricExportIntervalEnvVarControlsCollectionFrequency` — tbachert ✅ · official ❌
@@ -308,64 +308,64 @@ Footnotes are collected below the tables.
 <details>
 <summary>Views: instrument & meter selection (incl. wildcards) — 14 tests (0 env · 14 config)</summary>
 
-- `ConfigViewsTest::testViewInstrumentNameSupportsWildcardPatterns` — tbachert ✅ · official ❌
-- `ConfigViewsTest::testViewSelectorMatchesAllSpecifiedInstrumentAndMeterCriteria` — tbachert ✅ · official ❌
-- `ConfigViewsTest::testViewSelectorRequiresAllSpecifiedCriteriaToMatch` — tbachert ✅ · official ❌
-- `ConfigViewsTest::testViewSelectsByInstrumentTypeAndUnit` — tbachert ✅ · official ❌
-- `ConfigViewsTest::testViewSelectsByMeterName` — tbachert ✅ · official ❌
-- `ConfigViewsTest::testViewSelectsByMeterNameVersionAndSchemaUrl` — tbachert ✅ · official ❌
-- `ConfigViewsTest::testViewSelectsByMeterSchemaUrl` — tbachert ✅ · official ❌
-- `ConfigViewsTest::testViewSelectsByMeterVersion` — tbachert ✅ · official ❌
-- `ConfigViewsTest::testViewSelectsGaugeByInstrumentType` — tbachert ✅ · official ❌
-- `ConfigViewsTest::testViewSelectsObservableCounterByInstrumentType` — tbachert ✅ · official ❌
-- `ConfigViewsTest::testViewSelectsObservableGaugeByInstrumentType` — tbachert ✅ · official ❌
-- `ConfigViewsTest::testViewSelectsObservableUpDownCounterByInstrumentType` — tbachert ✅ · official ❌
-- `ConfigViewsTest::testViewSelectsUpDownCounterByInstrumentType` — tbachert ✅ · official ❌
-- `ConfigViewsTest::testViewWithEmptySelectorMatchesEveryInstrument` — tbachert ✅ · official ❌
+- `ConfigViewsTest::testViewInstrumentNameSupportsWildcardPatterns` — tbachert ✅ · official ✅
+- `ConfigViewsTest::testViewSelectorMatchesAllSpecifiedInstrumentAndMeterCriteria` — tbachert ✅ · official ✅
+- `ConfigViewsTest::testViewSelectorRequiresAllSpecifiedCriteriaToMatch` — tbachert ✅ · official ✅
+- `ConfigViewsTest::testViewSelectsByInstrumentTypeAndUnit` — tbachert ✅ · official ✅
+- `ConfigViewsTest::testViewSelectsByMeterName` — tbachert ✅ · official ✅
+- `ConfigViewsTest::testViewSelectsByMeterNameVersionAndSchemaUrl` — tbachert ✅ · official ✅
+- `ConfigViewsTest::testViewSelectsByMeterSchemaUrl` — tbachert ✅ · official ✅
+- `ConfigViewsTest::testViewSelectsByMeterVersion` — tbachert ✅ · official ✅
+- `ConfigViewsTest::testViewSelectsGaugeByInstrumentType` — tbachert ✅ · official ✅
+- `ConfigViewsTest::testViewSelectsObservableCounterByInstrumentType` — tbachert ✅ · official ✅
+- `ConfigViewsTest::testViewSelectsObservableGaugeByInstrumentType` — tbachert ✅ · official ✅
+- `ConfigViewsTest::testViewSelectsObservableUpDownCounterByInstrumentType` — tbachert ✅ · official ✅
+- `ConfigViewsTest::testViewSelectsUpDownCounterByInstrumentType` — tbachert ✅ · official ✅
+- `ConfigViewsTest::testViewWithEmptySelectorMatchesEveryInstrument` — tbachert ✅ · official ✅
 
 </details>
 
 <details>
 <summary>Views: attribute key filtering (include/exclude, precedence) — 4 tests (0 env · 4 config)</summary>
 
-- `ConfigViewsTest::testMetricsViewCanFilterAttributes` — tbachert ✅ · official ❌
-- `ConfigViewsTest::testViewAttributeKeysSupportIncludeAndExcludePatterns` — tbachert ✅ · official ❌
-- `ConfigViewsTest::testViewExcludedAttributesTakePrecedenceOverIncludedAttributes` — tbachert ✅ · official ❌
-- `ConfigViewsTest::testViewFiltersAttributeKeys` — tbachert ✅ · official ❌
+- `ConfigViewsTest::testMetricsViewCanFilterAttributes` — tbachert ✅ · official ✅
+- `ConfigViewsTest::testViewAttributeKeysSupportIncludeAndExcludePatterns` — tbachert ✅ · official ✅
+- `ConfigViewsTest::testViewExcludedAttributesTakePrecedenceOverIncludedAttributes` — tbachert ✅ · official ✅
+- `ConfigViewsTest::testViewFiltersAttributeKeys` — tbachert ✅ · official ✅
 
 </details>
 
 <details>
 <summary>Views: aggregation overrides (histogram buckets, drop, sum/last-value) — 7 tests (0 env · 7 config)</summary>
 
-- `ConfigViewsTest::testViewAggregationPreservesInstrumentAttributes` — tbachert ✅ · official ❌
-- `ConfigViewsTest::testViewCanDropAnInstrument` — tbachert ✅ · official ❌
-- `ConfigViewsTest::testViewExplicitDefaultAggregationUsesInstrumentKind` — tbachert ✅ · official ❌
+- `ConfigViewsTest::testViewAggregationPreservesInstrumentAttributes` — tbachert ✅ · official ✅
+- `ConfigViewsTest::testViewCanDropAnInstrument` — tbachert ✅ · official ✅
+- `ConfigViewsTest::testViewExplicitDefaultAggregationUsesInstrumentKind` — tbachert ✅ · official ✅
 - `ConfigViewsTest::testViewIgnoresAggregationIncompatibleWithInstrumentKind` — tbachert ✅ · official ❌
-- `ConfigViewsTest::testViewSupportsSumAndLastValueAggregations` — tbachert ✅ · official ❌
+- `ConfigViewsTest::testViewSupportsSumAndLastValueAggregations` — tbachert ✅ · official ✅
 - `ConfigViewsTest::testViewUsesBase2ExponentialBucketHistogramAggregation` — tbachert ✅ · official ❌
-- `ConfigViewsTest::testViewUsesExplicitBucketHistogramAggregation` — tbachert ✅ · official ❌
+- `ConfigViewsTest::testViewUsesExplicitBucketHistogramAggregation` — tbachert ✅ · official ✅
 
 </details>
 
 <details>
 <summary>Views: metric renaming & description — 4 tests (0 env · 4 config)</summary>
 
-- `ConfigViewsTest::testViewCanOverrideDescriptionWhilePreservingOriginalName` — tbachert ✅ · official ❌
-- `ConfigViewsTest::testViewCanOverrideNameWhilePreservingOriginalDescription` — tbachert ✅ · official ❌
-- `ConfigViewsTest::testViewPreservesOriginalNameAndDescriptionWhenOmitted` — tbachert ✅ · official ❌
-- `ConfigViewsTest::testViewRenamesMetricAndChangesDescription` — tbachert ✅ · official ❌
+- `ConfigViewsTest::testViewCanOverrideDescriptionWhilePreservingOriginalName` — tbachert ✅ · official ✅
+- `ConfigViewsTest::testViewCanOverrideNameWhilePreservingOriginalDescription` — tbachert ✅ · official ✅
+- `ConfigViewsTest::testViewPreservesOriginalNameAndDescriptionWhenOmitted` — tbachert ✅ · official ✅
+- `ConfigViewsTest::testViewRenamesMetricAndChangesDescription` — tbachert ✅ · official ✅
 
 </details>
 
 <details>
 <summary>Views: matching behavior (no-match, multiple streams, ordering) — 5 tests (0 env · 5 config)</summary>
 
-- `ConfigViewsTest::testInstrumentWithoutMatchingViewRemainsUnchanged` — tbachert ✅ · official ❌
-- `ConfigViewsTest::testMatchAllDropViewCanBeUsedAsDefaultWithSpecificView` — tbachert ✅ · official ❌
-- `ConfigViewsTest::testMultipleMatchingViewsApplyTheirConfigurationsIndependently` — tbachert ✅ · official ❌
-- `ConfigViewsTest::testMultipleMatchingViewsProduceMultipleStreams` — tbachert ✅ · official ❌
-- `ConfigViewsTest::testViewIsAppliedBeforeMultipleMetricReadersExport` — tbachert ✅ · official ❌
+- `ConfigViewsTest::testInstrumentWithoutMatchingViewRemainsUnchanged` — tbachert ✅ · official ✅
+- `ConfigViewsTest::testMatchAllDropViewCanBeUsedAsDefaultWithSpecificView` — tbachert ✅ · official ✅
+- `ConfigViewsTest::testMultipleMatchingViewsApplyTheirConfigurationsIndependently` — tbachert ✅ · official ✅
+- `ConfigViewsTest::testMultipleMatchingViewsProduceMultipleStreams` — tbachert ✅ · official ✅
+- `ConfigViewsTest::testViewIsAppliedBeforeMultipleMetricReadersExport` — tbachert ✅ · official ✅
 
 </details>
 
@@ -393,7 +393,7 @@ Footnotes are collected below the tables.
 - `ConfigMetricReaderTest::testReaderCardinalityLimitBucketsOverflowSeries` — tbachert ✅ · official ❌
 - `ConfigMetricReaderTest::testReaderCardinalityLimitsApplyPerInstrumentType` — tbachert ✅ · official ❌
 - `ConfigViewsTest::testViewAggregationCardinalityLimitUsesOverflowSeries` — tbachert ✅ · official ❌
-- `ConfigViewsTest::testViewAttributeFilteringOccursBeforeCardinalityLimit` — tbachert ✅ · official ❌
+- `ConfigViewsTest::testViewAttributeFilteringOccursBeforeCardinalityLimit` — tbachert ✅ · official ✅
 
 </details>
 
@@ -401,15 +401,15 @@ Footnotes are collected below the tables.
 
 | Behavior | tbachert env | tbachert config | official env | official config |
 |---|---|---|---|---|
-| Log record content: severity, non-string & nested body types | ✅ 3/3 | ✅ 1/1 | ✅ 3/3 | ❌ 0/1³ |
-| Log record limits (attribute count & value length) | ✅ 3/3 | ✅ 2/2 | ✅ 3/3 | ❌ 0/2³ |
-| Batch & simple log record processors | ✅ 5/5 | ✅ 3/3 | ⚠️ 4/5⁶ | ❌ 0/3³ |
-| Log severity threshold & trace-based filtering | – | ✅ 7/7 | – | ❌ 0/7³ |
+| Log record content: severity, non-string & nested body types | ✅ 3/3 | ✅ 1/1 | ✅ 3/3 | ✅ 1/1 |
+| Log record limits (attribute count & value length) | ✅ 3/3 | ✅ 2/2 | ✅ 3/3 | ❌ 0/2⁵ |
+| Batch & simple log record processors | ✅ 5/5 | ✅ 3/3 | ⚠️ 4/5⁶ | ✅ 3/3 |
+| Log severity threshold & trace-based filtering | – | ✅ 7/7 | – | ⚠️ 1/7¹⁵ |
 
 <details>
 <summary>Log record content: severity, non-string & nested body types — 4 tests (3 env · 1 config)</summary>
 
-- `ConfigLogRecordTest::testLogRecordsExportedWithSeverityAndTypedBodies` — tbachert ✅ · official ❌
+- `ConfigLogRecordTest::testLogRecordsExportedWithSeverityAndTypedBodies` — tbachert ✅ · official ✅
 - `EnvLogRecordTest::testLogBodySupportsNestedMaps` — tbachert ✅ · official ✅
 - `EnvLogRecordTest::testLogBodySupportsNonStringTypes` — tbachert ✅ · official ✅
 - `EnvLogRecordTest::testLogSeverityNumberAndTextAreExported` — tbachert ✅ · official ✅
@@ -430,9 +430,9 @@ Footnotes are collected below the tables.
 <details>
 <summary>Batch & simple log record processors — 8 tests (5 env · 3 config)</summary>
 
-- `ConfigLogRecordTest::testBatchLogRecordProcessorMaxExportBatchSize` — tbachert ✅ · official ❌
-- `ConfigLogRecordTest::testBatchLogRecordProcessorScheduleDelay` — tbachert ✅ · official ❌
-- `ConfigLogRecordTest::testSimpleLogRecordProcessorExportsOnEmit` — tbachert ✅ · official ❌
+- `ConfigLogRecordTest::testBatchLogRecordProcessorMaxExportBatchSize` — tbachert ✅ · official ✅
+- `ConfigLogRecordTest::testBatchLogRecordProcessorScheduleDelay` — tbachert ✅ · official ✅
+- `ConfigLogRecordTest::testSimpleLogRecordProcessorExportsOnEmit` — tbachert ✅ · official ✅
 - `EnvLogRecordTest::testBlrpDropsLogRecordsWhenQueueIsFull` — tbachert ✅ · official ❌
 - `EnvLogRecordTest::testBlrpExportTimeout` — tbachert ✅ · official ✅
 - `EnvLogRecordTest::testBlrpMaxExportBatchSize` — tbachert ✅ · official ✅
@@ -449,7 +449,7 @@ Footnotes are collected below the tables.
 - `ConfigLoggerConfiguratorTest::testLoggerConfiguratorMinimumSeverityFiltersBelowThreshold` — tbachert ✅ · official ❌
 - `ConfigLoggerConfiguratorTest::testLoggerConfiguratorMinimumSeverityInfoThreshold` — tbachert ✅ · official ❌
 - `ConfigLoggerConfiguratorTest::testLoggerConfiguratorTraceBasedDropsLogsFromUnsampledTraces` — tbachert ✅ · official ❌
-- `ConfigLoggerConfiguratorTest::testLoggerConfiguratorTraceBasedFalseDoesNotFilterUnsampledTraces` — tbachert ✅ · official ❌
+- `ConfigLoggerConfiguratorTest::testLoggerConfiguratorTraceBasedFalseDoesNotFilterUnsampledTraces` — tbachert ✅ · official ✅
 - `ConfigLoggerConfiguratorTest::testLoggerConfiguratorTraceBasedFiltersUnsampledTraceRecords` — tbachert ✅ · official ❌
 
 </details>
@@ -458,20 +458,20 @@ Footnotes are collected below the tables.
 
 | Behavior | tbachert env | tbachert config | official env | official config |
 |---|---|---|---|---|
-| Resource attributes & service.name | ✅ 8/8 | ✅ 6/6 | ✅ 8/8 | ❌ 0/6³ |
-| Entities (`OTEL_ENTITIES`, env detector) | ✅ 7/7 | ✅ 1/1 | ❌ 0/7⁹ | ❌ 0/1³ |
-| Resource detectors & attribute include/exclude (config file) | – | ✅ 11/11 | – | ❌ 0/11³ |
-| Unrecognized resource detector name (warn & skip) | – | ✅ 2/2 | – | ❌ 0/2³ |
+| Resource attributes & service.name | ✅ 8/8 | ✅ 6/6 | ✅ 8/8 | ✅ 6/6 |
+| Entities (`OTEL_ENTITIES`, env detector) | ✅ 7/7 | ✅ 1/1 | ❌ 0/7¹⁶ | ❌ 0/1¹⁶ |
+| Resource detectors & attribute include/exclude (config file) | – | ✅ 11/11 | – | ⚠️ 8/11¹⁷ |
+| Unrecognized resource detector name (warn & skip) | – | ✅ 2/2 | – | ✅ 2/2 |
 
 <details>
 <summary>Resource attributes & service.name — 14 tests (8 env · 6 config)</summary>
 
-- `ConfigResourceTest::testExplicitResourceAttributesOverrideAttributesList` — tbachert ✅ · official ❌
-- `ConfigResourceTest::testResourceAttributes` — tbachert ✅ · official ❌
-- `ConfigResourceTest::testResourceAttributesList` — tbachert ✅ · official ❌
-- `ConfigResourceTest::testResourceAttributesSupportArrayValues` — tbachert ✅ · official ❌
-- `ConfigResourceTest::testResourceAttributesSupportNonStringValues` — tbachert ✅ · official ❌
-- `ConfigResourceTest::testServiceNameFallsBackToSpecDefaultWhenUnset` — tbachert ✅ · official ❌
+- `ConfigResourceTest::testExplicitResourceAttributesOverrideAttributesList` — tbachert ✅ · official ✅
+- `ConfigResourceTest::testResourceAttributes` — tbachert ✅ · official ✅
+- `ConfigResourceTest::testResourceAttributesList` — tbachert ✅ · official ✅
+- `ConfigResourceTest::testResourceAttributesSupportArrayValues` — tbachert ✅ · official ✅
+- `ConfigResourceTest::testResourceAttributesSupportNonStringValues` — tbachert ✅ · official ✅
+- `ConfigResourceTest::testServiceNameFallsBackToSpecDefaultWhenUnset` — tbachert ✅ · official ✅
 - `EnvResourceTest::testDefaultResourceAttributesIdentifySdkAndComposerPackage` — tbachert ✅ · official ✅
 - `EnvResourceTest::testEmptyServiceNameEnvironmentVariableFallsBackToDefault` — tbachert ✅ · official ✅
 - `EnvResourceTest::testResourceAttributes` — tbachert ✅ · official ✅
@@ -501,15 +501,15 @@ Footnotes are collected below the tables.
 <summary>Resource detectors & attribute include/exclude (config file) — 11 tests (0 env · 11 config)</summary>
 
 - `ConfigResourceTest::testContainerDetectorReportsContainerId` — tbachert ✅ · official ❌
-- `ConfigResourceTest::testHostDetectorPopulatesHostAndOsAttributes` — tbachert ✅ · official ❌
-- `ConfigResourceTest::testMultipleResourceDetectorsAreCombined` — tbachert ✅ · official ❌
-- `ConfigResourceTest::testProcessDetectorReportsProcessAttributes` — tbachert ✅ · official ❌
-- `ConfigResourceTest::testResourceDetectionIsDisabledWithoutDetectionNode` — tbachert ✅ · official ❌
-- `ConfigResourceTest::testResourceDetectorExcludesSelectedAttributes` — tbachert ✅ · official ❌
-- `ConfigResourceTest::testResourceDetectorExclusionTakesPrecedenceOverInclusion` — tbachert ✅ · official ❌
-- `ConfigResourceTest::testResourceDetectorIncludesOnlySelectedAttributes` — tbachert ✅ · official ❌
+- `ConfigResourceTest::testHostDetectorPopulatesHostAndOsAttributes` — tbachert ✅ · official ✅
+- `ConfigResourceTest::testMultipleResourceDetectorsAreCombined` — tbachert ✅ · official ✅
+- `ConfigResourceTest::testProcessDetectorReportsProcessAttributes` — tbachert ✅ · official ✅
+- `ConfigResourceTest::testResourceDetectionIsDisabledWithoutDetectionNode` — tbachert ✅ · official ✅
+- `ConfigResourceTest::testResourceDetectorExcludesSelectedAttributes` — tbachert ✅ · official ✅
+- `ConfigResourceTest::testResourceDetectorExclusionTakesPrecedenceOverInclusion` — tbachert ✅ · official ✅
+- `ConfigResourceTest::testResourceDetectorIncludesOnlySelectedAttributes` — tbachert ✅ · official ✅
 - `ConfigResourceTest::testResourceSchemaUrlConflictingWithDetectedResourcesIsDropped` — tbachert ✅ · official ❌
-- `ConfigResourceTest::testResourceSchemaUrlMatchingDetectedResourcesIsExported` — tbachert ✅ · official ❌
+- `ConfigResourceTest::testResourceSchemaUrlMatchingDetectedResourcesIsExported` — tbachert ✅ · official ✅
 - `ConfigResourceTest::testServiceDetectorReadsServiceNameFromEnvironmentVariable` — tbachert ✅ · official ❌
 
 </details>
@@ -517,8 +517,8 @@ Footnotes are collected below the tables.
 <details>
 <summary>Unrecognized resource detector name (warn & skip) — 2 tests (0 env · 2 config)</summary>
 
-- `ConfigResourceTest::testUnrecognizedResourceDetectorDoesNotPreventOtherDetectors` — tbachert ✅ · official ❌
-- `ConfigResourceTest::testUnrecognizedResourceDetectorIsIgnoredWithWarning` — tbachert ✅ · official ❌
+- `ConfigResourceTest::testUnrecognizedResourceDetectorDoesNotPreventOtherDetectors` — tbachert ✅ · official ✅
+- `ConfigResourceTest::testUnrecognizedResourceDetectorIsIgnoredWithWarning` — tbachert ✅ · official ✅
 
 </details>
 
@@ -526,40 +526,40 @@ Footnotes are collected below the tables.
 
 | Behavior | tbachert env | tbachert config | official env | official config |
 |---|---|---|---|---|
-| OTLP HTTP exporter options: protocol, headers, compression, endpoints, timeouts, size limits, retries | ✅ 24/24 | ✅ 23/23 | ⚠️ 21/24¹¹⁰ | ❌ 0/23³ |
-| OTLP gRPC exporter (all signals) | ✅ 12/12 | ✅ 4/4 | ❌ 0/12¹¹ | ❌ 0/4³ |
-| OTLP file exporter (newline-delimited JSON on disk) | – | ✅ 3/3 | – | ❌ 0/3³ |
-| TLS: CA trust & client certificates (all signals, both protocols) | ✅ 11/11 | ✅ 6/6 | ❌ 0/11¹² | ❌ 0/6³ |
-| Console exporter (stdout) | ✅ 3/3 | ✅ 3/3 | ✅ 3/3 | ❌ 0/3³ |
-| Prometheus exporter (pull, translation & escaping) | ✅ 1/1 | ✅ 11/11 | ❌ 0/1¹³ | ❌ 0/11³ |
+| OTLP HTTP exporter options: protocol, headers, compression, endpoints, timeouts, size limits, retries | ✅ 24/24 | ✅ 23/23 | ⚠️ 22/24¹ | ⚠️ 17/23¹⁸ |
+| OTLP gRPC exporter (all signals) | ✅ 12/12 | ✅ 4/4 | ✅ 12/12 | ✅ 4/4 |
+| OTLP file exporter (newline-delimited JSON on disk) | – | ✅ 3/3 | – | ✅ 3/3 |
+| TLS: CA trust & client certificates (all signals, both protocols) | ✅ 11/11 | ✅ 6/6 | ✅ 11/11 | ✅ 6/6 |
+| Console exporter (stdout) | ✅ 3/3 | ✅ 3/3 | ✅ 3/3 | ✅ 3/3 |
+| Prometheus exporter (pull, translation & escaping) | ✅ 1/1 | ✅ 11/11 | ❌ 0/1¹⁹ | ❌ 0/11¹⁹ |
 
 <details>
 <summary>OTLP HTTP exporter options: protocol, headers, compression, endpoints, timeouts, size limits, retries — 47 tests (24 env · 23 config)</summary>
 
-- `ConfigBasicTest::testOtlpHttpDefaultsToProtobufEncodingWithoutCompression` — tbachert ✅ · official ❌
-- `ConfigBasicTest::testOtlpHttpEncodingJsonIsApplied` — tbachert ✅ · official ❌
-- `ConfigBasicTest::testOtlpHttpExporterHeadersAreSentToCollector` — tbachert ✅ · official ❌
-- `ConfigBasicTest::testOtlpHttpGzipCompressionIsApplied` — tbachert ✅ · official ❌
+- `ConfigBasicTest::testOtlpHttpDefaultsToProtobufEncodingWithoutCompression` — tbachert ✅ · official ✅
+- `ConfigBasicTest::testOtlpHttpEncodingJsonIsApplied` — tbachert ✅ · official ✅
+- `ConfigBasicTest::testOtlpHttpExporterHeadersAreSentToCollector` — tbachert ✅ · official ✅
+- `ConfigBasicTest::testOtlpHttpGzipCompressionIsApplied` — tbachert ✅ · official ✅
 - `ConfigBasicTest::testOtlpHttpMaxRequestSizeBlocksOversizedExports` — tbachert ✅ · official ❌
 - `ConfigBasicTest::testOtlpHttpMaxResponseSizeRejectsLargeResponses` — tbachert ✅ · official ❌
-- `ConfigBasicTest::testOtlpHttpTimeoutDropsExportWhenCollectorIsSlow` — tbachert ✅ · official ❌
-- `ConfigLogRecordTest::testOtlpHttpEncodingJsonIsApplied` — tbachert ✅ · official ❌
-- `ConfigLogRecordTest::testOtlpHttpExporterHeadersAreSentToCollector` — tbachert ✅ · official ❌
-- `ConfigLogRecordTest::testOtlpHttpGzipCompressionIsApplied` — tbachert ✅ · official ❌
+- `ConfigBasicTest::testOtlpHttpTimeoutDropsExportWhenCollectorIsSlow` — tbachert ✅ · official ✅
+- `ConfigLogRecordTest::testOtlpHttpEncodingJsonIsApplied` — tbachert ✅ · official ✅
+- `ConfigLogRecordTest::testOtlpHttpExporterHeadersAreSentToCollector` — tbachert ✅ · official ✅
+- `ConfigLogRecordTest::testOtlpHttpGzipCompressionIsApplied` — tbachert ✅ · official ✅
 - `ConfigLogRecordTest::testOtlpHttpMaxRequestSizeBlocksOversizedExports` — tbachert ✅ · official ❌
 - `ConfigLogRecordTest::testOtlpHttpMaxResponseSizeRejectsLargeResponses` — tbachert ✅ · official ❌
-- `ConfigLogRecordTest::testOtlpHttpTimeoutDropsExportWhenCollectorIsSlow` — tbachert ✅ · official ❌
-- `ConfigMetricReaderTest::testOtlpHttpCompressionNoneSendsUncompressedExport` — tbachert ✅ · official ❌
-- `ConfigMetricReaderTest::testOtlpHttpEncodingJsonIsApplied` — tbachert ✅ · official ❌
-- `ConfigMetricReaderTest::testOtlpHttpExporterHeadersAreSentToCollector` — tbachert ✅ · official ❌
-- `ConfigMetricReaderTest::testOtlpHttpGzipCompressionIsApplied` — tbachert ✅ · official ❌
-- `ConfigMetricReaderTest::testOtlpHttpHeaderWithNullValueIsIgnored` — tbachert ✅ · official ❌
-- `ConfigMetricReaderTest::testOtlpHttpHeadersListIsSentToCollector` — tbachert ✅ · official ❌
-- `ConfigMetricReaderTest::testOtlpHttpHeadersTakePrecedenceOverHeadersList` — tbachert ✅ · official ❌
+- `ConfigLogRecordTest::testOtlpHttpTimeoutDropsExportWhenCollectorIsSlow` — tbachert ✅ · official ✅
+- `ConfigMetricReaderTest::testOtlpHttpCompressionNoneSendsUncompressedExport` — tbachert ✅ · official ✅
+- `ConfigMetricReaderTest::testOtlpHttpEncodingJsonIsApplied` — tbachert ✅ · official ✅
+- `ConfigMetricReaderTest::testOtlpHttpExporterHeadersAreSentToCollector` — tbachert ✅ · official ✅
+- `ConfigMetricReaderTest::testOtlpHttpGzipCompressionIsApplied` — tbachert ✅ · official ✅
+- `ConfigMetricReaderTest::testOtlpHttpHeaderWithNullValueIsIgnored` — tbachert ✅ · official ✅
+- `ConfigMetricReaderTest::testOtlpHttpHeadersListIsSentToCollector` — tbachert ✅ · official ✅
+- `ConfigMetricReaderTest::testOtlpHttpHeadersTakePrecedenceOverHeadersList` — tbachert ✅ · official ✅
 - `ConfigMetricReaderTest::testOtlpHttpMaxRequestSizeBlocksOversizedExports` — tbachert ✅ · official ❌
 - `ConfigMetricReaderTest::testOtlpHttpMaxResponseSizeRejectsLargeResponses` — tbachert ✅ · official ❌
-- `ConfigMetricReaderTest::testOtlpHttpTimeoutDropsExportWhenCollectorIsSlow` — tbachert ✅ · official ❌
-- `OtlpExporterTest::testCollectorRejectingExportDoesNotBreakShutdown` — tbachert ✅ · official ❌
+- `ConfigMetricReaderTest::testOtlpHttpTimeoutDropsExportWhenCollectorIsSlow` — tbachert ✅ · official ✅
+- `OtlpExporterTest::testCollectorRejectingExportDoesNotBreakShutdown` — tbachert ✅ · official ✅
 - `OtlpExporterTest::testExporterHeadersDecodePercentEncodedValues` — tbachert ✅ · official ✅
 - `OtlpExporterTest::testGenericOtlpCompressionAppliesToAllSignals` — tbachert ✅ · official ✅
 - `OtlpExporterTest::testGenericOtlpEndpointIsUsedWithAppendedSignalPaths` — tbachert ✅ · official ✅
@@ -589,63 +589,63 @@ Footnotes are collected below the tables.
 <details>
 <summary>OTLP gRPC exporter (all signals) — 16 tests (12 env · 4 config)</summary>
 
-- `GrpcTest::testConfigFileGrpcExporterExportsLogs` — tbachert ✅ · official ❌
-- `GrpcTest::testConfigFileGrpcExporterExportsMetrics` — tbachert ✅ · official ❌
-- `GrpcTest::testConfigFileGrpcExporterExportsSpans` — tbachert ✅ · official ❌
-- `GrpcTest::testConfigFileInsecureGrpcExporter` — tbachert ✅ · official ❌
-- `GrpcTest::testEnvGrpcGzipCompressionIsApplied` — tbachert ✅ · official ❌
-- `GrpcTest::testEnvGrpcInsecureEnvVarDialsPlaintext` — tbachert ✅ · official ❌
-- `GrpcTest::testEnvGrpcProtocolExportsSpans` — tbachert ✅ · official ❌
-- `GrpcTest::testEnvGrpcProtocolSendsConfiguredHeadersAsMetadata` — tbachert ✅ · official ❌
-- `GrpcTest::testEnvGrpcSchemelessEndpointIsSecureByDefault` — tbachert ✅ · official ❌
-- `GrpcTest::testEnvGrpcWithoutTls` — tbachert ✅ · official ❌
-- `GrpcTest::testGenericGrpcInsecureEnvVarDialsPlaintext` — tbachert ✅ · official ❌
-- `GrpcTest::testGenericGrpcProtocolAppliesToAllSignals` — tbachert ✅ · official ❌
-- `GrpcTest::testGrpcErrorStatusIsReportedWithoutRetry` — tbachert ✅ · official ❌
-- `GrpcTest::testLogsInsecureEnvVarDialsPlaintext` — tbachert ✅ · official ❌
-- `GrpcTest::testMetricsInsecureEnvVarDialsPlaintext` — tbachert ✅ · official ❌
-- `GrpcTest::testPerSignalGrpcInsecureOverridesGeneric` — tbachert ✅ · official ❌
+- `GrpcTest::testConfigFileGrpcExporterExportsLogs` — tbachert ✅ · official ✅
+- `GrpcTest::testConfigFileGrpcExporterExportsMetrics` — tbachert ✅ · official ✅
+- `GrpcTest::testConfigFileGrpcExporterExportsSpans` — tbachert ✅ · official ✅
+- `GrpcTest::testConfigFileInsecureGrpcExporter` — tbachert ✅ · official ✅
+- `GrpcTest::testEnvGrpcGzipCompressionIsApplied` — tbachert ✅ · official ✅
+- `GrpcTest::testEnvGrpcInsecureEnvVarDialsPlaintext` — tbachert ✅ · official ✅
+- `GrpcTest::testEnvGrpcProtocolExportsSpans` — tbachert ✅ · official ✅
+- `GrpcTest::testEnvGrpcProtocolSendsConfiguredHeadersAsMetadata` — tbachert ✅ · official ✅
+- `GrpcTest::testEnvGrpcSchemelessEndpointIsSecureByDefault` — tbachert ✅ · official ✅
+- `GrpcTest::testEnvGrpcWithoutTls` — tbachert ✅ · official ✅
+- `GrpcTest::testGenericGrpcInsecureEnvVarDialsPlaintext` — tbachert ✅ · official ✅
+- `GrpcTest::testGenericGrpcProtocolAppliesToAllSignals` — tbachert ✅ · official ✅
+- `GrpcTest::testGrpcErrorStatusIsReportedWithoutRetry` — tbachert ✅ · official ✅
+- `GrpcTest::testLogsInsecureEnvVarDialsPlaintext` — tbachert ✅ · official ✅
+- `GrpcTest::testMetricsInsecureEnvVarDialsPlaintext` — tbachert ✅ · official ✅
+- `GrpcTest::testPerSignalGrpcInsecureOverridesGeneric` — tbachert ✅ · official ✅
 
 </details>
 
 <details>
 <summary>OTLP file exporter (newline-delimited JSON on disk) — 3 tests (0 env · 3 config)</summary>
 
-- `ConfigBasicTest::testOtlpFileExporterWritesNewlineDelimitedJson` — tbachert ✅ · official ❌
-- `ConfigLogRecordTest::testOtlpFileExporterWritesLogsToNewlineDelimitedJson` — tbachert ✅ · official ❌
-- `ConfigMetricReaderTest::testOtlpFileMetricExporterWritesNewlineDelimitedJson` — tbachert ✅ · official ❌
+- `ConfigBasicTest::testOtlpFileExporterWritesNewlineDelimitedJson` — tbachert ✅ · official ✅
+- `ConfigLogRecordTest::testOtlpFileExporterWritesLogsToNewlineDelimitedJson` — tbachert ✅ · official ✅
+- `ConfigMetricReaderTest::testOtlpFileMetricExporterWritesNewlineDelimitedJson` — tbachert ✅ · official ✅
 
 </details>
 
 <details>
 <summary>TLS: CA trust & client certificates (all signals, both protocols) — 17 tests (11 env · 6 config)</summary>
 
-- `GrpcTest::testGrpcClientCertificateIsPresentedAndVerified` — tbachert ✅ · official ❌
-- `GrpcTest::testGrpcLogsClientCertificateIsPresentedAndVerified` — tbachert ✅ · official ❌
-- `GrpcTest::testGrpcMetricsClientCertificateIsPresentedAndVerified` — tbachert ✅ · official ❌
-- `TlsTest::testConfigFileCaFileTrustsSelfSignedCollector` — tbachert ✅ · official ❌
-- `TlsTest::testConfigFileCaFileTrustsSelfSignedLogsCollector` — tbachert ✅ · official ❌
-- `TlsTest::testConfigFileCaFileTrustsSelfSignedMetricsCollector` — tbachert ✅ · official ❌
-- `TlsTest::testConfigFileClientCertificateIsPresentedAndVerified` — tbachert ✅ · official ❌
-- `TlsTest::testEnvCertificateTrustsSelfSignedCollector` — tbachert ✅ · official ❌
-- `TlsTest::testEnvClientCertificateIsPresentedAndVerified` — tbachert ✅ · official ❌
-- `TlsTest::testGenericCertificateTrustsSelfSignedCollector` — tbachert ✅ · official ❌
-- `TlsTest::testGenericClientCertificateIsPresentedAndVerified` — tbachert ✅ · official ❌
-- `TlsTest::testLogsCertificateEnvVarTrustsSelfSignedCollector` — tbachert ✅ · official ❌
-- `TlsTest::testLogsClientCertificateIsPresentedAndVerified` — tbachert ✅ · official ❌
-- `TlsTest::testMetricsCertificateEnvVarTrustsSelfSignedCollector` — tbachert ✅ · official ❌
-- `TlsTest::testMetricsClientCertificateIsPresentedAndVerified` — tbachert ✅ · official ❌
-- `TlsTest::testMissingClientCertificateIsRejected` — tbachert ✅ · official ❌
-- `TlsTest::testUnknownCaIsRejectedByDefaultVerification` — tbachert ✅ · official ❌
+- `GrpcTest::testGrpcClientCertificateIsPresentedAndVerified` — tbachert ✅ · official ✅
+- `GrpcTest::testGrpcLogsClientCertificateIsPresentedAndVerified` — tbachert ✅ · official ✅
+- `GrpcTest::testGrpcMetricsClientCertificateIsPresentedAndVerified` — tbachert ✅ · official ✅
+- `TlsTest::testConfigFileCaFileTrustsSelfSignedCollector` — tbachert ✅ · official ✅
+- `TlsTest::testConfigFileCaFileTrustsSelfSignedLogsCollector` — tbachert ✅ · official ✅
+- `TlsTest::testConfigFileCaFileTrustsSelfSignedMetricsCollector` — tbachert ✅ · official ✅
+- `TlsTest::testConfigFileClientCertificateIsPresentedAndVerified` — tbachert ✅ · official ✅
+- `TlsTest::testEnvCertificateTrustsSelfSignedCollector` — tbachert ✅ · official ✅
+- `TlsTest::testEnvClientCertificateIsPresentedAndVerified` — tbachert ✅ · official ✅
+- `TlsTest::testGenericCertificateTrustsSelfSignedCollector` — tbachert ✅ · official ✅
+- `TlsTest::testGenericClientCertificateIsPresentedAndVerified` — tbachert ✅ · official ✅
+- `TlsTest::testLogsCertificateEnvVarTrustsSelfSignedCollector` — tbachert ✅ · official ✅
+- `TlsTest::testLogsClientCertificateIsPresentedAndVerified` — tbachert ✅ · official ✅
+- `TlsTest::testMetricsCertificateEnvVarTrustsSelfSignedCollector` — tbachert ✅ · official ✅
+- `TlsTest::testMetricsClientCertificateIsPresentedAndVerified` — tbachert ✅ · official ✅
+- `TlsTest::testMissingClientCertificateIsRejected` — tbachert ✅ · official ✅
+- `TlsTest::testUnknownCaIsRejectedByDefaultVerification` — tbachert ✅ · official ✅
 
 </details>
 
 <details>
 <summary>Console exporter (stdout) — 6 tests (3 env · 3 config)</summary>
 
-- `ConfigBasicTest::testConsoleExporterWritesSpansToStdout` — tbachert ✅ · official ❌
-- `ConfigLogRecordTest::testConsoleExporterWritesLogsToStdout` — tbachert ✅ · official ❌
-- `ConfigMetricReaderTest::testConsoleExporterWritesMetricsToStdout` — tbachert ✅ · official ❌
+- `ConfigBasicTest::testConsoleExporterWritesSpansToStdout` — tbachert ✅ · official ✅
+- `ConfigLogRecordTest::testConsoleExporterWritesLogsToStdout` — tbachert ✅ · official ✅
+- `ConfigMetricReaderTest::testConsoleExporterWritesMetricsToStdout` — tbachert ✅ · official ✅
 - `EnvLogRecordTest::testLogsConsoleExporterWritesToStdout` — tbachert ✅ · official ✅
 - `EnvMetricsTest::testMetricsConsoleExporterWritesToStdout` — tbachert ✅ · official ✅
 - `EnvSdkTest::testConsoleExporterWritesSpansToStdout` — tbachert ✅ · official ✅
@@ -674,20 +674,20 @@ Footnotes are collected below the tables.
 
 | Behavior | tbachert env | tbachert config | official env | official config |
 |---|---|---|---|---|
-| SDK enablement & per-signal exporter selection (`OTEL_SDK_DISABLED`, `*_EXPORTER`) | ✅ 10/10 | ✅ 1/1 | ⚠️ 9/10¹ | ❌ 0/1³ |
-| Provider configurators: scope filtering (wildcards, case sensitivity, isolation) | – | ✅ 18/18 | – | ❌ 0/18³ |
+| SDK enablement & per-signal exporter selection (`OTEL_SDK_DISABLED`, `*_EXPORTER`) | ✅ 10/10 | ✅ 1/1 | ⚠️ 9/10¹ | ✅ 1/1 |
+| Provider configurators: scope filtering (wildcards, case sensitivity, isolation) | – | ✅ 18/18 | – | ✅ 18/18 |
 | Env value parsing & leniency: empty values, invalid sampler/propagator, malformed attributes (env-only semantics) | ✅ 5/5 | – | ⚠️ 2/5¹ | – |
-| `OTEL_LOG_LEVEL` (self-diagnostic output) | ✅ 1/1 | ✅ 2/2 | ✅ 1/1 | ❌ 0/2³ |
-| Config file basics: no-op SDK, format versioning, missing file, independent signals | – | ✅ 4/4 | – | ⚠️ 1/4³¹⁴ |
-| ID generation (random) | – | ✅ 1/1 | – | ❌ 0/1³ |
-| Variable substitution: `${}`, defaults, escaping, type coercion | – | ✅ 9/9 | – | ⚠️ 1/9³ |
-| Environment variable precedence & ignore rules in config-file mode | – | ✅ 5/5 | – | ❌ 0/5³ |
-| SDK self-observability disabled by default | – | ✅ 1/1 | – | 🟨 0/1³¹⁵ |
+| `OTEL_LOG_LEVEL` (self-diagnostic output) | ✅ 1/1 | ✅ 2/2 | ✅ 1/1 | ❌ 0/2²⁰ |
+| Config file basics: no-op SDK, format versioning, missing file, independent signals | – | ✅ 4/4 | – | ✅ 4/4 |
+| ID generation (random) | – | ✅ 1/1 | – | ❌ 0/1²¹ |
+| Variable substitution: `${}`, defaults, escaping, type coercion | – | ✅ 9/9 | – | ⚠️ 8/9¹⁸ |
+| Environment variable precedence & ignore rules in config-file mode | – | ✅ 5/5 | – | ✅ 5/5 |
+| SDK self-observability disabled by default | – | ✅ 1/1 | – | ✅ 1/1 |
 
 <details>
 <summary>SDK enablement & per-signal exporter selection (`OTEL_SDK_DISABLED`, `*_EXPORTER`) — 11 tests (10 env · 1 config)</summary>
 
-- `ConfigBasicTest::testDisabledConfigurationDisablesAllSignals` — tbachert ✅ · official ❌
+- `ConfigBasicTest::testDisabledConfigurationDisablesAllSignals` — tbachert ✅ · official ✅
 - `EnvSdkTest::testDisabledSdkDoesNotDisablePropagators` — tbachert ✅ · official ✅
 - `EnvSdkTest::testLogsExporterNoneDisablesOnlyLogExport` — tbachert ✅ · official ✅
 - `EnvSdkTest::testMetricsExporterNoneDisablesOnlyMetricExport` — tbachert ✅ · official ✅
@@ -704,24 +704,24 @@ Footnotes are collected below the tables.
 <details>
 <summary>Provider configurators: scope filtering (wildcards, case sensitivity, isolation) — 18 tests (0 env · 18 config)</summary>
 
-- `ConfigConfiguratorsTest::testConfiguratorConfigurationIsIsolatedBetweenSignals` — tbachert ✅ · official ❌
-- `ConfigConfiguratorsTest::testConfiguratorDefaultsAreEnabledWhenDefaultConfigIsOmitted` — tbachert ✅ · official ❌
-- `ConfigConfiguratorsTest::testConfiguratorsSupportAsteriskWildcard` — tbachert ✅ · official ❌
-- `ConfigLoggerConfiguratorTest::testLoggerConfiguratorCanDisableDefaultLoggersAndEnableMatchingLogger` — tbachert ✅ · official ❌
-- `ConfigLoggerConfiguratorTest::testLoggerConfiguratorCanDisableMatchingLoggerWithDefaultEnabled` — tbachert ✅ · official ❌
-- `ConfigLoggerConfiguratorTest::testLoggerConfiguratorMatchingIsCaseSensitive` — tbachert ✅ · official ❌
-- `ConfigLoggerConfiguratorTest::testLoggerConfiguratorQuestionMarkWildcard` — tbachert ✅ · official ❌
-- `ConfigLoggerConfiguratorTest::testLoggerConfiguratorSupportsWildcardMatching` — tbachert ✅ · official ❌
-- `ConfigMeterConfiguratorTest::testMeterConfiguratorCanDisableDefaultMetersAndEnableMatchingMeter` — tbachert ✅ · official ❌
-- `ConfigMeterConfiguratorTest::testMeterConfiguratorCanDisableMatchingMeterWithDefaultEnabled` — tbachert ✅ · official ❌
-- `ConfigMeterConfiguratorTest::testMeterConfiguratorMatchingIsCaseSensitive` — tbachert ✅ · official ❌
-- `ConfigMeterConfiguratorTest::testMeterConfiguratorQuestionMarkWildcard` — tbachert ✅ · official ❌
-- `ConfigMeterConfiguratorTest::testMeterConfiguratorSupportsWildcardMatching` — tbachert ✅ · official ❌
-- `ConfigTracerConfiguratorTest::testTracerConfiguratorCanDisableDefaultTracersAndEnableMatchingTracer` — tbachert ✅ · official ❌
-- `ConfigTracerConfiguratorTest::testTracerConfiguratorCanDisableMatchingTracer` — tbachert ✅ · official ❌
-- `ConfigTracerConfiguratorTest::testTracerConfiguratorMatchingIsCaseSensitive` — tbachert ✅ · official ❌
-- `ConfigTracerConfiguratorTest::testTracerConfiguratorQuestionMarkWildcard` — tbachert ✅ · official ❌
-- `ConfigTracerConfiguratorTest::testTracerConfiguratorSupportsWildcardMatching` — tbachert ✅ · official ❌
+- `ConfigConfiguratorsTest::testConfiguratorConfigurationIsIsolatedBetweenSignals` — tbachert ✅ · official ✅
+- `ConfigConfiguratorsTest::testConfiguratorDefaultsAreEnabledWhenDefaultConfigIsOmitted` — tbachert ✅ · official ✅
+- `ConfigConfiguratorsTest::testConfiguratorsSupportAsteriskWildcard` — tbachert ✅ · official ✅
+- `ConfigLoggerConfiguratorTest::testLoggerConfiguratorCanDisableDefaultLoggersAndEnableMatchingLogger` — tbachert ✅ · official ✅
+- `ConfigLoggerConfiguratorTest::testLoggerConfiguratorCanDisableMatchingLoggerWithDefaultEnabled` — tbachert ✅ · official ✅
+- `ConfigLoggerConfiguratorTest::testLoggerConfiguratorMatchingIsCaseSensitive` — tbachert ✅ · official ✅
+- `ConfigLoggerConfiguratorTest::testLoggerConfiguratorQuestionMarkWildcard` — tbachert ✅ · official ✅
+- `ConfigLoggerConfiguratorTest::testLoggerConfiguratorSupportsWildcardMatching` — tbachert ✅ · official ✅
+- `ConfigMeterConfiguratorTest::testMeterConfiguratorCanDisableDefaultMetersAndEnableMatchingMeter` — tbachert ✅ · official ✅
+- `ConfigMeterConfiguratorTest::testMeterConfiguratorCanDisableMatchingMeterWithDefaultEnabled` — tbachert ✅ · official ✅
+- `ConfigMeterConfiguratorTest::testMeterConfiguratorMatchingIsCaseSensitive` — tbachert ✅ · official ✅
+- `ConfigMeterConfiguratorTest::testMeterConfiguratorQuestionMarkWildcard` — tbachert ✅ · official ✅
+- `ConfigMeterConfiguratorTest::testMeterConfiguratorSupportsWildcardMatching` — tbachert ✅ · official ✅
+- `ConfigTracerConfiguratorTest::testTracerConfiguratorCanDisableDefaultTracersAndEnableMatchingTracer` — tbachert ✅ · official ✅
+- `ConfigTracerConfiguratorTest::testTracerConfiguratorCanDisableMatchingTracer` — tbachert ✅ · official ✅
+- `ConfigTracerConfiguratorTest::testTracerConfiguratorMatchingIsCaseSensitive` — tbachert ✅ · official ✅
+- `ConfigTracerConfiguratorTest::testTracerConfiguratorQuestionMarkWildcard` — tbachert ✅ · official ✅
+- `ConfigTracerConfiguratorTest::testTracerConfiguratorSupportsWildcardMatching` — tbachert ✅ · official ✅
 
 </details>
 
@@ -748,9 +748,9 @@ Footnotes are collected below the tables.
 <details>
 <summary>Config file basics: no-op SDK, format versioning, missing file, independent signals — 4 tests (0 env · 4 config)</summary>
 
-- `ConfigBasicTest::testConfigFileNewerMinorFormatIsAcceptedWithWarning` — tbachert ✅ · official ❌
-- `ConfigBasicTest::testMissingConfigFileFailsInitialization` — tbachert ✅ · official ❌
-- `ConfigBasicTest::testSignalsCanBeConfiguredIndependently` — tbachert ✅ · official ❌
+- `ConfigBasicTest::testConfigFileNewerMinorFormatIsAcceptedWithWarning` — tbachert ✅ · official ✅
+- `ConfigBasicTest::testMissingConfigFileFailsInitialization` — tbachert ✅ · official ✅
+- `ConfigBasicTest::testSignalsCanBeConfiguredIndependently` — tbachert ✅ · official ✅
 - `ConfigBasicTest::testUnsupportedFileFormatResultsInNoOpSdk` — tbachert ✅ · official ✅
 
 </details>
@@ -765,136 +765,191 @@ Footnotes are collected below the tables.
 <details>
 <summary>Variable substitution: `${}`, defaults, escaping, type coercion — 9 tests (0 env · 9 config)</summary>
 
-- `ConfigSubstitutionTest::testDefaultValueIsUsedOnlyWhenVariableIsUnset` — tbachert ✅ · official ❌
-- `ConfigSubstitutionTest::testDoubleDollarEscapesSubstitution` — tbachert ✅ · official ❌
-- `ConfigSubstitutionTest::testEnvironmentValueCannotInjectYamlStructure` — tbachert ✅ · official ❌
+- `ConfigSubstitutionTest::testDefaultValueIsUsedOnlyWhenVariableIsUnset` — tbachert ✅ · official ✅
+- `ConfigSubstitutionTest::testDoubleDollarEscapesSubstitution` — tbachert ✅ · official ✅
+- `ConfigSubstitutionTest::testEnvironmentValueCannotInjectYamlStructure` — tbachert ✅ · official ✅
 - `ConfigSubstitutionTest::testInvalidSubstitutionFailsInitialization` — tbachert ✅ · official ✅
-- `ConfigSubstitutionTest::testMultipleReferencesInOneString` — tbachert ✅ · official ❌
-- `ConfigSubstitutionTest::testPlainAndEnvPrefixedReferencesResolveToTheSameValue` — tbachert ✅ · official ❌
-- `ConfigSubstitutionTest::testSubstitutedBooleanIsCoercedForTypedNode` — tbachert ✅ · official ❌
+- `ConfigSubstitutionTest::testMultipleReferencesInOneString` — tbachert ✅ · official ✅
+- `ConfigSubstitutionTest::testPlainAndEnvPrefixedReferencesResolveToTheSameValue` — tbachert ✅ · official ✅
+- `ConfigSubstitutionTest::testSubstitutedBooleanIsCoercedForTypedNode` — tbachert ✅ · official ✅
 - `ConfigSubstitutionTest::testSubstitutedHexIntegerIsCoercedForTypedNode` — tbachert ✅ · official ❌
-- `ConfigSubstitutionTest::testSubstitutionIsNotRecursive` — tbachert ✅ · official ❌
+- `ConfigSubstitutionTest::testSubstitutionIsNotRecursive` — tbachert ✅ · official ✅
 
 </details>
 
 <details>
 <summary>Environment variable precedence & ignore rules in config-file mode — 5 tests (0 env · 5 config)</summary>
 
-- `ConfigBasicTest::testConfigFileModeIgnoresOtherEnvironmentVariables` — tbachert ✅ · official ❌
-- `ConfigPrecedenceTest::testConfigFileIgnoresSdkDisabledEnvVar` — tbachert ✅ · official ❌
-- `ConfigPrecedenceTest::testConfigFileIgnoresTracesSamplerEnvVar` — tbachert ✅ · official ❌
-- `ConfigPrecedenceTest::testConfigFileResourceAttributesTakePrecedenceOverEnvironment` — tbachert ✅ · official ❌
-- `ConfigPrecedenceTest::testConfigModeDefaultPropagatorIsNone` — tbachert ✅ · official ❌
+- `ConfigBasicTest::testConfigFileModeIgnoresOtherEnvironmentVariables` — tbachert ✅ · official ✅
+- `ConfigPrecedenceTest::testConfigFileIgnoresSdkDisabledEnvVar` — tbachert ✅ · official ✅
+- `ConfigPrecedenceTest::testConfigFileIgnoresTracesSamplerEnvVar` — tbachert ✅ · official ✅
+- `ConfigPrecedenceTest::testConfigFileResourceAttributesTakePrecedenceOverEnvironment` — tbachert ✅ · official ✅
+- `ConfigPrecedenceTest::testConfigModeDefaultPropagatorIsNone` — tbachert ✅ · official ✅
 
 </details>
 
 <details>
 <summary>SDK self-observability disabled by default — 1 tests (0 env · 1 config)</summary>
 
-- `ConfigSelfObservabilityTest::testSelfObservabilityIsDisabledByDefault` — tbachert ✅ · official ❌
+- `ConfigSelfObservabilityTest::testSelfObservabilityIsDisabledByDefault` — tbachert ✅ · official ✅
 
 </details>
 
 ## Footnotes
 
-¹ Lenient handling of invalid configuration: unrecognized or differently-cased
-enum values (exporter, propagator, sampler, protocol names) and unparseable
-values (numeric limits, `OTEL_TRACES_SAMPLER_ARG`, malformed
-`OTEL_RESOURCE_ATTRIBUTES`) abort SDK initialization — or silently drop the
-propagator — instead of logging a warning and falling back to the default.  
-² All exemplar tests fail: none are captured/exported with the spec's filter
-values (`trace_based`, `always_on`), and an invalid value falls back to no
-exemplars instead of the default `trace_based`
-(issue [#2054](https://github.com/open-telemetry/opentelemetry-php/issues/2054),
-fix in [PR #2057](https://github.com/open-telemetry/opentelemetry-php/pull/2057) — open).  
-³ Blocked by the `file_format` gate: the official `sdk-configuration` package
-only accepts `file_format: '1.0-rc.2'`, while the suite uses data model version
-1.2, so every config-file test fails at initialization. Expected to be resolved
-by [PR #2050](https://github.com/open-telemetry/opentelemetry-php/pull/2050) (draft).  
-⁴ The `jaeger_remote` sampler is not implemented:
-`OTEL_TRACES_SAMPLER=jaeger_remote` fails initialization with "unknown sampler"
-(untracked upstream).  
-⁵ The 2 failures are the **global** attribute limit vars
-(`OTEL_ATTRIBUTE_COUNT_LIMIT`, `OTEL_ATTRIBUTE_VALUE_LENGTH_LIMIT`) — declared
-but not applied (issue
-[#2055](https://github.com/open-telemetry/opentelemetry-php/issues/2055), fix in
-[PR #2058](https://github.com/open-telemetry/opentelemetry-php/pull/2058) — merged,
-not yet released);
-the third is an unparseable limit aborting initialization (footnote ¹). The
-signal-specific `OTEL_SPAN_*` limits work.  
-⁶ Queue-full drop fails: the batch processor flushes synchronously on span
-end, so the queue never fills (spec deviation, untracked upstream).  
-⁷ The periodic-exporting metric reader does not work
-([#1884](https://github.com/open-telemetry/opentelemetry-php/issues/1884)): the
-export interval env var is ignored, and delta temporality is unobservable in a
-single shutdown collection.  
-⁸ `OTEL_EXPORTER_OTLP_METRICS_DEFAULT_HISTOGRAM_AGGREGATION` is declared but
-never applied (untracked upstream).  
-⁹ The env entity detector is not implemented (untracked upstream).  
-¹⁰ The exporter retries non-retryable `500` responses (four attempts observed);
-the specification requires that all `4xx`/`5xx` codes other than 429, 502, 503
-and 504 MUST NOT be retried (fixed in
-[PR #2061](https://github.com/open-telemetry/opentelemetry-php/pull/2061), merged,
-not yet released).  
-¹¹ The 12 env-based tests fail because per-signal gRPC endpoints are used as-is
-(the method path is only appended to the *generic* endpoint), which aborts
-initialization. The HTTP/2 exchange itself has been verified to work (a raw
-C-core client delivers correct gRPC frames to the suite's capture server), so
-no interop problem exists.  
-¹² The certificate environment variables
-(`OTEL_EXPORTER_OTLP[_<signal>]*_CERTIFICATE`, `_CLIENT_CERTIFICATE`,
-`_CLIENT_KEY`) are declared but never passed to the transports, for all
-signals and both protocols. The gRPC wiring is fixed in
-[PR #2059](https://github.com/open-telemetry/opentelemetry-php/pull/2059)
-(merged, not yet released); the OTLP/HTTP side is addressed by
-[PR #2060](https://github.com/open-telemetry/opentelemetry-php/pull/2060)
-(merged, not yet released), which forwards the certificates from the PSR
-transport factory to the Guzzle/Symfony transports and builds on PR #2059's
-exporter-side forwarding.  
-¹³ No exporter factory is registered for the protocol; structurally requires an
-async runtime to serve the pull reader; excluded from upstream issue reporting
-by decision.  
-¹⁴ A missing configuration file causes an uncaught fatal error instead of a
-reported initialization error (untracked upstream). The one passing test pins
-the current no-op behavior for unsupported file formats.  
-¹⁵ Cell marked 🟨: every failing test in that cell belongs to the
-`async` group, so the cell passes once those tests are excluded. These cells are
-counted in the run totals and the tbachert columns, which include the `async`
-group.  
+¹ **Invalid environment values are not tolerated (10 tests).** Unrecognized or
+differently-cased identifiers (`unknown sampler: parentbased_always_on`,
+`unknown protocol: http/protobuf`, `span exporter factory not defined for:
+otlp`), unparseable numeric limits, an invalid `OTEL_TRACES_SAMPLER_ARG` and
+malformed `OTEL_RESOURCE_ATTRIBUTES` entries abort SDK initialization — or
+silently drop the value — instead of logging a warning and falling back to the
+default. The specification requires the fallback. Untracked upstream.  
+² **No log-record-to-span-event bridge in configuration mode (1 test).** A
+configuration that installs the bridge processor fails initialization: the
+corresponding component provider is not registered. Untracked upstream.  
+³ **Composite samplers in configuration mode (3 tests).** `always_record` has no
+provider, so a configuration using it fails initialization; an invalid explicit
+`probability` randomness is not ignored in favour of the configured default; the
+remaining test fails on the diagnostic output the SDK emits (see footnote ²⁰).
+Untracked upstream.  
+⁴ **`jaeger_remote` is not implemented (8 tests: 5 env, 3 configuration).**
+`OTEL_TRACES_SAMPLER=jaeger_remote` aborts initialization with "unknown
+sampler", and the `jaeger_remote/development` sampler node — which *is* part of
+data model 1.0 — has no provider, so configuration-file use fails as well.
+Untracked upstream.  
+⁵ **Attribute and log-record limits in configuration mode (5 tests).** Three of
+them are rejections of `attribute_value_depth_limit`, which exists only in data
+model 1.2 (see the data-model row of the tracking table). The other two are
+limits that are accepted but not enforced: the default attribute value-depth
+limit drops nested attribute values entirely instead of exporting them, and log
+record attribute count/length limits are ignored. Untracked upstream.  
+⁶ **Queue-full behavior cannot be observed (2 tests).** The batch span processor
+and the batch log record processor flush synchronously when the queue is full,
+so the queue never overflows and nothing is dropped. Untracked upstream.  
+⁷ **The periodic exporting `MetricReader` does not repeat collections (12
+tests).** The export interval is not used by the reader, so only a single
+collection happens at shutdown: multi-collection pipeline behavior (series
+separation, gauge/observable instruments across collections), delta temporality,
+cumulative start timestamps and interval-controlled collection all become
+unobservable. Issue
+[#1884](https://github.com/open-telemetry/opentelemetry-php/issues/1884)
+("Periodic exporting MetricReader not working", open).  
+⁸ **Cells marked 🟨:** every failing test in such a cell belongs to the `async`
+group, so the cell turns green when those tests are excluded
+(`--exclude-group async`). They occur in the official columns only — the tbachert
+run passes the same tests — and they are counted in the run totals like any
+other failure. Their cause is footnote ⁷.  
+⁹ **Exemplars are not captured (4 tests).** The filter *values* are accepted
+since [PR #2057](https://github.com/open-telemetry/opentelemetry-php/pull/2057)
+(closed issue
+[#2054](https://github.com/open-telemetry/opentelemetry-php/issues/2054)), but
+no exemplars are exported for `always_on` or
+`trace_based`, and an invalid filter value falls back to no exemplars instead of
+the default `trace_based`. Untracked upstream.  
+¹⁰ **Default histogram aggregation is not applied (4 tests).**
+`OTEL_EXPORTER_OTLP_METRICS_DEFAULT_HISTOGRAM_AGGREGATION` is ignored, and the
+`default_histogram_aggregation` node "parses but is not applied yet" per the
+configuration package's changelog; `base2_exponential_bucket_histogram` parses, then warns and
+falls back to the reader default, so the spec's default boundaries and scales
+are never produced. Untracked upstream.  
+¹¹ **`max_export_batch_size` on a periodic reader (2 tests).** The node exists
+only in data model 1.2, so the configuration is rejected before the reader is
+built.  
+¹² **View aggregation overrides are not honored (2 tests).** A view selecting a
+base2 exponential histogram does not produce the expected metric stream, and an
+aggregation incompatible with the instrument kind is not ignored. Untracked
+upstream.  
+¹³ **Composable views (6 tests).** `view_matching_mode/development` exists only
+in data model 1.2, so every configuration using composable views is rejected at
+initialization.  
+¹⁴ **Cardinality limits are not applied (9 tests).** Per the configuration
+package's changelog,
+"Cardinality limits are not applied yet": reader and view cardinality limits
+produce no overflow series and are not enforced per instrument type. Untracked
+upstream.  
+¹⁵ **`logger_configurator` severity and trace filters are inert (6 tests).**
+`minimum_severity` and `trace_based` are parsed but, per the configuration
+package's changelog,
+"not applied yet": logs below the threshold and records from unsampled traces
+are exported. Untracked upstream.  
+¹⁶ **`OTEL_ENTITIES` is not implemented (8 tests).** The environment entity
+detector does not read `OTEL_ENTITIES` — not for the plain form, duplicates,
+conflicting identities, malformed definitions, schema-url handling or percent
+decoding — and the configuration-file env detector reports no entities either.
+Untracked upstream.  
+¹⁷ **Resource detectors in configuration mode (3 tests).** The container detector
+reports no container id, the service detector does not read the service name
+from the environment variable it specifies, and a resource `schema_url`
+conflicting with detected resources is not dropped. Untracked upstream.  
+¹⁸ **OTLP request/response size limits (7 tests).** `max_request_size` and
+`max_response_size` on exporter configuration nodes exist only in data model
+1.2, so the six configurations (traces, logs, metrics) are rejected, and the
+substituted value destined for one of those typed nodes cannot be coerced.  
+¹⁹ **Prometheus exporter is not available (12 tests).** In configuration mode
+there is no meter-reader provider for `prometheus/development`, which *is* part
+of data model 1.0 (11 tests); in environment mode the exporter selection fails
+with "Metric exporter factory not registered for protocol: prometheus" (1 test).
+A pull exporter additionally needs an async runtime to serve the reader. Not
+reported upstream (by decision).  
+²⁰ **`OTEL_LOG_LEVEL` diagnostics in configuration mode (2 tests).** Both tests
+fail on diagnostics the SDK emits regardless of the configured level: the
+`file_format "1.2" is newer than 1.0` notice at the default level, and an
+export-failure diagnostic in the `log_level: error` test. Untracked upstream.  
+²¹ **`id_generator` (1 test).** The node exists only in data model 1.2, so the
+configuration is rejected before the SDK is built.  
 
 ## Upstream tracking (official SDK failures, by root cause)
 
+107 failing spec tests, grouped by the defect they measure.
+
 | Failing group | Tests | Tracking |
 |---|---:|---|
-| File-based configuration (`file_format` 1.2 gate): all config-file tests except the two passing pins, the `jaeger_remote` config tests and the missing-file test | 251 | fix in [PR #2050](https://github.com/open-telemetry/opentelemetry-php/pull/2050) (draft) |
-| gRPC exporter env-based configuration: per-signal endpoints abort initialization; certificate & insecure env vars not wired (env mode) | 15 | fix in [PR #2059](https://github.com/open-telemetry/opentelemetry-php/pull/2059) (merged, not yet released) |
-| Certificate env vars never wired into the transports (OTLP/HTTP, all signals) | 8 | fix in [PR #2060](https://github.com/open-telemetry/opentelemetry-php/pull/2060) (merged, not yet released), builds on [PR #2059](https://github.com/open-telemetry/opentelemetry-php/pull/2059) (merged, not yet released) |
-| Lenient handling of invalid configuration: unrecognized/case-mismatched enums and unparseable values abort init instead of warning + fallback | 10 | untracked |
-| Entities (`OTEL_ENTITIES`) not implemented | 7 | untracked |
-| `jaeger_remote` sampler not implemented (5 env + 2 config-file) | 7 | untracked |
-| Exemplars / exemplar filter: spec values unrecognized, invalid → no exemplars; none captured or exported | 5 | [#2054](https://github.com/open-telemetry/opentelemetry-php/issues/2054), fix in [PR #2057](https://github.com/open-telemetry/opentelemetry-php/pull/2057) (open) |
-| Global attribute limits declared but not applied | 2 | [#2055](https://github.com/open-telemetry/opentelemetry-php/issues/2055), fix in [PR #2058](https://github.com/open-telemetry/opentelemetry-php/pull/2058) (merged, not yet released) |
-| Batch processor queue-full drop: blocking I/O on span end / log emit | 2 | untracked |
-| Metric export interval / periodic reader (+ temporality dependency) | 2 | [#1884](https://github.com/open-telemetry/opentelemetry-php/issues/1884) |
-| Prometheus pull exporter (needs async runtime) | 1 | not reported upstream (by decision) |
-| Default histogram aggregation env var declared but not applied | 1 | untracked |
-| Non-retryable HTTP `500` responses are retried | 1 | fix in [PR #2061](https://github.com/open-telemetry/opentelemetry-php/pull/2061) (merged, not yet released) |
-| Missing config file: uncaught fatal error instead of a reported initialization error | 1 | untracked |
-| **Total** | **313** | |
+| Periodic `MetricReader` never repeats a collection: interval ignored, delta temporality and cumulative start timestamps unobservable, multi-collection pipeline behavior unobservable (12 `async`-group tests) | 12 | [#1884](https://github.com/open-telemetry/opentelemetry-php/issues/1884) (open) |
+| Prometheus exporter: no meter-reader provider for `prometheus/development` (11 configuration tests), no env exporter factory for `prometheus` (1 env test) | 12 | not reported upstream (by decision) |
+| Invalid environment values abort initialization instead of warning and falling back to the default: case-sensitive sampler/protocol/exporter identifiers, unparseable numeric limits, invalid `OTEL_TRACES_SAMPLER_ARG`, malformed `OTEL_RESOURCE_ATTRIBUTES` | 10 | untracked |
+| Configuration nodes that exist only in data model 1.2 are rejected by the implemented 1.0 schema: `view_matching_mode/development` (6), `max_request_size`/`max_response_size` (7), `attribute_value_depth_limit` (3), `max_export_batch_size` under a periodic reader (2), `id_generator` (1) | 19 | newer data model targeted by [PR #2050](https://github.com/open-telemetry/opentelemetry-php/pull/2050) (draft, partially superseded by the merged [PR #2068](https://github.com/open-telemetry/opentelemetry-php/pull/2068)); the individual nodes untracked |
+| Cardinality limits parsed but not applied: no overflow series, no per-instrument-type limits | 9 | untracked |
+| `jaeger_remote` sampler not implemented (5 env, 3 configuration) | 8 | untracked |
+| `OTEL_ENTITIES` env detector not implemented (7 env, 1 configuration) | 8 | untracked |
+| `logger_configurator` `minimum_severity` and `trace_based` parsed but not applied | 6 | untracked |
+| Exemplars not captured; an invalid filter value falls back to no exemplars instead of `trace_based` | 4 | values fixed by the merged [PR #2057](https://github.com/open-telemetry/opentelemetry-php/pull/2057); capture and fallback untracked |
+| Default histogram aggregation not applied (env var ignored, `default_histogram_aggregation` inert, base2 defaults not produced) | 4 | untracked |
+| Composite samplers in configuration mode: `always_record` provider missing, invalid `probability` randomness not ignored | 3 | untracked |
+| Resource detectors in configuration mode: container detector, service-name detector, conflicting `schema_url` | 3 | untracked |
+| View aggregation overrides ignored (base2 histogram from a view, incompatible aggregation not dropped) | 2 | untracked |
+| Batch span / batch log record processors flush synchronously, so a full queue and its drop cannot be observed | 2 | untracked |
+| `OTEL_LOG_LEVEL` in configuration mode: diagnostics emitted regardless of the configured level | 2 | untracked |
+| Accepted but unenforced limits: default attribute value-depth limit, log record attribute count/length limits | 2 | untracked |
+| Log-record-to-span-event bridge processor has no component provider in configuration mode | 1 | untracked |
+| **Total** | **107** | |
 
 Caveats:
 
-- The two passing official config-file tests:
-  `testUnsupportedFileFormatResultsInNoOpSdk` pins the current no-op behavior
-  for unsupported file formats, and `testInvalidSubstitutionFailsInitialization`
-  passes for the wrong reason (initialization already fails on the unsupported
-  file format).
-- The config-file, gRPC-config and TLS-config failures are all *gated*: they
-  cannot exercise the underlying feature until `file_format` 1.2 is accepted,
-  so their true pass rate on the official SDK is unknown until PR #2050 lands.
-- The env-var-based gRPC/TLS failures do not depend on that gate and pin the
-  wiring gaps directly.
-- "Untracked" items are genuine spec-scope gaps identified by this suite.
+- 19 of the failures measure the *missing newer data model*, not a broken
+  feature: those nodes are not part of the 1.0 schema the SDK implements, so the
+  configuration is rejected before the feature can run. They are counted as
+  failures because the suite describes the current configuration surface; they
+  can flip to passing without any other SDK change once the newer model is
+  implemented.
+- 12 failures come from a single upstream defect (#1884) and land in several
+  rows of the matrix (metric pipeline, temporality, collection interval). Each
+  test is counted in exactly one cell.
+- 🟨 cells are counted as failing in the run totals. They occur in the official
+  columns only, and `--exclude-group async` turns them green because every test
+  failing in them is an `async`-group test; what they measure is the official
+  SDK's periodic reader (footnote ⁷), not a scheduling artifact. The marker is
+  maintained by hand from the JUnit failure list plus the tests'
+  `#[Group('async')]` attributes: `check-matrix.py` verifies per-cell pass/fail
+  counts and env/config-file membership, not the marker.
+- The `file_format "1.2" is newer than 1.0` notice is emitted by every
+  configuration-file run and is the direct cause of two failures that are
+  otherwise about `OTEL_LOG_LEVEL` (footnote ²⁰).
+- "Untracked" items are genuine spec-scope gaps identified by this suite; they
+  are not reported upstream yet.
+- Timing-sensitive tests (collection intervals against async delays,
+  `Retry-After` windows) flake under concurrent host load. Run one suite at a
+  time; a single extra failure that disappears on a clean re-run is a flake, not
+  a matrix change.
 
 ## Deliberate deviation pins
 

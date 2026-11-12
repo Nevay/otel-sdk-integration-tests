@@ -55,16 +55,6 @@ passable via `ARGS='--group env'`):
   `official`), which holds tests that only apply to that specific SDK (vendor
   options, non-spec environment variables, implementation-dependent behavior).
 
-**Dependency note.** The root `composer.json` pins `open-telemetry/api` to
-the unreleased baggage fix — `dev-main#b2bc26bf… as 1.10.x-dev`, the commit
-of [open-telemetry/opentelemetry-php#2056](https://github.com/open-telemetry/opentelemetry-php/pull/2056)
-(merged, not yet part of a release) — because the newest api release (1.10.0)
-drops baggage list-members whose values are percent-encoded. Packagist serves
-`open-telemetry/api` from the read-only `opentelemetry-php/api` mirror of the
-monorepo's `src/API`, so the pin references that mirror's commit rather than
-the monorepo's. Replace the pin with the next stable api release once it
-ships.
-
 ## Tested SDKs
 
 ### [`tbachert/otel-sdk`](https://github.com/tbachert/otel-sdk)
@@ -125,11 +115,12 @@ server without modifying the container's system trust store.
 
 Exact package versions pinned in `sdks/official/composer.lock`.
 
-**Status.** The env-based suite is green except for a handful of groups; all
-file-based tests are currently blocked because the SDK only accepts
-`file_format: '1.0-rc.2'` (the suite uses data model version 1.2). The current
-per-feature pass/fail matrix and the failure breakdown by root cause live in
-[`sdk-support-overview.md`](sdk-support-overview.md).
+**Status.** Environment-variable configuration works for most of the suite, and
+file-based configuration works as well: the SDK's configuration package
+implements data model `file_format: "1.0"` and accepts a newer `1.x` minor with
+a warning, so only nodes that exist exclusively in data model 1.2 are rejected.
+The current per-feature pass/fail matrix and the failure breakdown by root cause
+live in [`sdk-support-overview.md`](sdk-support-overview.md).
 
 **SDK-specific configuration.** Beyond the spec surface, this SDK exposes
 PHP-specific environment variables: `OTEL_PHP_TRACES_PROCESSOR` /
