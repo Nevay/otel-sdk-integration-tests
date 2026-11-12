@@ -485,6 +485,10 @@ final class ConfigSamplingTest extends TestCase {
                     jaeger_remote/development:
                       endpoint: http://127.0.0.1:$port
                       interval: 50
+                  processors:
+                    - simple:
+                        exporter:
+                          console:
                 YAML);
 
                 return ['OTEL_CONFIG_FILE' => $configFile];
