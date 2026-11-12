@@ -176,10 +176,11 @@ final class TbachertSpecificTest extends TestCase {
              */
             $payload = end($this->traces);
 
-            return $this->path(
+            return $this->pathFirst(
                 $payload,
                 '$.resourceSpans[*].scopeSpans[*].spans[?(@.name == "code-attrs")].attributes',
-            )[0];
+                'the attributes of span "code-attrs"',
+            );
         };
 
         $attributeValue = static function (array $attributes, string $key): ?array {

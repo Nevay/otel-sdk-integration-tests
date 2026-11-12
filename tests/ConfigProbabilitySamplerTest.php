@@ -699,9 +699,17 @@ final class ConfigProbabilitySamplerTest extends TestCase {
          */
         self::assertSame(TraceFlags::SAMPLED, $mismatchContext['flags'] & TraceFlags::SAMPLED);
         self::assertNull($mismatchContext['ot']);
-        self::assertStringContainsString(
-            'Mismatch between sampling threshold and sampled flag detected',
+
+        /*
+         * A self-diagnostic for the inconsistent trace state is expected, but
+         * its wording is implementation-specific, so the assertion is on the
+         * level and the subject of the message rather than on one SDK's exact
+         * sentence.
+         */
+        self::assertMatchesRegularExpression(
+            '/(?:otel\.(?:warning|error|critical|alert|emergency):|\[(?:warning|error|critical|alert|emergency)\])[^\n]*\b(?:mismatch|threshold|randomness)\b/i',
             $this->lastStderr,
+            'Expected a warning about the sampling threshold / sampled flag inconsistency.',
         );
 
         /* The child of the dropped parent is dropped. */

@@ -86,10 +86,11 @@ final class ConfigComposableViewsTest extends TestCase {
 
         self::assertSame(
             '5',
-            $this->path(
+            $this->pathFirst(
                 $payload,
                 '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "composable.requests.total")].sum.dataPoints[*].asInt',
-            )[0],
+                 'a sum data point value for metric "composable.requests.total"',
+            ),
         );
     }
 

@@ -9,6 +9,7 @@ use Amp\Http\Server\RequestHandler\ClosureRequestHandler;
 use Amp\Http\Server\Response;
 use Amp\Http\Server\Router;
 use Amp\Http\Server\SocketHttpServer;
+use Amp\CancelledException;
 use Amp\DeferredFuture;
 use Amp\Process\Process;
 use Amp\Process\ProcessException;
@@ -416,6 +417,8 @@ trait OTelEndpointTrait {
             environment: ['OTEL_PHP_AUTOLOAD_ENABLED' => 'true', ...$this->env, ...$configure($port)],
         );
 
+        $timeout = 15;
+
         try {
             /*
              * The first bytes on a plaintext h2c connection are the HTTP/2
@@ -426,10 +429,32 @@ trait OTelEndpointTrait {
              */
             self::assertStringStartsWith(
                 $expectedPrefix,
-                (string)$captured->getFuture()->await(new TimeoutCancellation(15)),
+                (string)$captured->getFuture()->await(new TimeoutCancellation($timeout)),
             );
-        } catch (TimeoutException) {
-            self::fail('The gRPC client did not dial the endpoint');
+        } catch (CancelledException | TimeoutException $exception) {
+            /*
+             * amphp v3 reports an expired TimeoutCancellation as a
+             * CancelledException whose previous exception is the
+             * TimeoutException (vendor/amphp/amp/src/Internal/Cancellable.php),
+             * so both types mean the same thing here: no bytes arrived on the
+             * listening socket before the deadline. (A TimeoutException can be
+             * thrown directly by an amphp version that does not wrap it.)
+             *
+             * Genuine assertion failures are deliberately not caught: a dial
+             * that did happen must report the transport it put on the wire.
+             */
+            $cause = $exception->getPrevious() ?? $exception;
+
+            // The TimeoutException message continues with a stack trace on the
+            // following lines; the first line names the reason.
+            $reason = trim(explode("\n", $cause->getMessage())[0]);
+
+            self::fail(sprintf(
+                'The gRPC client did not dial the endpoint within %d seconds (%s: %s)',
+                $timeout,
+                $cause::class,
+                $reason,
+            ));
         } finally {
             try {
                 $process->kill();
@@ -468,6 +493,33 @@ trait OTelEndpointTrait {
         return is_array($result)
             ? array_values($result)
             : [$result];
+    }
+
+    /**
+     * Evaluates a JSONPath query and returns its first match.
+     *
+     * Unlike path(), which hands back the - possibly empty - list of
+     * matches, this asserts that the query matched at all: indexing an empty
+     * list yields null, which surfaces as a TypeError on the next assertion
+     * and hides the actual cause, namely that the export did not contain the
+     * data point the test was looking for.
+     *
+     * @param string $expected What the test expected to find, for the
+     *        failure message (e.g. the instrument and data point kind).
+     */
+    protected function pathFirst(string $payload, string $expression, string $expected): mixed {
+        $matches = $this->path($payload, $expression);
+
+        self::assertNotEmpty(
+            $matches,
+            sprintf(
+                'Expected %s, but the query %s matched nothing in the captured export.',
+                $expected,
+                $expression,
+            ),
+        );
+
+        return $matches[0];
     }
 
     /**

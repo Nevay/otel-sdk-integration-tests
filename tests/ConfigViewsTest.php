@@ -219,18 +219,20 @@ final class ConfigViewsTest extends TestCase {
 
         self::assertSame(
             '1',
-            $this->path(
+            $this->pathFirst(
                 $payload,
                 '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "selected.meter_name.requests")].sum.dataPoints[*].asInt',
-            )[0],
+                 'a sum data point value for metric "selected.meter_name.requests"',
+            ),
         );
 
         self::assertSame(
             '2',
-            $this->path(
+            $this->pathFirst(
                 $payload,
                 '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "view.meter_name.requests")].sum.dataPoints[*].asInt',
-            )[0],
+                 'a sum data point value for metric "view.meter_name.requests"',
+            ),
         );
     }
 
@@ -288,18 +290,20 @@ final class ConfigViewsTest extends TestCase {
 
         self::assertSame(
             '1',
-            $this->path(
+            $this->pathFirst(
                 $payload,
                 '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "selected.meter_version.requests")].sum.dataPoints[*].asInt',
-            )[0],
+                 'a sum data point value for metric "selected.meter_version.requests"',
+            ),
         );
 
         self::assertSame(
             '2',
-            $this->path(
+            $this->pathFirst(
                 $payload,
                 '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "view.meter_version.requests")].sum.dataPoints[*].asInt',
-            )[0],
+                 'a sum data point value for metric "view.meter_version.requests"',
+            ),
         );
     }
 
@@ -365,18 +369,20 @@ final class ConfigViewsTest extends TestCase {
 
         self::assertSame(
             '1',
-            $this->path(
+            $this->pathFirst(
                 $payload,
                 '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "selected.meter_schema.requests")].sum.dataPoints[*].asInt',
-            )[0],
+                 'a sum data point value for metric "selected.meter_schema.requests"',
+            ),
         );
 
         self::assertSame(
             '2',
-            $this->path(
+            $this->pathFirst(
                 $payload,
                 '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "view.meter_schema.requests")].sum.dataPoints[*].asInt',
-            )[0],
+                 'a sum data point value for metric "view.meter_schema.requests"',
+            ),
         );
     }
 
@@ -463,10 +469,11 @@ final class ConfigViewsTest extends TestCase {
 
         self::assertSame(
             10,
-            $this->path(
+            $this->pathFirst(
                 $payload,
                 '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "selected.latency")].histogram.dataPoints[*].sum',
-            )[0],
+                 'the sum of a histogram data point for metric "selected.latency"',
+            ),
         );
     }
 
@@ -1339,10 +1346,11 @@ final class ConfigViewsTest extends TestCase {
 
         self::assertSame(
             '5',
-            $this->path(
+            $this->pathFirst(
                 $payload,
                 '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "view.default.counter")].sum.dataPoints[*].asInt',
-            )[0],
+                 'a sum data point value for metric "view.default.counter"',
+            ),
         );
 
         self::assertNotEmpty(
@@ -1354,10 +1362,11 @@ final class ConfigViewsTest extends TestCase {
 
         self::assertSame(
             '7',
-            $this->path(
+            $this->pathFirst(
                 $payload,
                 '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "view.default.gauge")].gauge.dataPoints[*].asInt',
-            )[0],
+                 'a gauge data point value for metric "view.default.gauge"',
+            ),
         );
 
         self::assertNotEmpty(
@@ -1369,18 +1378,20 @@ final class ConfigViewsTest extends TestCase {
 
         self::assertSame(
             '1',
-            $this->path(
+            $this->pathFirst(
                 $payload,
                 '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "view.default.histogram")].histogram.dataPoints[*].count',
-            )[0],
+                'the count of a histogram data point for metric "view.default.histogram"',
+            ),
         );
 
         self::assertSame(
             9,
-            $this->path(
+            $this->pathFirst(
                 $payload,
                 '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "view.default.histogram")].histogram.dataPoints[*].sum',
-            )[0],
+                'the sum of a histogram data point for metric "view.default.histogram"',
+            ),
         );
     }
 
@@ -1423,34 +1434,38 @@ final class ConfigViewsTest extends TestCase {
 
         self::assertSame(
             [10, 100],
-            $this->path(
+            $this->pathFirst(
                 $payload,
                 '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "latency")].histogram.dataPoints[*].explicitBounds',
-            )[0],
+                'the explicit bucket boundaries of a histogram data point for metric "latency"',
+            ),
         );
 
         self::assertSame(
             ['1', '1', '1'],
-            $this->path(
+            $this->pathFirst(
                 $payload,
                 '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "latency")].histogram.dataPoints[*].bucketCounts',
-            )[0],
+                'the bucket counts of a histogram data point for metric "latency"',
+            ),
         );
 
         self::assertSame(
             5,
-            $this->path(
+            $this->pathFirst(
                 $payload,
                 '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "latency")].histogram.dataPoints[*].min',
-            )[0],
+                'the minimum recorded by a histogram data point for metric "latency"',
+            ),
         );
 
         self::assertSame(
             150,
-            $this->path(
+            $this->pathFirst(
                 $payload,
                 '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "latency")].histogram.dataPoints[*].max',
-            )[0],
+                'the maximum recorded by a histogram data point for metric "latency"',
+            ),
         );
     }
 
@@ -1561,10 +1576,11 @@ final class ConfigViewsTest extends TestCase {
 
         self::assertSame(
             '5',
-            $this->path(
+            $this->pathFirst(
                 $payload,
                 '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "counter.sum")].sum.dataPoints[*].asInt',
-            )[0],
+                 'a sum data point value for metric "counter.sum"',
+            ),
         );
 
         $lastValueMetrics = $this->path(
@@ -1583,10 +1599,11 @@ final class ConfigViewsTest extends TestCase {
 
         self::assertSame(
             '3',
-            $this->path(
+            $this->pathFirst(
                 $payload,
                 '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "gauge.last")].gauge.dataPoints[*].asInt',
-            )[0],
+                 'a gauge data point value for metric "gauge.last"',
+            ),
         );
     }
 
@@ -1838,10 +1855,11 @@ final class ConfigViewsTest extends TestCase {
 
         self::assertSame(
             '42',
-            $this->path(
+            $this->pathFirst(
                 $payload,
                 '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "requests")].gauge.dataPoints[*].asInt',
-            )[0],
+                 'a gauge data point value for metric "requests"',
+            ),
         );
     }
 
@@ -2045,10 +2063,11 @@ final class ConfigViewsTest extends TestCase {
 
         self::assertSame(
             '7',
-            $this->path(
+            $this->pathFirst(
                 $payload,
                 '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "unselected")].sum.dataPoints[*].asInt',
-            )[0],
+                 'a sum data point value for metric "unselected"',
+            ),
         );
     }
 
@@ -2110,10 +2129,11 @@ final class ConfigViewsTest extends TestCase {
 
         self::assertSame(
             '3',
-            $this->path(
+            $this->pathFirst(
                 $payload,
                 '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "requests.total")].sum.dataPoints[*].asInt',
-            )[0],
+                 'a sum data point value for metric "requests.total"',
+            ),
         );
 
         self::assertCount(
@@ -2521,10 +2541,11 @@ final class ConfigViewsTest extends TestCase {
          * aggregation; with record_min_max disabled no min/max are
          * reported.
          */
-        $dataPoint = $this->path(
+        $dataPoint = $this->pathFirst(
             $this->metrics[0],
             '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "b2.view.histogram")].exponentialHistogram.dataPoints[0]',
-        )[0];
+             'an exponential histogram data point for metric "b2.view.histogram"',
+        );
 
         self::assertArrayNotHasKey('min', $dataPoint);
         self::assertArrayNotHasKey('max', $dataPoint);

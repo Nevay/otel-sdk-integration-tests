@@ -129,7 +129,11 @@ PHP-specific environment variables: `OTEL_PHP_TRACES_PROCESSOR` /
 destination), and `OTEL_PHP_INTERNAL_METRICS_ENABLED` (SDK self-instrumentation).
 `OfficialSpecificTest` covers these; its tests are tagged with the group
 `official` and run in the official run only. The spec variable
-`OTEL_LOG_LEVEL` is applied to the SDK's self-diagnostic log output, which
-respects the level for warnings and initialization errors alike (`none`
-suppresses all of it).
+`OTEL_LOG_LEVEL` is applied to the SDK's self-diagnostic log output: in
+environment-variable mode that covers its warnings and initialization errors
+alike, and `none` suppresses all of it. In configuration-file mode what the
+current run shows is narrower — the configured `log_level` re-levels the
+diagnostics the configuration path emits while it builds the SDK's components,
+while diagnostics that SDK components emit through the API's own internal logger
+are not re-levelled and still appear at `log_level: error`.
 

@@ -62,10 +62,11 @@ final class EnvLogRecordTest extends TestCase {
 
         self::assertSame(
             'abcd',
-            $this->path(
+            $this->pathFirst(
                 $this->logs[0],
                 '$.resourceLogs[*].scopeLogs[*].logRecords[0].attributes[?(@.key == "test.attribute")].value.stringValue',
-            )[0],
+                'the string value of log record attribute "test.attribute"',
+            ),
         );
     }
 
@@ -296,10 +297,11 @@ final class EnvLogRecordTest extends TestCase {
          * Map bodies are exported as OTLP kvlist values, including nested
          * maps; int64 values are encoded as strings in JSON.
          */
-        $body = $this->path(
+        $body = $this->pathFirst(
             $this->logs[0],
             '$.resourceLogs[*].scopeLogs[*].logRecords[*].body',
-        )[0];
+            'a log record body',
+        );
 
         self::assertSame(
             [

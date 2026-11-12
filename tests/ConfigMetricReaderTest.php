@@ -299,10 +299,11 @@ final class ConfigMetricReaderTest extends TestCase {
          * exponential aggregation: data points carry a scale and an
          * offset/bucket-count pair instead of explicit bounds.
          */
-        $dataPoint = $this->path(
+        $dataPoint = $this->pathFirst(
             $this->metrics[0],
             '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "b2.histogram")].exponentialHistogram.dataPoints[0]',
-        )[0];
+             'an exponential histogram data point for metric "b2.histogram"',
+        );
 
         self::assertArrayNotHasKey('explicitBounds', $dataPoint);
         self::assertIsInt($dataPoint['scale']);
@@ -344,10 +345,11 @@ final class ConfigMetricReaderTest extends TestCase {
          * apply: the chosen scale stays within the default bound and the
          * bucket count never exceeds the default size.
          */
-        $dataPoint = $this->path(
+        $dataPoint = $this->pathFirst(
             $this->metrics[0],
             '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "b2.default-limits.histogram")].exponentialHistogram.dataPoints[0]',
-        )[0];
+             'an exponential histogram data point for metric "b2.default-limits.histogram"',
+        );
 
         self::assertIsInt($dataPoint['scale']);
         self::assertLessThanOrEqual(20, $dataPoint['scale']);
@@ -768,7 +770,11 @@ final class ConfigMetricReaderTest extends TestCase {
         );
         self::assertSame(
             '2',
-            (string) $this->path($this->metrics[0], $base . '.dataPoints[2].asInt')[0],
+            (string) $this->pathFirst(
+                $this->metrics[0],
+                $base . '.dataPoints[2].asInt',
+                'the third sum data point value of metric "cardinality.counter"',
+            ),
         );
     }
 
@@ -1559,10 +1565,11 @@ final class ConfigMetricReaderTest extends TestCase {
 
             self::assertCount(1, $payloads);
 
-            $dataPoint = $this->path(
+            $dataPoint = $this->pathFirst(
                 $payloads[0],
                 '$.resourceMetrics[*].scopeMetrics[*].metrics[?(@.name == "default-agg.histogram")].histogram.dataPoints[0]',
-            )[0];
+                 'a histogram data point for metric "default-agg.histogram"',
+            );
 
             self::assertArrayHasKey('explicitBounds', $dataPoint);
             self::assertArrayNotHasKey('scale', $dataPoint);

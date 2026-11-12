@@ -156,10 +156,11 @@ final class ConfigLogRecordTest extends TestCase {
 
         self::assertSame(
             'scheduled-log',
-            $this->path(
+            $this->pathFirst(
                 $this->logs[0],
                 '$.resourceLogs[*].scopeLogs[*].logRecords[*].body.stringValue',
-            )[0],
+                'a log record body string value',
+            ),
         );
     }
 
@@ -211,10 +212,11 @@ final class ConfigLogRecordTest extends TestCase {
 
         self::assertSame(
             '1234',
-            $this->path(
+            $this->pathFirst(
                 $this->logs[0],
                 '$.resourceLogs[*].scopeLogs[*].logRecords[*].attributes[?(@.key == "a1")].value.stringValue',
-            )[0],
+                'the string value of log record attribute "a1"',
+            ),
         );
     }
 

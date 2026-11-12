@@ -262,10 +262,11 @@ final class ConfigSamplingTest extends TestCase {
          * the harness with the canonical proto3 JSON mapping); see the
          * note on id encoding in OTelEndpointTrait::captureRequestBody().
          */
-        $childTraceId = $this->path(
+        $childTraceId = $this->pathFirst(
             $this->traces[0],
             '$.resourceSpans[*].scopeSpans[*].spans[?(@.name == "kept-child")].traceId',
-        )[0];
+            'the trace id of span "kept-child"',
+        );
 
         self::assertContainsEquals(
             '4193e569320548f7b71d4c5a750d504c',
