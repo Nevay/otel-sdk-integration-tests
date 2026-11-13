@@ -101,11 +101,11 @@ Footnotes are collected below the tables.
 |---|---|---|---|---|
 | End-to-end span export & cross-service context propagation (incl. mixed env/config-file services) | ✅ 1/1 | ✅ 2/2 | ✅ 1/1 | ✅ 2/2 |
 | Sampling: always_on/off, trace-id ratio, parent-based (simple samplers) | ✅ 11/11 | ✅ 12/12 | ⚠️ 9/11¹ | ✅ 12/12 |
-| Composite samplers in configuration mode: `rule_based` routing, `probability` and `parent_threshold` trace-state behaviour | – | ✅ 23/23 | – | ⚠️ 22/23³²⁴ |
-| `always_record` sampler (node that exists only in data model 1.2) | – | ✅ 1/1 | – | ❌ 0/1²³ |
-| `jaeger_remote` sampler (remote dial, strategies, initial sampler) | ✅ 5/5 | ✅ 3/3 | ❌ 0/5⁴ | ❌ 0/3⁴ |
-| Span & attribute limits (count, value length, depth) | ✅ 11/11 | ✅ 6/6 | ⚠️ 10/11¹ | ⚠️ 3/6⁵ |
-| Batch & simple span processors | ✅ 5/5 | ✅ 5/5 | ⚠️ 4/5⁶ | ✅ 5/5 |
+| Composite samplers in configuration mode: `rule_based` routing, `probability` and `parent_threshold` trace-state behaviour | – | ✅ 23/23 | – | ⚠️ 22/23³⁴ |
+| `always_record` sampler (node that exists only in data model 1.2) | – | ✅ 1/1 | – | ❌ 0/1⁵ |
+| `jaeger_remote` sampler (remote dial, strategies, initial sampler) | ✅ 5/5 | ✅ 3/3 | ❌ 0/5⁶ | ❌ 0/3⁶ |
+| Span & attribute limits (count, value length, depth) | ✅ 11/11 | ✅ 6/6 | ⚠️ 10/11¹ | ⚠️ 3/6⁷ |
+| Batch & simple span processors | ✅ 5/5 | ✅ 5/5 | ⚠️ 4/5⁸ | ✅ 5/5 |
 | Span details: status, events, kinds, links, attribute value types | ✅ 5/5 | ✅ 1/1 | ✅ 5/5 | ✅ 1/1 |
 
 <details>
@@ -251,18 +251,18 @@ Footnotes are collected below the tables.
 
 | Behavior | tbachert env | tbachert config | official env | official config |
 |---|---|---|---|---|
-| Metric pipeline: instruments, series separation, gauge/counter semantics | – | ✅ 8/8 | – | 🟨 2/8⁷⁸ |
-| Exemplar filter (always_on/off, trace_based, invalid fallback) | ✅ 4/4 | ✅ 4/4 | ⚠️ 3/4⁹ | ⚠️ 1/4⁹ |
-| Temporality preference (cumulative/delta/lowmemory) | ✅ 2/2 | ✅ 5/5 | 🟨 1/2⁷⁸ | 🟨 1/5⁷⁸ |
-| Default histogram aggregation (exponential buckets, spec boundaries) | ✅ 1/1 | ✅ 4/4 | ❌ 0/1¹⁰ | ⚠️ 1/4¹⁰ |
-| Collection interval & periodic reader (batch size) | ✅ 1/1 | ✅ 3/3 | 🟨 0/1⁷⁸ | ⚠️ 1/3¹¹ |
+| Metric pipeline: instruments, series separation, gauge/counter semantics | – | ✅ 8/8 | – | 🟨 2/8⁹¹⁰ |
+| Exemplar filter (always_on/off, trace_based, invalid fallback) | ✅ 4/4 | ✅ 4/4 | ⚠️ 3/4¹¹ | ⚠️ 1/4¹¹ |
+| Temporality preference (cumulative/delta/lowmemory) | ✅ 2/2 | ✅ 5/5 | 🟨 1/2⁹¹⁰ | 🟨 1/5⁹¹⁰ |
+| Default histogram aggregation (exponential buckets, spec boundaries) | ✅ 1/1 | ✅ 4/4 | ❌ 0/1¹² | ⚠️ 1/4¹² |
+| Collection interval & periodic reader (batch size) | ✅ 1/1 | ✅ 3/3 | 🟨 0/1⁹¹⁰ | ⚠️ 1/3¹³ |
 | Views: instrument & meter selection (incl. wildcards) | – | ✅ 14/14 | – | ✅ 14/14 |
 | Views: attribute key filtering (include/exclude, precedence) | – | ✅ 4/4 | – | ✅ 4/4 |
-| Views: aggregation overrides (histogram buckets, drop, sum/last-value) | – | ✅ 7/7 | – | ⚠️ 5/7¹² |
+| Views: aggregation overrides (histogram buckets, drop, sum/last-value) | – | ✅ 7/7 | – | ⚠️ 5/7¹⁴ |
 | Views: metric renaming & description | – | ✅ 4/4 | – | ✅ 4/4 |
 | Views: matching behavior (no-match, multiple streams, ordering) | – | ✅ 5/5 | – | ✅ 5/5 |
-| Composable views (same-name merging, unnamed join, application order) | – | ✅ 6/6 | – | ❌ 0/6¹³ |
-| Cardinality limits (overflow series) | – | ✅ 10/10 | – | ⚠️ 1/10¹⁴ |
+| Composable views (same-name merging, unnamed join, application order) | – | ✅ 6/6 | – | ❌ 0/6¹⁵ |
+| Cardinality limits (overflow series) | – | ✅ 10/10 | – | ⚠️ 1/10¹⁶ |
 
 <details>
 <summary>Metric pipeline: instruments, series separation, gauge/counter semantics — 8 tests (0 env · 8 config)</summary>
@@ -423,9 +423,9 @@ Footnotes are collected below the tables.
 | Behavior | tbachert env | tbachert config | official env | official config |
 |---|---|---|---|---|
 | Log record content: severity, non-string & nested body types | ✅ 3/3 | ✅ 1/1 | ✅ 3/3 | ✅ 1/1 |
-| Log record limits (attribute count & value length) | ✅ 3/3 | ✅ 2/2 | ✅ 3/3 | ❌ 0/2⁵ |
-| Batch & simple log record processors | ✅ 5/5 | ✅ 3/3 | ⚠️ 4/5⁶ | ✅ 3/3 |
-| Log severity threshold & trace-based filtering | – | ✅ 7/7 | – | ⚠️ 1/7¹⁵ |
+| Log record limits (attribute count & value length) | ✅ 3/3 | ✅ 2/2 | ✅ 3/3 | ❌ 0/2⁷ |
+| Batch & simple log record processors | ✅ 5/5 | ✅ 3/3 | ⚠️ 4/5⁸ | ✅ 3/3 |
+| Log severity threshold & trace-based filtering | – | ✅ 7/7 | – | ⚠️ 1/7¹⁷ |
 
 <details>
 <summary>Log record content: severity, non-string & nested body types — 4 tests (3 env · 1 config)</summary>
@@ -480,8 +480,8 @@ Footnotes are collected below the tables.
 | Behavior | tbachert env | tbachert config | official env | official config |
 |---|---|---|---|---|
 | Resource attributes & service.name | ✅ 8/8 | ✅ 6/6 | ✅ 8/8 | ✅ 6/6 |
-| Entities (`OTEL_ENTITIES`, env detector) | ✅ 7/7 | ✅ 1/1 | ❌ 0/7¹⁶ | ❌ 0/1¹⁶ |
-| Resource detectors & attribute include/exclude (config file) | – | ✅ 11/11 | – | ⚠️ 8/11¹⁷ |
+| Entities (`OTEL_ENTITIES`, env detector) | ✅ 7/7 | ✅ 1/1 | ❌ 0/7¹⁸ | ❌ 0/1¹⁸ |
+| Resource detectors & attribute include/exclude (config file) | – | ✅ 11/11 | – | ⚠️ 8/11¹⁹ |
 | Unrecognized resource detector name (warn & skip) | – | ✅ 2/2 | – | ✅ 2/2 |
 
 <details>
@@ -547,12 +547,12 @@ Footnotes are collected below the tables.
 
 | Behavior | tbachert env | tbachert config | official env | official config |
 |---|---|---|---|---|
-| OTLP HTTP exporter options: protocol, headers, compression, endpoints, timeouts, size limits, retries | ✅ 24/24 | ✅ 23/23 | ⚠️ 22/24¹ | ⚠️ 17/23¹⁸ |
+| OTLP HTTP exporter options: protocol, headers, compression, endpoints, timeouts, size limits, retries | ✅ 24/24 | ✅ 23/23 | ⚠️ 22/24¹ | ⚠️ 17/23²⁰ |
 | OTLP gRPC exporter (all signals) | ✅ 12/12 | ✅ 4/4 | ✅ 12/12 | ✅ 4/4 |
 | OTLP file exporter (newline-delimited JSON on disk) | – | ✅ 3/3 | – | ✅ 3/3 |
 | TLS: CA trust & client certificates (all signals, both protocols) | ✅ 11/11 | ✅ 6/6 | ✅ 11/11 | ✅ 6/6 |
 | Console exporter (stdout) | ✅ 3/3 | ✅ 3/3 | ✅ 3/3 | ✅ 3/3 |
-| Prometheus exporter (pull, translation & escaping) | ✅ 1/1 | ✅ 11/11 | ❌ 0/1¹⁹ | ❌ 0/11¹⁹ |
+| Prometheus exporter (pull, translation & escaping) | ✅ 1/1 | ✅ 11/11 | ❌ 0/1²¹ | ❌ 0/11²¹ |
 
 <details>
 <summary>OTLP HTTP exporter options: protocol, headers, compression, endpoints, timeouts, size limits, retries — 47 tests (24 env · 23 config)</summary>
@@ -698,11 +698,11 @@ Footnotes are collected below the tables.
 | SDK enablement & per-signal exporter selection (`OTEL_SDK_DISABLED`, `*_EXPORTER`) | ✅ 10/10 | ✅ 1/1 | ⚠️ 9/10¹ | ✅ 1/1 |
 | Provider configurators: scope filtering (wildcards, case sensitivity, isolation) | – | ✅ 18/18 | – | ✅ 18/18 |
 | Env value parsing & leniency: empty values, invalid sampler/propagator, malformed attributes (env-only semantics) | ✅ 5/5 | – | ⚠️ 2/5¹ | – |
-| `OTEL_LOG_LEVEL` (self-diagnostic output) | ✅ 1/1 | ✅ 2/2 | ✅ 1/1 | ⚠️ 1/2²⁰ |
+| `OTEL_LOG_LEVEL` (self-diagnostic output) | ✅ 1/1 | ✅ 2/2 | ✅ 1/1 | ⚠️ 1/2²² |
 | Config file basics: no-op SDK, format versioning, missing file, independent signals | – | ✅ 4/4 | – | ✅ 4/4 |
-| Component lists in configuration mode: provider `processors`/`readers` required and non-null; a null is not a valid value for an `array`-typed property | – | ✅ 11/11 | – | ⚠️ 10/11²² |
-| ID generation (random) | – | ✅ 1/1 | – | ❌ 0/1²¹ |
-| Variable substitution: `${}`, defaults, escaping, type coercion | – | ✅ 9/9 | – | ⚠️ 8/9¹⁸ |
+| Component lists in configuration mode: provider `processors`/`readers` required and non-null; a null is not a valid value for an `array`-typed property | – | ✅ 11/11 | – | ⚠️ 10/11²³ |
+| ID generation (random) | – | ✅ 1/1 | – | ❌ 0/1²⁴ |
+| Variable substitution: `${}`, defaults, escaping, type coercion | – | ✅ 9/9 | – | ⚠️ 8/9²⁰ |
 | Environment variable precedence & ignore rules in config-file mode | – | ✅ 5/5 | – | ✅ 5/5 |
 | SDK self-observability disabled by default | – | ✅ 1/1 | – | ✅ 1/1 |
 
@@ -850,9 +850,16 @@ a malformed `OTEL_RESOURCE_ATTRIBUTES` list loses the valid entry as well
 `OTEL_PROPAGATORS` list yields no `baggage` propagator (`Failed asserting that
 an array has the key 'baggage'.`). The specification requires the fallback.
 Untracked upstream.  
-² **No log-record-to-span-event bridge in configuration mode (1 test).** A
-configuration that installs the bridge processor fails initialization: the
-corresponding component provider is not registered. Untracked upstream.  
+² **No log-record-to-span-event bridge in configuration mode (1 test).** The
+`event_to_span_event_bridge/development` processor node is absent from the
+v1.0.0 `logger_provider` schema and appears there only from data model 1.1, so
+the configuration is rejected before the SDK is built: `component
+"opentelemetry\sdk\logs\logrecordprocessorinterface" uses unknown provider
+"event_to_span_event_bridge/development", available providers are "batch",
+"simple"`. `open-telemetry/sdk` implements `file_format: "1.0"`, as its own
+runtime warning states, so rejecting a configuration that installs the bridge is
+what the 1.0 model implies — it is not evidence of a missing 1.0
+implementation. Counted with the newer-data-model row of the tracking table.  
 ³ **Composite samplers in configuration mode: the `rv` and parent-threshold
 coverage in this cell is SHOULD-level or supplemental-guidance coverage, and the
 cross-SDK difference it measured is an implementation-defined warning (no failing
@@ -875,8 +882,60 @@ sampled flag detected. Ignoring sampling threshold.`), while official logs
 nothing: its whole `Trace/Sampler/Consistent/` package contains no logger call.
 The two therefore do not behave identically there, and neither side's behavior
 in that spot is a conformance gap. The one failing test in this cell is
-footnote ²⁴.  
-⁴ **`jaeger_remote` is not implemented (8 tests: 5 env, 3 configuration).**
+footnote ⁴.  
+⁴ **Sampler compatibility warnings: both are asserted presence-only, and
+official omits one of them (1 test).** `ConfigSamplingTest` covers the two
+warnings the specification requires: `trace/sdk.md:516-517`, a
+`TraceIdRatioBased` sampler queried with a non-empty parent span context
+(`testTraceIdRatioBasedSamplerWarnsWhenUsedAsChildSampler`, passing on both
+SDKs), and `trace/sdk.md:582-584`, a probability sampler presuming TraceID
+randomness while the Trace random flag is unset
+(`testProbabilitySamplerWarnsWhenTraceRandomFlagIsNotSet`, the failing test).
+Both spec statements are explicitly illustrative — "SHOULD emit a warning **such
+as**" and "As an **example** of this compatibility warning" — so each test
+asserts only that a diagnostic appears, never its wording and never a number of
+occurrences. tbachert emits both: `otel.WARNING: The TraceIdRatioBased sampler is
+operating as a child sampler; the behavior is subject to change. Please upgrade
+this SDK configuration to use ProbabilitySampler.` and `otel.WARNING: The sampler
+is presuming TraceIDs are random and expects the Trace random flag to be set in
+confirmation. Please upgrade your caller(s) to use W3C Trace Context Level 2.`
+official emits the first one with the spec body verbatim — `OpenTelemetry:
+[warning] … in sdks/official/vendor/open-telemetry/sdk/Trace/Sampler/
+TraceIdRatioBasedSampler.php(74)`,
+once per sampler instance — and has no ProbabilitySampler/TraceID-randomness
+warning anywhere: no such string occurs in its vendor tree, and the
+`Consistent/CompositeSampler` that `probability/development` builds has no logger
+at all. That single absence is the only gap these two tests add. tbachert's
+second warning differs from the spec's example wording (it says "The sampler is
+presuming" for a node configured as `probability/development`, where the example
+names the `ProbabilitySampler`); the wording is illustrative, so that is not a
+conformance gap, and the message is not especially actionable either — it states
+an internal presumption instead of naming the configuration a user would change.
+
+Test design, not a defect: official logs `file_format "1.2" is newer than the
+1.0 implemented by this SDK; configuration it introduces may be ignored` on every
+configuration-file run. A literal "no warning in the control run" assertion would
+therefore fail on official, and a bare "at least one warning in the trigger run"
+assertion would pass there vacuously, so each test runs a control first under one
+identical configuration and asserts that the trigger run emits more warnings than
+that baseline. The notice is only a log statement — the `FILE_FORMAT_MAJOR` /
+`FILE_FORMAT_MINOR` gate in
+`Configuration/Internal/ComponentProvider/OpenTelemetrySdk.php`, commented "Warned
+here rather than during validation", filters no configuration node — and it is not
+why the node under test had an effect: probes on official show
+`probability/development` genuinely governed the child span, whose context carried
+the `ot=th:…` tracestate entry that `always_on` in the same position did not
+write, and the same node with `ratio: 0.0` dropped a child of a sampled remote
+parent that a default parent-based sampler would have kept.  
+⁵ **`always_record` (1 test).** The sampler node exists only in data model 1.2
+(`AlwaysRecordSampler` appears in the v1.2.0 and main configuration schemas, not
+in v1.0.0 or v1.1.0), so the configuration is rejected before the SDK is built:
+`component "opentelemetry\sdk\trace\samplerinterface" uses unknown provider
+"always_record", available providers are "always_off", "always_on",
+"composite/development", "parent_based", "probability/development",
+"trace_id_ratio_based"`. Same missing newer data model as the data-model row of
+the tracking table.  
+⁶ **`jaeger_remote` is not implemented (8 tests: 5 env, 3 configuration).**
 `OTEL_TRACES_SAMPLER=jaeger_remote` aborts initialization with
 `unknown sampler: jaeger_remote` (4 env tests), and the
 `jaeger_remote/development` sampler node — which *is* part of data model 1.0 —
@@ -890,7 +949,7 @@ and they fail as `The gRPC client did not dial the endpoint within 15 seconds
 `#[Group('async'), Group('jaeger')]`, so these cells are **not** 🟨:
 `--exclude-group async` removes every test in them, which empties the cell
 instead of turning it green. Untracked upstream.  
-⁵ **Attribute and log-record limits in configuration mode (5 tests).** Three of
+⁷ **Attribute and log-record limits in configuration mode (5 tests).** Three of
 them are rejections of `attribute_value_depth_limit`, which exists only in data
 model 1.2 (see the data-model row of the tracking table):
 `unrecognized option "attribute_value_depth_limit" under
@@ -906,10 +965,10 @@ is itself specified only in data model 1.2, so that test measures the missing
 newer model as much as an unenforced limit; it is counted with the unenforced
 limits here, and moving it to the data-model row is a classification decision
 that has not been made. Untracked upstream.  
-⁶ **Queue-full behavior cannot be observed (2 tests).** The batch span processor
+⁸ **Queue-full behavior cannot be observed (2 tests).** The batch span processor
 and the batch log record processor flush synchronously when the queue is full,
 so the queue never overflows and nothing is dropped. Untracked upstream.  
-⁷ **The periodic exporting `MetricReader` does not repeat collections (12
+⁹ **The periodic exporting `MetricReader` does not repeat collections (12
 tests).** The export interval is not used by the reader, so only a single
 collection happens at shutdown: multi-collection pipeline behavior (series
 separation, gauge/observable instruments across collections), delta temporality,
@@ -917,50 +976,55 @@ cumulative start timestamps and interval-controlled collection all become
 unobservable. Issue
 [#1884](https://github.com/open-telemetry/opentelemetry-php/issues/1884)
 ("Periodic exporting MetricReader not working", open).  
-⁸ **Cells marked 🟨:** every failing test in such a cell belongs to the `async`
+¹⁰ **Cells marked 🟨:** every failing test in such a cell belongs to the `async`
 group, so the cell turns green when those tests are excluded
 (`--exclude-group async`). They occur in the official columns only — the tbachert
 run passes the same tests — and they are counted in the run totals like any
-other failure. Their cause is footnote ⁷.  
-⁹ **Exemplars are not captured (4 tests).** The filter *values* are accepted
+other failure. Their cause is footnote ⁹.  
+¹¹ **Exemplars are not captured (4 tests).** The filter *values* are accepted
 since [PR #2057](https://github.com/open-telemetry/opentelemetry-php/pull/2057)
 (closed issue
 [#2054](https://github.com/open-telemetry/opentelemetry-php/issues/2054)), but
 no exemplars are exported for `always_on` or
 `trace_based`, and an invalid filter value falls back to no exemplars instead of
 the default `trace_based`. Untracked upstream.  
-¹⁰ **Default histogram aggregation is not applied (4 tests).**
+¹² **Default histogram aggregation is not applied (4 tests).**
 `OTEL_EXPORTER_OTLP_METRICS_DEFAULT_HISTOGRAM_AGGREGATION` is ignored, and the
 `default_histogram_aggregation` node "parses but is not applied yet" per the
 configuration package's changelog; `base2_exponential_bucket_histogram` parses, then
 falls back to the reader default, so the spec's default boundaries and scales
 are never produced. Untracked upstream.  
-¹¹ **`max_export_batch_size` on a periodic reader (2 tests).** The node exists
-only in data model 1.2, so the configuration is rejected before the reader is
-built.  
-¹² **View aggregation overrides are not honored (2 tests).** A view selecting a
+¹³ **`max_export_batch_size` on a periodic reader (2 tests).** Only the metric
+placement of this node is newer than the implemented model: the node is part of
+data model 1.0's batch log record and batch span processors — those tests pass
+on both SDKs — while 1.0's `meter_provider` has no `max_export_batch_size`
+under `readers` and gains it only from data model 1.1. Both metric
+configurations are therefore rejected before the reader is built (`unrecognized
+option "max_export_batch_size/development" under "periodic"`). Counted with the
+newer-data-model row of the tracking table.  
+¹⁴ **View aggregation overrides are not honored (2 tests).** A view selecting a
 base2 exponential histogram does not produce the expected metric stream, and an
 aggregation incompatible with the instrument kind is not ignored. Untracked
 upstream.  
-¹³ **Composable views (6 tests).** `view_matching_mode/development` exists only
+¹⁵ **Composable views (6 tests).** `view_matching_mode/development` exists only
 in data model 1.2, so every configuration using composable views is rejected at
 initialization.  
-¹⁴ **Cardinality limits are not applied (9 tests).** Per the configuration
+¹⁶ **Cardinality limits are not applied (9 tests).** Per the configuration
 package's changelog,
 "Cardinality limits are not applied yet": reader and view cardinality limits
 produce no overflow series and are not enforced per instrument type. Untracked
 upstream.  
-¹⁵ **`logger_configurator` severity and trace filters are inert (6 tests).**
+¹⁷ **`logger_configurator` severity and trace filters are inert (6 tests).**
 `minimum_severity` and `trace_based` are parsed but, per the configuration
 package's changelog,
 "not applied yet": logs below the threshold and records from unsampled traces
 are exported. Untracked upstream.  
-¹⁶ **`OTEL_ENTITIES` is not implemented (8 tests).** The environment entity
+¹⁸ **`OTEL_ENTITIES` is not implemented (8 tests).** The environment entity
 detector does not read `OTEL_ENTITIES` — not for the plain form, duplicates,
 conflicting identities, malformed definitions, schema-url handling or percent
 decoding — and the configuration-file env detector reports no entities either.
 Untracked upstream.  
-¹⁷ **Resource detectors in configuration mode (3 tests).** The container detector
+¹⁹ **Resource detectors in configuration mode (3 tests).** The container detector
 reports no container id (`Resource attribute "container.id" was not found.`);
 the service detector does read `service.name` from `OTEL_SERVICE_NAME` — that
 assertion passed — and what is missing is the instance id it also specifies
@@ -968,7 +1032,7 @@ assertion passed — and what is missing is the instance id it also specifies
 `schema_url` conflicting with detected resources is not dropped
 (`Failed asserting that two arrays are identical.`, with the conflicting
 `https://example.com/schemas/custom-1.0` still present). Untracked upstream.  
-¹⁸ **OTLP request/response size limits (7 tests).** `max_request_size` and
+²⁰ **OTLP request/response size limits (7 tests).** `max_request_size` and
 `max_response_size` on exporter configuration nodes exist only in data model
 1.2, so the six configurations (traces, logs, metrics) are rejected
 (`unrecognized option "max_request_size" under "otlp_http". available options
@@ -977,14 +1041,14 @@ are "compression", "encoding", "endpoint", "headers", "headers_list",
 value into such a node; it fails on that same unknown node
 (`invalid configuration for path "batch.exporter": unrecognized option
 "max_request_size" under "otlp_http"`), not on coercing the substituted value.  
-¹⁹ **Prometheus exporter is not available (12 tests).** In configuration mode
+²¹ **Prometheus exporter is not available (12 tests).** In configuration mode
 the pull-type meter reader itself has no provider: `Component
 "OpenTelemetry\SDK\Metrics\MetricReaderInterface" uses unknown provider "pull",
 available providers are "periodic"` (11 tests). In environment mode the exporter
 selection fails with "Metric exporter factory not registered for protocol:
 prometheus" (1 test). A pull exporter additionally needs an async runtime to
 serve the reader. Not reported upstream (by decision).  
-²⁰ **`OTEL_LOG_LEVEL` diagnostics in configuration mode (1 test).** Only one of
+²² **`OTEL_LOG_LEVEL` diagnostics in configuration mode (1 test).** Only one of
 the two tests in this row fails, and neither failure is caused by the
 `file_format "1.2" is newer than 1.0` notice. What the run shows is that a
 configured `log_level` re-levels only the diagnostics the configuration path
@@ -1003,10 +1067,7 @@ that 'OpenTelemetry: [warning] Dropped span attributes, links or events in
 /php/sdks/official/vendor/open-telemetry/sdk/Trace/Span.php(405)' does not
 match …`). The companion test, which asserts that nothing below error severity
 is reported at `log_level: error`, passes. Untracked upstream.  
-²¹ **`id_generator` (1 test).** The node exists only in data model 1.2, so the
-configuration is rejected before the SDK is built.  
-
-²² **An explicit `meter_provider.views: null` is accepted by official; the
+²³ **An explicit `meter_provider.views: null` is accepted by official; the
 suite asserts rejection (1 test).** Two readings of the configuration model
 exist for a present-but-null `views` and the suite pins the strict one, so this
 cell measures a data-model interpretation rather than a confirmed implementation
@@ -1069,58 +1130,11 @@ non-required `array`-typed node must be rejected, or may fall back to its
 it is worth raising upstream as a question rather than as a bug report against
 either SDK, and it is listed in the tracking table as such. The ten other tests
 of the row pass on both SDKs.  
-²³ **`always_record` (1 test).** The sampler node exists only in data model 1.2
-(`AlwaysRecordSampler` appears in the v1.2.0 and main configuration schemas, not
-in v1.0.0 or v1.1.0), so the configuration is rejected before the SDK is built:
-`component "opentelemetry\sdk\trace\samplerinterface" uses unknown provider
-"always_record", available providers are "always_off", "always_on",
-"composite/development", "parent_based", "probability/development",
-"trace_id_ratio_based"`. Same missing newer data model as the data-model row of
-the tracking table.  
-²⁴ **Sampler compatibility warnings: both are asserted presence-only, and
-official omits one of them (1 test).** `ConfigSamplingTest` covers the two
-warnings the specification requires: `trace/sdk.md:516-517`, a
-`TraceIdRatioBased` sampler queried with a non-empty parent span context
-(`testTraceIdRatioBasedSamplerWarnsWhenUsedAsChildSampler`, passing on both
-SDKs), and `trace/sdk.md:582-584`, a probability sampler presuming TraceID
-randomness while the Trace random flag is unset
-(`testProbabilitySamplerWarnsWhenTraceRandomFlagIsNotSet`, the failing test).
-Both spec statements are explicitly illustrative — "SHOULD emit a warning **such
-as**" and "As an **example** of this compatibility warning" — so each test
-asserts only that a diagnostic appears, never its wording and never a number of
-occurrences. tbachert emits both: `otel.WARNING: The TraceIdRatioBased sampler is
-operating as a child sampler; the behavior is subject to change. Please upgrade
-this SDK configuration to use ProbabilitySampler.` and `otel.WARNING: The sampler
-is presuming TraceIDs are random and expects the Trace random flag to be set in
-confirmation. Please upgrade your caller(s) to use W3C Trace Context Level 2.`
-official emits the first one with the spec body verbatim — `OpenTelemetry:
-[warning] … in sdks/official/vendor/open-telemetry/sdk/Trace/Sampler/
-TraceIdRatioBasedSampler.php(74)`,
-once per sampler instance — and has no ProbabilitySampler/TraceID-randomness
-warning anywhere: no such string occurs in its vendor tree, and the
-`Consistent/CompositeSampler` that `probability/development` builds has no logger
-at all. That single absence is the only gap these two tests add. tbachert's
-second warning differs from the spec's example wording (it says "The sampler is
-presuming" for a node configured as `probability/development`, where the example
-names the `ProbabilitySampler`); the wording is illustrative, so that is not a
-conformance gap, and the message is not especially actionable either — it states
-an internal presumption instead of naming the configuration a user would change.
-
-Test design, not a defect: official logs `file_format "1.2" is newer than the
-1.0 implemented by this SDK; configuration it introduces may be ignored` on every
-configuration-file run. A literal "no warning in the control run" assertion would
-therefore fail on official, and a bare "at least one warning in the trigger run"
-assertion would pass there vacuously, so each test runs a control first under one
-identical configuration and asserts that the trigger run emits more warnings than
-that baseline. The notice is only a log statement — the `FILE_FORMAT_MAJOR` /
-`FILE_FORMAT_MINOR` gate in
-`Configuration/Internal/ComponentProvider/OpenTelemetrySdk.php`, commented "Warned
-here rather than during validation", filters no configuration node — and it is not
-why the node under test had an effect: probes on official show
-`probability/development` genuinely governed the child span, whose context carried
-the `ot=th:…` tracestate entry that `always_on` in the same position did not
-write, and the same node with `ratio: 0.0` dropped a child of a sampled remote
-parent that a default parent-based sampler would have kept.  
+²⁴ **`id_generator` (1 test).** The node is not 1.2-only: it is absent from data
+model 1.0's `tracer_provider` and appears there from 1.1. The configuration is
+therefore rejected before the SDK is built (`unrecognized option
+"id_generator" under "open_telemetry.tracer_provider"`). Counted with the
+newer-data-model row of the tracking table.  
 
 ## Upstream tracking (official SDK failures, by root cause)
 
@@ -1133,26 +1147,25 @@ failures.
 | Periodic `MetricReader` never repeats a collection: interval ignored, delta temporality and cumulative start timestamps unobservable, multi-collection pipeline behavior unobservable (12 `async`-group tests) | 12 | [#1884](https://github.com/open-telemetry/opentelemetry-php/issues/1884) (open) |
 | Prometheus exporter: no provider for the `pull` meter-reader type (11 configuration tests), no env exporter factory for `prometheus` (1 env test) | 12 | not reported upstream (by decision) |
 | Invalid environment values are not tolerated: case-sensitive sampler/protocol/exporter identifiers, unparseable numeric limits and an invalid `OTEL_TRACES_SAMPLER_ARG` abort initialization (8 tests); a malformed `OTEL_RESOURCE_ATTRIBUTES` entry and an invalid `OTEL_PROPAGATORS` entry are dropped without aborting initialization (2 tests) | 10 | untracked |
-| Configuration nodes that exist only in data model 1.2 are rejected by the implemented 1.0 schema: `view_matching_mode/development` (6), `max_request_size`/`max_response_size` (7), `attribute_value_depth_limit` (3), `max_export_batch_size` under a periodic reader (2), `id_generator` (1), `always_record` (1) | 20 | newer data model targeted by [PR #2050](https://github.com/open-telemetry/opentelemetry-php/pull/2050) (draft, partially superseded by the merged [PR #2068](https://github.com/open-telemetry/opentelemetry-php/pull/2068)); the individual nodes untracked |
+| Configuration nodes absent from the implemented data model 1.0 are rejected by its schema — 1.2-only: `view_matching_mode/development` (6), `max_request_size`/`max_response_size` (7), `attribute_value_depth_limit` (3), `always_record` (1); where the 1.0 schema has no such node and data model 1.1 introduces it: `max_export_batch_size` under a periodic metric reader (2), `id_generator` (1), `event_to_span_event_bridge/development` (1). Only the metric placement of `max_export_batch_size` is newer: it is a 1.0 node of the batch log record and batch span processors, and those tests pass on both SDKs | 21 | newer data model targeted by [PR #2050](https://github.com/open-telemetry/opentelemetry-php/pull/2050) (draft, partially superseded by the merged [PR #2068](https://github.com/open-telemetry/opentelemetry-php/pull/2068)); the individual nodes untracked |
 | Cardinality limits parsed but not applied: no overflow series, no per-instrument-type limits | 9 | untracked |
 | `jaeger_remote` sampler not implemented (5 env, 3 configuration) | 8 | untracked |
 | `OTEL_ENTITIES` env detector not implemented (7 env, 1 configuration) | 8 | untracked |
 | `logger_configurator` `minimum_severity` and `trace_based` parsed but not applied | 6 | untracked |
 | Exemplars not captured; an invalid filter value falls back to no exemplars instead of `trace_based` | 4 | values fixed by the merged [PR #2057](https://github.com/open-telemetry/opentelemetry-php/pull/2057); capture and fallback untracked |
 | Default histogram aggregation not applied (env var ignored, `default_histogram_aggregation` inert, base2 defaults not produced) | 4 | untracked |
-| `ProbabilitySampler` emits no TraceID-randomness compatibility warning when the Trace random flag is unset, although the `TraceIdRatioBased`-as-child warning is emitted (1 configuration test, footnote ²⁴) | 1 | untracked |
+| `ProbabilitySampler` emits no TraceID-randomness compatibility warning when the Trace random flag is unset, although the `TraceIdRatioBased`-as-child warning is emitted (1 configuration test, footnote ⁴) | 1 | untracked |
 | Resource detectors in configuration mode: container detector, `service.instance.id` from the service detector, conflicting `schema_url` | 3 | untracked |
 | View aggregation overrides ignored (base2 histogram from a view, incompatible aggregation not dropped) | 2 | untracked |
 | Batch span / batch log record processors flush synchronously, so a full queue and its drop cannot be observed | 2 | untracked |
 | `OTEL_LOG_LEVEL` in configuration mode: the configured level applies to component-creation diagnostics only, so an SDK-internal span-limit diagnostic survives `log_level: error` | 1 | untracked |
 | Accepted but unenforced limits: log record attribute count/length limits, and the default attribute value-depth limit (whose asserted value, 64, is itself specified only in data model 1.2) | 2 | untracked |
-| An explicit `meter_provider.views: null` is accepted where the suite asserts rejection; the suite pins the strict reading of the model's nullability encoding (1 configuration test, footnote ²²) | 1 | no confirmed defect; to be raised upstream as a question about `null` on a non-required `array`-typed node, not reported upstream |
-| Log-record-to-span-event bridge processor has no component provider in configuration mode | 1 | untracked |
+| An explicit `meter_provider.views: null` is accepted where the suite asserts rejection; the suite pins the strict reading of the model's nullability encoding (1 configuration test, footnote ²³) | 1 | no confirmed defect; to be raised upstream as a question about `null` on a non-required `array`-typed node, not reported upstream |
 | **Total** | **106** | |
 
 Caveats:
 
-- 20 of the failures measure the *missing newer data model*, not a broken
+- 21 of the failures measure the *missing newer data model*, not a broken
   feature: those nodes are not part of the 1.0 schema the SDK implements, so the
   configuration is rejected before the feature can run. They are counted as
   failures because the suite describes the current configuration surface; they
@@ -1162,22 +1175,22 @@ Caveats:
   rows of the matrix (metric pipeline, temporality, collection interval). Each
   test is counted in exactly one cell.
 - 1 failure measures a *reading* of the configuration model rather than a defect
-  (footnote ²²): a present-but-null `views` has support in both the type-union
+  (footnote ²³): a present-but-null `views` has support in both the type-union
   encoding and the `defaultBehavior` MUST, so that row is listed as an open
   question about the data model and not as a gap attributed to either SDK.
 - 🟨 cells are counted as failing in the run totals. They occur in the official
   columns only, and `--exclude-group async` turns them green because every test
   failing in them is an `async`-group test; what they measure is the official
-  SDK's periodic reader (footnote ⁷), not a scheduling artifact. The marker is
+  SDK's periodic reader (footnote ⁹), not a scheduling artifact. The marker is
   maintained by hand from the JUnit failure list plus the tests'
   `#[Group('async')]` attributes: `check-matrix.py` verifies per-cell pass/fail
   counts and env/config-file membership, not the marker.
 - The `file_format "1.2" is newer than 1.0` notice is emitted by every
   configuration-file run. It is not the cause of the `OTEL_LOG_LEVEL` failure
-  (footnote ²⁰): at `log_level: error` that notice is suppressed. It appears
+  (footnote ²²): at `log_level: error` that notice is suppressed. It appears
   inside one captured failure message only as the *only* diagnostic in it, i.e.
   as evidence that no other warning was emitted. It is also the baseline the
-  sampler-warning tests cancel with a same-configuration control (footnote ²⁴),
+  sampler-warning tests cancel with a same-configuration control (footnote ⁴),
   and it is only a log statement: it filters no configuration node, which probes
   confirmed for the 1.2 `probability/development` node it accompanies.
 - "Untracked" items are genuine spec-scope gaps identified by this suite; they

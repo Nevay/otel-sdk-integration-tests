@@ -118,7 +118,11 @@ Exact package versions pinned in `sdks/official/composer.lock`.
 **Status.** Environment-variable configuration works for most of the suite, and
 file-based configuration works as well: the SDK's configuration package
 implements data model `file_format: "1.0"` and accepts a newer `1.x` minor with
-a warning, so only nodes that exist exclusively in data model 1.2 are rejected.
+a warning, so configuration nodes the 1.0 model does not define are rejected —
+both nodes that exist only in a newer minor and nodes a newer minor adds where
+1.0 has none (for example `id_generator` in `tracer_provider`, or
+`max_export_batch_size` under a metric reader; that node *is* part of 1.0's
+batch log record and batch span processors).
 The current per-feature pass/fail matrix and the failure breakdown by root cause
 live in [`sdk-support-overview.md`](sdk-support-overview.md).
 
