@@ -363,6 +363,89 @@ final class ConfigProbabilitySamplerTest extends TestCase {
         );
     }
     #[Group('sampler')]
+    public function testProbabilitySamplerDecidesFromExplicitRandomnessAndKeepsItOnDrop(): void {
+        $output = $this->runOTelConfig(
+            <<<'YAML'
+            file_format: "1.2"
+
+            tracer_provider:
+              sampler:
+                probability/development:
+                  ratio: 0.5
+              processors:
+                - batch:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${env:OTEL_EXPORTER_OTLP_TRACES_ENDPOINT}
+            YAML,
+            static function (): void {
+                /*
+                 * A remote parent carrying a spec-valid explicit randomness
+                 * value: exactly 14 lower-case hexadecimal digits, which is
+                 * the value used by the specification's own worked example
+                 * for the `rv` sub-key (0x6e6d1a75832a2f, a 56-bit fraction
+                 * of 43.1%). That example states that this value supports
+                 * positive decisions for sampling probabilities from 56.9%
+                 * through 100% only, so at the configured ratio of one half
+                 * - rejection threshold 2**55, i.e. 0x80000000000000 - the
+                 * explicit randomness value is unambiguously below the
+                 * threshold and the decision is negative.
+                 *
+                 * The trace ID was chosen to point the other way: its
+                 * rightmost 56 bits (0xc3a1b6e8d0f4a2) are above that
+                 * threshold, so a sampler that used TraceID randomness would
+                 * have kept this span. A negative decision is therefore only
+                 * possible when the explicit randomness value is used instead
+                 * of the trace ID, as the specification prescribes when an
+                 * `rv` value is present.
+                 */
+                $remoteParent = SpanContext::createFromRemoteParent(
+                    '4193e569320548f7b7c3a1b6e8d0f4a2',
+                    '6e0c63258deeeff4',
+                    TraceFlags::SAMPLED | TraceFlags::RANDOM,
+                    (new TraceState())->with('ot', 'rv:6e6d1a75832a2f'),
+                );
+
+                $child = Globals::tracerProvider()
+                    ->getTracer('config-test')
+                    ->spanBuilder('rv-drop')
+                    ->setParent(Context::getCurrent()->withContextValue(Span::wrap($remoteParent)))
+                    ->startSpan();
+
+                self::emitSpanContext($child->getContext());
+                $child->end();
+            },
+        );
+
+        $context = json_decode(trim($output), true, 512, JSON_THROW_ON_ERROR);
+
+        /* The child continues the parent's trace, using its trace ID. */
+        self::assertSame('4193e569320548f7b7c3a1b6e8d0f4a2', $context['trace_id']);
+
+        /* Randomness value 0x6e6d... is below the threshold 0x8000..., so the
+         * span is dropped. */
+        self::assertSame(0, $context['flags'] & TraceFlags::SAMPLED);
+
+        /*
+         * A negative decision does not erase the explicit randomness value:
+         * tracestate-handling.md defines explicit randomness values as meant
+         * to propagate through span contexts unmodified and says they SHOULD
+         * NOT be erased from the OpenTelemetry TraceState once associated
+         * with a TraceID, so that the decision made with it stays consistent
+         * for later participants.
+         */
+        self::assertSame('rv:6e6d1a75832a2f', $context['ot']);
+
+        /*
+         * The parent's tracestate contained the `ot` entry only and the
+         * sampler had nothing to add for a negative decision, so the child's
+         * header is that entry unchanged.
+         */
+        self::assertSame('ot=rv:6e6d1a75832a2f', $context['tracestate']);
+
+        self::assertSame([], $this->traces);
+    }
+    #[Group('sampler')]
     public function testComposableProbabilitySamplerUsesPropagatedExplicitRandomness(): void {
         $output = $this->runOTelConfig(
             <<<'YAML'
@@ -694,23 +777,29 @@ final class ConfigProbabilitySamplerTest extends TestCase {
         self::assertSame('th:c', $aboveContext['ot']);
 
         /*
-         * The inconsistent parent's threshold is ignored and removed; the
-         * child is still sampled because the parent was.
+         * The inconsistent parent's threshold is removed and the child is
+         * still sampled because the parent was.
+         *
+         * Stated honestly, this pair is one interpretation rather than two
+         * requirements. ComposableParentThreshold says the sampler "Returns
+         * the parent's threshold if available; otherwise, if the parent's
+         * *sampled* flag is set, returns threshold=0". Read literally, th:c
+         * is available here, and comparing it against this trace ID's
+         * randomness (0xa0... < 0xc0...) would drop the span; the child is
+         * sampled only because the apparently inconsistent threshold is
+         * erased first, which then selects the threshold=0 fallback.
+         *
+         * That erasure comes from the "Tracestate handling requirements"
+         * section of tracestate-probability-sampling.md, which opens by
+         * declaring itself "a supplemental guideline" and then says, in
+         * lowercase, that sampling stages "should erase the threshold when it
+         * is apparently inconsistent" - naming this very parent-based example
+         * and repeating it for parent-based samplers. Nothing normative
+         * requires an SDK to detect the inconsistency or to report it, so no
+         * assertion is made here about a warning or its wording.
          */
         self::assertSame(TraceFlags::SAMPLED, $mismatchContext['flags'] & TraceFlags::SAMPLED);
         self::assertNull($mismatchContext['ot']);
-
-        /*
-         * A self-diagnostic for the inconsistent trace state is expected, but
-         * its wording is implementation-specific, so the assertion is on the
-         * level and the subject of the message rather than on one SDK's exact
-         * sentence.
-         */
-        self::assertMatchesRegularExpression(
-            '/(?:otel\.(?:warning|error|critical|alert|emergency):|\[(?:warning|error|critical|alert|emergency)\])[^\n]*\b(?:mismatch|threshold|randomness)\b/i',
-            $this->lastStderr,
-            'Expected a warning about the sampling threshold / sampled flag inconsistency.',
-        );
 
         /* The child of the dropped parent is dropped. */
         self::assertSame(0, $droppedContext['flags'] & TraceFlags::SAMPLED);
@@ -739,10 +828,12 @@ final class ConfigProbabilitySamplerTest extends TestCase {
             YAML,
             static function (): void {
                 /*
-                 * A remote parent with an invalid randomness value (16 hex
-                 * digits instead of exactly 14) whose trace ID's rightmost
-                 * 56 bits are above the threshold: the invalid value must be
-                 * ignored and the decision made from the trace ID.
+                 * A remote parent carrying a value that is not an explicit
+                 * randomness value at all - 16 hex digits, while values of
+                 * `rv` MUST be exactly 14 lower-case hexadecimal digits -
+                 * whose trace ID's rightmost 56 bits are above the
+                 * threshold. With no usable explicit randomness value, the
+                 * decision is made from the trace ID's own bits.
                  */
                 $remoteParent = SpanContext::createFromRemoteParent(
                     '4193e569320548f7b7d0a8f5e4d3c2b1',
@@ -775,12 +866,13 @@ final class ConfigProbabilitySamplerTest extends TestCase {
 
         self::assertArrayHasKey('th:8', $entries);
 
-        /* The unrecognized value is passed through unmodified. */
-        self::assertArrayHasKey('rv:0123456789abcdef', $entries);
-        self::assertStringContainsString(
-            'Invalid TraceState.ot rv value',
-            $this->lastStderr,
-        );
+        /*
+         * Deliberately nothing is asserted about the fate of the non-
+         * conforming value or about a self-diagnostic for it: neither
+         * tracestate-handling.md nor the SDK specification says what an SDK
+         * must do with a string that is not a valid `rv` value, and the two
+         * SDKs differ in both respects.
+         */
 
         self::assertCount(1, $this->traces);
         self::assertSame(

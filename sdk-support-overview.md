@@ -5,9 +5,9 @@ test that verifies specification-defined behavior — against the two SDKs under
 `sdks/`. Generated from full suite runs (JUnit logs); regenerate with
 `make test-all`, which writes `.junit-<sdk>.xml` for both SDKs.
 
-- **tbachert run:** 420 tests executed, **420 passing** (`spec` + `tbachert`
-  groups).
-- **official run:** 422 tests executed, **316 passing / 106 failing**
+- **tbachert run:** 434 tests executed, **434 passing / 0 failing** (`spec` +
+  `tbachert` groups).
+- **official run:** 436 tests executed, **330 passing / 106 failing**
   (`spec` + `official` groups). All 106 failures are shared spec tests: 29 in
   environment-variable mode, 77 in configuration-file mode. As the JUnit log
   splits them: **12 errors, 94 assertion failures**. All 12 errors are the
@@ -15,11 +15,18 @@ test that verifies specification-defined behavior — against the two SDKs under
   which fail before the SDK is built; every other failure is an assertion about
   exported data or emitted output.
 
-The matrix covers the 416 shared `spec` tests (160 environment-variable mode,
-256 configuration-file mode per SDK); vendor-specific tests
+The matrix covers the 430 shared `spec` tests (160 environment-variable mode,
+270 configuration-file mode per SDK); vendor-specific tests
 (`TbachertSpecificTest`, `OfficialSpecificTest`) are documented in the README
-and are not part of this overview. On the official SDK that means 132/160
-env-mode and 178/256 config-file-mode spec tests pass. Sections follow the
+and are not part of this overview. On the official SDK that means 131/160
+env-mode and 193/270 config-file-mode spec tests pass; on the tbachert SDK all
+430 pass. The sampling coverage now also reaches explicit randomness propagated
+across a *negative* sampling decision for the top-level `ProbabilitySampler`
+(`ConfigProbabilitySamplerTest::testProbabilitySamplerDecidesFromExplicitRandomnessAndKeepsItOnDrop`),
+which previously only the composable form covered: both SDKs keep
+`rv:6e6d1a75832a2f` unchanged and drop the span, a result only possible if the
+explicit value was used rather than the TraceID's own bits. That is added
+coverage that passes on both SDKs, not a fix and not a gap. Sections follow the
 specification's structure (context propagation, then the signals in spec order:
 traces, metrics, logs); rows within a section are organized by tested behavior.
 Since the configuration file must support at least every option available via
@@ -93,8 +100,9 @@ Footnotes are collected below the tables.
 | Behavior | tbachert env | tbachert config | official env | official config |
 |---|---|---|---|---|
 | End-to-end span export & cross-service context propagation (incl. mixed env/config-file services) | ✅ 1/1 | ✅ 2/2 | ✅ 1/1 | ✅ 2/2 |
-| Sampling: always_on/off, trace-id ratio, parent-based (simple samplers) | ✅ 11/11 | ✅ 11/11 | ⚠️ 9/11¹ | ✅ 11/11 |
-| Composite & rule-based samplers (`rule_based`, `probability`, `parent_threshold`, `always_record`) | – | ✅ 22/22 | – | ⚠️ 19/22³ |
+| Sampling: always_on/off, trace-id ratio, parent-based (simple samplers) | ✅ 11/11 | ✅ 12/12 | ⚠️ 9/11¹ | ✅ 12/12 |
+| Composite samplers in configuration mode: `rule_based` routing, `probability` and `parent_threshold` trace-state behaviour | – | ✅ 23/23 | – | ⚠️ 22/23³²⁴ |
+| `always_record` sampler (node that exists only in data model 1.2) | – | ✅ 1/1 | – | ❌ 0/1²³ |
 | `jaeger_remote` sampler (remote dial, strategies, initial sampler) | ✅ 5/5 | ✅ 3/3 | ❌ 0/5⁴ | ❌ 0/3⁴ |
 | Span & attribute limits (count, value length, depth) | ✅ 11/11 | ✅ 6/6 | ⚠️ 10/11¹ | ⚠️ 3/6⁵ |
 | Batch & simple span processors | ✅ 5/5 | ✅ 5/5 | ⚠️ 4/5⁶ | ✅ 5/5 |
@@ -110,7 +118,7 @@ Footnotes are collected below the tables.
 </details>
 
 <details>
-<summary>Sampling: always_on/off, trace-id ratio, parent-based (simple samplers) — 22 tests (11 env · 11 config)</summary>
+<summary>Sampling: always_on/off, trace-id ratio, parent-based (simple samplers) — 23 tests (11 env · 12 config)</summary>
 
 - `ConfigSamplingTest::testAlwaysOffSampler` — tbachert ✅ · official ✅
 - `ConfigSamplingTest::testAlwaysOnSampler` — tbachert ✅ · official ✅
@@ -122,6 +130,7 @@ Footnotes are collected below the tables.
 - `ConfigSamplingTest::testParentBasedSamplerRootRatioZeroStillSamplesRemoteChild` — tbachert ✅ · official ✅
 - `ConfigSamplingTest::testTraceIdRatioBasedSampler` — tbachert ✅ · official ✅
 - `ConfigSamplingTest::testTraceIdRatioBasedSamplerSamplesOnlyAFractionOfSpans` — tbachert ✅ · official ✅
+- `ConfigSamplingTest::testTraceIdRatioBasedSamplerWarnsWhenUsedAsChildSampler` — tbachert ✅ · official ✅
 - `ConfigSamplingTest::testTraceIdRatioBasedSamplerZero` — tbachert ✅ · official ✅
 - `EnvSamplingTest::testAlwaysOffSampler` — tbachert ✅ · official ✅
 - `EnvSamplingTest::testAlwaysOnSampler` — tbachert ✅ · official ✅
@@ -138,7 +147,7 @@ Footnotes are collected below the tables.
 </details>
 
 <details>
-<summary>Composite & rule-based samplers (`rule_based`, `probability`, `parent_threshold`, `always_record`) — 22 tests (0 env · 22 config)</summary>
+<summary>Composite samplers in configuration mode: `rule_based` routing, `probability` and `parent_threshold` trace-state behaviour — 23 tests (0 env · 23 config)</summary>
 
 - `ConfigProbabilitySamplerTest::testComposableProbabilitySampler` — tbachert ✅ · official ✅
 - `ConfigProbabilitySamplerTest::testComposableProbabilitySamplerConsistentAcrossThresholds` — tbachert ✅ · official ✅
@@ -146,15 +155,16 @@ Footnotes are collected below the tables.
 - `ConfigProbabilitySamplerTest::testComposableProbabilitySamplerUsesPropagatedExplicitRandomness` — tbachert ✅ · official ✅
 - `ConfigProbabilitySamplerTest::testComposableProbabilitySamplerWritesThresholdTraceState` — tbachert ✅ · official ✅
 - `ConfigProbabilitySamplerTest::testParentThresholdSamplerFollowsSampledRemoteParent` — tbachert ✅ · official ✅
-- `ConfigProbabilitySamplerTest::testParentThresholdSamplerInheritsRemoteParentThreshold` — tbachert ✅ · official ❌
-- `ConfigProbabilitySamplerTest::testProbabilitySamplerIgnoresInvalidExplicitRandomness` — tbachert ✅ · official ❌
+- `ConfigProbabilitySamplerTest::testParentThresholdSamplerInheritsRemoteParentThreshold` — tbachert ✅ · official ✅
+- `ConfigProbabilitySamplerTest::testProbabilitySamplerDecidesFromExplicitRandomnessAndKeepsItOnDrop` — tbachert ✅ · official ✅
+- `ConfigProbabilitySamplerTest::testProbabilitySamplerIgnoresInvalidExplicitRandomness` — tbachert ✅ · official ✅
 - `ConfigProbabilitySamplerTest::testProbabilitySamplerPreservesPropagatedExplicitRandomness` — tbachert ✅ · official ✅
 - `ConfigProbabilitySamplerTest::testProbabilitySamplerThresholdMatchesSamplingDecisions` — tbachert ✅ · official ✅
 - `ConfigProbabilitySamplerTest::testProbabilitySamplerTraceStatePropagatesToChildSpans` — tbachert ✅ · official ✅
 - `ConfigProbabilitySamplerTest::testProbabilitySamplerWritesThresholdTraceState` — tbachert ✅ · official ✅
-- `ConfigSamplingTest::testAlwaysRecordSamplerRecordsWithoutReporting` — tbachert ✅ · official ❌
 - `ConfigSamplingTest::testCompositeAlwaysOffDropsAllSpans` — tbachert ✅ · official ✅
 - `ConfigSamplingTest::testCompositeAlwaysOnSamplesAllSpans` — tbachert ✅ · official ✅
+- `ConfigSamplingTest::testProbabilitySamplerWarnsWhenTraceRandomFlagIsNotSet` — tbachert ✅ · official ❌
 - `ConfigSamplingTest::testRuleBasedSamplerExcludedAttributePatterns` — tbachert ✅ · official ✅
 - `ConfigSamplingTest::testRuleBasedSamplerMatchesAttributePatterns` — tbachert ✅ · official ✅
 - `ConfigSamplingTest::testRuleBasedSamplerMatchesLocalParentOrigin` — tbachert ✅ · official ✅
@@ -162,6 +172,13 @@ Footnotes are collected below the tables.
 - `ConfigSamplingTest::testRuleBasedSamplerRoutesByRemainingSpanKinds` — tbachert ✅ · official ✅
 - `ConfigSamplingTest::testRuleBasedSamplerRoutesBySpanKindAndAttributes` — tbachert ✅ · official ✅
 - `ConfigSamplingTest::testRuleBasedSamplerWithoutRulesDropsAllSpans` — tbachert ✅ · official ✅
+
+</details>
+
+<details>
+<summary>`always_record` sampler (node that exists only in data model 1.2) — 1 tests (0 env · 1 config)</summary>
+
+- `ConfigSamplingTest::testAlwaysRecordSamplerRecordsWithoutReporting` — tbachert ✅ · official ❌
 
 </details>
 
@@ -683,6 +700,7 @@ Footnotes are collected below the tables.
 | Env value parsing & leniency: empty values, invalid sampler/propagator, malformed attributes (env-only semantics) | ✅ 5/5 | – | ⚠️ 2/5¹ | – |
 | `OTEL_LOG_LEVEL` (self-diagnostic output) | ✅ 1/1 | ✅ 2/2 | ✅ 1/1 | ⚠️ 1/2²⁰ |
 | Config file basics: no-op SDK, format versioning, missing file, independent signals | – | ✅ 4/4 | – | ✅ 4/4 |
+| Component lists in configuration mode: provider `processors`/`readers` required and non-null; a null is not a valid value for an `array`-typed property | – | ✅ 11/11 | – | ⚠️ 10/11²² |
 | ID generation (random) | – | ✅ 1/1 | – | ❌ 0/1²¹ |
 | Variable substitution: `${}`, defaults, escaping, type coercion | – | ✅ 9/9 | – | ⚠️ 8/9¹⁸ |
 | Environment variable precedence & ignore rules in config-file mode | – | ✅ 5/5 | – | ✅ 5/5 |
@@ -760,6 +778,23 @@ Footnotes are collected below the tables.
 </details>
 
 <details>
+<summary>Component lists in configuration mode: provider `processors`/`readers` required and non-null; a null is not a valid value for an `array`-typed property — 11 tests (0 env · 11 config)</summary>
+
+- `ConfigComponentListsTest::testLoggerProviderWithEmptyProcessorsFailsInitialization` — tbachert ✅ · official ✅
+- `ConfigComponentListsTest::testLoggerProviderWithNullProcessorsFailsInitialization` — tbachert ✅ · official ✅
+- `ConfigComponentListsTest::testLoggerProviderWithoutProcessorsKeyFailsInitialization` — tbachert ✅ · official ✅
+- `ConfigComponentListsTest::testMeterProviderWithEmptyReadersFailsInitialization` — tbachert ✅ · official ✅
+- `ConfigComponentListsTest::testMeterProviderWithEmptyViewsFailsInitialization` — tbachert ✅ · official ✅
+- `ConfigComponentListsTest::testMeterProviderWithNullReadersFailsInitialization` — tbachert ✅ · official ✅
+- `ConfigComponentListsTest::testMeterProviderWithNullViewsIsRejected` — tbachert ✅ · official ❌
+- `ConfigComponentListsTest::testMeterProviderWithoutReadersKeyFailsInitialization` — tbachert ✅ · official ✅
+- `ConfigComponentListsTest::testTracerProviderWithEmptyProcessorsFailsInitialization` — tbachert ✅ · official ✅
+- `ConfigComponentListsTest::testTracerProviderWithNullProcessorsFailsInitialization` — tbachert ✅ · official ✅
+- `ConfigComponentListsTest::testTracerProviderWithoutProcessorsKeyFailsInitialization` — tbachert ✅ · official ✅
+
+</details>
+
+<details>
 <summary>ID generation (random) — 1 tests (0 env · 1 config)</summary>
 
 - `ConfigBasicTest::testIdGeneratorRandomProducesSpecConformIds` — tbachert ✅ · official ❌
@@ -818,26 +853,29 @@ Untracked upstream.
 ² **No log-record-to-span-event bridge in configuration mode (1 test).** A
 configuration that installs the bridge processor fails initialization: the
 corresponding component provider is not registered. Untracked upstream.  
-³ **Composite samplers in configuration mode (3 tests).** `always_record` has no
-provider, so a configuration using it fails initialization (`component
-"opentelemetry\sdk\trace\samplerinterface" uses unknown provider
-"always_record", available providers are "always_off", "always_on",
-"composite/development", "parent_based", "probability/development",
-"trace_id_ratio_based"`). The other two tests measured a sampling *decision*
-official got right, and each fails on its last assertion only:
-`testProbabilitySamplerIgnoresInvalidExplicitRandomness` ignored the invalid
-explicit randomness (the span was sampled from the trace ID's own bits and
-carried `th:8`) and failed on `Failed asserting that an array has the key
-'rv:0123456789abcdef'.` — the unrecognized `ot` entry is dropped instead of
-passed through, and its "Invalid TraceState.ot rv value" diagnostic is never
-reported; `testParentThresholdSamplerInheritsRemoteParentThreshold` inherited
-the consistent parent's `th:c`, ignored the inconsistent parent's threshold and
-kept the parent's sampled flag, and failed on `Expected a warning about the
-sampling threshold / sampled flag inconsistency.` because no such diagnostic is
-emitted at all. Whether an SDK must preserve an unrecognized `ot` entry and must
-diagnose an inconsistent threshold/flag combination is not settled by the
-specification text this suite cites; these are open questions, not confirmed
-SDK gaps. Untracked upstream.  
+³ **Composite samplers in configuration mode: the `rv` and parent-threshold
+coverage in this cell is SHOULD-level or supplemental-guidance coverage, and the
+cross-SDK difference it measured is an implementation-defined warning (no failing
+test).** `ConfigProbabilitySamplerTest` passes in full on both SDKs in this run.
+Its valid-`rv` propagation assertions are SHOULD-level coverage that both SDKs
+satisfy (`trace-tracestate-handling.md:169-170`, "Explicit randomness values …
+SHOULD NOT be erased"). Its parent-threshold assertions follow the supplemental
+guidance that section declares at `tracestate-probability-sampling.md:237-241`,
+not a normative requirement. What this run does show in that area is a
+difference in the self-diagnostic, not in the decision: for a parent whose
+threshold is apparently inconsistent with its sampled flag, both SDKs erase the
+threshold and keep the parent's sampled decision — official by comparing
+`isSampled()` against the threshold and falling through
+(`Trace/Sampler/Consistent/ComposableParentThreshold.php`, "An apparently
+inconsistent `th` is erased, that is treated as absent"), tbachert by inheriting
+the parent threshold unconditionally with the check in
+`CompositeSampler.php:70-72`. tbachert additionally emits a warning no
+specification requires (`otel.WARNING: Mismatch between sampling threshold and
+sampled flag detected. Ignoring sampling threshold.`), while official logs
+nothing: its whole `Trace/Sampler/Consistent/` package contains no logger call.
+The two therefore do not behave identically there, and neither side's behavior
+in that spot is a conformance gap. The one failing test in this cell is
+footnote ²⁴.  
 ⁴ **`jaeger_remote` is not implemented (8 tests: 5 env, 3 configuration).**
 `OTEL_TRACES_SAMPLER=jaeger_remote` aborts initialization with
 `unknown sampler: jaeger_remote` (4 env tests), and the
@@ -968,6 +1006,122 @@ is reported at `log_level: error`, passes. Untracked upstream.
 ²¹ **`id_generator` (1 test).** The node exists only in data model 1.2, so the
 configuration is rejected before the SDK is built.  
 
+²² **An explicit `meter_provider.views: null` is accepted by official; the
+suite asserts rejection (1 test).** Two readings of the configuration model
+exist for a present-but-null `views` and the suite pins the strict one, so this
+cell measures a data-model interpretation rather than a confirmed implementation
+defect.
+
+The strict reading: in the configuration model (v1.0.0, v1.1.0, v1.2.0 and main
+alike) `TracerProvider.processors`, `MeterProvider.readers` and
+`LoggerProvider.processors` are `type: array` with `minItems: 1` and *are*
+listed in their type's `required` array, each described as "Property is required
+and must be non-null", with no default or null behaviour defined. `views` is
+`type: array` with `minItems: 1` too, but it is *not* in `MeterProvider`'s
+`required` array. Nullability in this model is spelled out in the type union:
+`ExemplarFilter` in the same schema file is `type: ["string", "null"]` and
+every genuinely nullable property does the same, while `"null"` is not part of
+`views`' union. `opentelemetry-configuration`'s CONTRIBUTING.md states the
+negative case for sibling nodes directly — "Setting `exporter` to `null` or any
+non-object value is invalid", "Setting `limits` to `null` is invalid"
+(<https://github.com/open-telemetry/opentelemetry-configuration/blob/main/CONTRIBUTING.md>).
+A present `views` must therefore hold a value of its declared type, and `null`
+is rejected like the too-short list `views: []`, which both SDKs reject; that
+both reject `views: []` shows the shared rule is the declared type and its
+`minItems: 1`. Nulls are not hypothetical input: substituting an undefined
+environment variable produces one (`configuration/data-model.md`), which is why
+the env-substitutable properties declare the union.
+
+The permissive reading: "Parse MUST differentiate between properties that are
+missing and properties that are present but null"
+(<https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/configuration/sdk.md#L212-L213>),
+"If a property is present and the value is null, Create MUST use the
+`nullBehavior`, or `defaultBehavior` if `nullBehavior` is not set" (same file,
+[#L270-L271](https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/configuration/sdk.md#L270-L271)).
+`views` declares `defaultBehavior: no views are registered`
+(<https://github.com/open-telemetry/opentelemetry-configuration/blob/main/schema/meter_provider.yaml>),
+which the compiled JSON encodes in the node description as "If omitted, no views
+are registered", and it defines no `nullBehavior` — under this reading `views: ~`
+is an omitted key. The third MUST, "If a property is required, and not present,
+Create MUST return an error."
+([#L272](https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/configuration/sdk.md#L272)),
+covers the required provider lists only, which both SDKs enforce.
+
+What the fresh run shows: official implements the permissive reading. With a
+valid `readers` list it emits no diagnostic at all for `views: ~`, initialization
+succeeds and the counter is exported under its original name and value; its
+output is identical to the same fixture with the key omitted. tbachert treats a
+present null as a list that violates the node's `minItems: 1` and fails
+initialization:
+`[timestamp] otel.ERROR: Error during OpenTelemetry initialization: …
+InvalidConfigurationException: The path "open_telemetry\0.meter_provider\0.views"
+should have at least 1 element(s) defined.` (the path separators are NUL bytes)
+— byte-identical to its message for `views: []`, while the fixture with the key
+omitted builds the provider with no diagnostic, so the error is attributable to
+the present null. That message states a minimum length for a value that is not a
+list at all, which is not a helpful way to report a present-but-null property;
+it is wording, and it is not treated here as a conformance gap.
+
+`ConfigComponentListsTest::testMeterProviderWithNullViewsIsRejected` asserts
+rejection (initialization fails, nothing exported). Whether a present null on a
+non-required `array`-typed node must be rejected, or may fall back to its
+`defaultBehavior`, is an interpretation of the data model's nullability encoding;
+it is worth raising upstream as a question rather than as a bug report against
+either SDK, and it is listed in the tracking table as such. The ten other tests
+of the row pass on both SDKs.  
+²³ **`always_record` (1 test).** The sampler node exists only in data model 1.2
+(`AlwaysRecordSampler` appears in the v1.2.0 and main configuration schemas, not
+in v1.0.0 or v1.1.0), so the configuration is rejected before the SDK is built:
+`component "opentelemetry\sdk\trace\samplerinterface" uses unknown provider
+"always_record", available providers are "always_off", "always_on",
+"composite/development", "parent_based", "probability/development",
+"trace_id_ratio_based"`. Same missing newer data model as the data-model row of
+the tracking table.  
+²⁴ **Sampler compatibility warnings: both are asserted presence-only, and
+official omits one of them (1 test).** `ConfigSamplingTest` covers the two
+warnings the specification requires: `trace/sdk.md:516-517`, a
+`TraceIdRatioBased` sampler queried with a non-empty parent span context
+(`testTraceIdRatioBasedSamplerWarnsWhenUsedAsChildSampler`, passing on both
+SDKs), and `trace/sdk.md:582-584`, a probability sampler presuming TraceID
+randomness while the Trace random flag is unset
+(`testProbabilitySamplerWarnsWhenTraceRandomFlagIsNotSet`, the failing test).
+Both spec statements are explicitly illustrative — "SHOULD emit a warning **such
+as**" and "As an **example** of this compatibility warning" — so each test
+asserts only that a diagnostic appears, never its wording and never a number of
+occurrences. tbachert emits both: `otel.WARNING: The TraceIdRatioBased sampler is
+operating as a child sampler; the behavior is subject to change. Please upgrade
+this SDK configuration to use ProbabilitySampler.` and `otel.WARNING: The sampler
+is presuming TraceIDs are random and expects the Trace random flag to be set in
+confirmation. Please upgrade your caller(s) to use W3C Trace Context Level 2.`
+official emits the first one with the spec body verbatim — `OpenTelemetry:
+[warning] … in sdks/official/vendor/open-telemetry/sdk/Trace/Sampler/
+TraceIdRatioBasedSampler.php(74)`,
+once per sampler instance — and has no ProbabilitySampler/TraceID-randomness
+warning anywhere: no such string occurs in its vendor tree, and the
+`Consistent/CompositeSampler` that `probability/development` builds has no logger
+at all. That single absence is the only gap these two tests add. tbachert's
+second warning differs from the spec's example wording (it says "The sampler is
+presuming" for a node configured as `probability/development`, where the example
+names the `ProbabilitySampler`); the wording is illustrative, so that is not a
+conformance gap, and the message is not especially actionable either — it states
+an internal presumption instead of naming the configuration a user would change.
+
+Test design, not a defect: official logs `file_format "1.2" is newer than the
+1.0 implemented by this SDK; configuration it introduces may be ignored` on every
+configuration-file run. A literal "no warning in the control run" assertion would
+therefore fail on official, and a bare "at least one warning in the trigger run"
+assertion would pass there vacuously, so each test runs a control first under one
+identical configuration and asserts that the trigger run emits more warnings than
+that baseline. The notice is only a log statement — the `FILE_FORMAT_MAJOR` /
+`FILE_FORMAT_MINOR` gate in
+`Configuration/Internal/ComponentProvider/OpenTelemetrySdk.php`, commented "Warned
+here rather than during validation", filters no configuration node — and it is not
+why the node under test had an effect: probes on official show
+`probability/development` genuinely governed the child span, whose context carried
+the `ot=th:…` tracestate entry that `always_on` in the same position did not
+write, and the same node with `ratio: 0.0` dropped a child of a sampled remote
+parent that a default parent-based sampler would have kept.  
+
 ## Upstream tracking (official SDK failures, by root cause)
 
 106 failing spec tests, grouped by the defect they measure. Of these, 12 are
@@ -979,25 +1133,26 @@ failures.
 | Periodic `MetricReader` never repeats a collection: interval ignored, delta temporality and cumulative start timestamps unobservable, multi-collection pipeline behavior unobservable (12 `async`-group tests) | 12 | [#1884](https://github.com/open-telemetry/opentelemetry-php/issues/1884) (open) |
 | Prometheus exporter: no provider for the `pull` meter-reader type (11 configuration tests), no env exporter factory for `prometheus` (1 env test) | 12 | not reported upstream (by decision) |
 | Invalid environment values are not tolerated: case-sensitive sampler/protocol/exporter identifiers, unparseable numeric limits and an invalid `OTEL_TRACES_SAMPLER_ARG` abort initialization (8 tests); a malformed `OTEL_RESOURCE_ATTRIBUTES` entry and an invalid `OTEL_PROPAGATORS` entry are dropped without aborting initialization (2 tests) | 10 | untracked |
-| Configuration nodes that exist only in data model 1.2 are rejected by the implemented 1.0 schema: `view_matching_mode/development` (6), `max_request_size`/`max_response_size` (7), `attribute_value_depth_limit` (3), `max_export_batch_size` under a periodic reader (2), `id_generator` (1) | 19 | newer data model targeted by [PR #2050](https://github.com/open-telemetry/opentelemetry-php/pull/2050) (draft, partially superseded by the merged [PR #2068](https://github.com/open-telemetry/opentelemetry-php/pull/2068)); the individual nodes untracked |
+| Configuration nodes that exist only in data model 1.2 are rejected by the implemented 1.0 schema: `view_matching_mode/development` (6), `max_request_size`/`max_response_size` (7), `attribute_value_depth_limit` (3), `max_export_batch_size` under a periodic reader (2), `id_generator` (1), `always_record` (1) | 20 | newer data model targeted by [PR #2050](https://github.com/open-telemetry/opentelemetry-php/pull/2050) (draft, partially superseded by the merged [PR #2068](https://github.com/open-telemetry/opentelemetry-php/pull/2068)); the individual nodes untracked |
 | Cardinality limits parsed but not applied: no overflow series, no per-instrument-type limits | 9 | untracked |
 | `jaeger_remote` sampler not implemented (5 env, 3 configuration) | 8 | untracked |
 | `OTEL_ENTITIES` env detector not implemented (7 env, 1 configuration) | 8 | untracked |
 | `logger_configurator` `minimum_severity` and `trace_based` parsed but not applied | 6 | untracked |
 | Exemplars not captured; an invalid filter value falls back to no exemplars instead of `trace_based` | 4 | values fixed by the merged [PR #2057](https://github.com/open-telemetry/opentelemetry-php/pull/2057); capture and fallback untracked |
 | Default histogram aggregation not applied (env var ignored, `default_histogram_aggregation` inert, base2 defaults not produced) | 4 | untracked |
-| Composite samplers in configuration mode: `always_record` provider missing; the invalid explicit `probability` randomness *is* ignored, but the unrecognized `rv:` entry is dropped instead of passed through and no threshold/flag diagnostic is emitted | 3 | untracked |
+| `ProbabilitySampler` emits no TraceID-randomness compatibility warning when the Trace random flag is unset, although the `TraceIdRatioBased`-as-child warning is emitted (1 configuration test, footnote ²⁴) | 1 | untracked |
 | Resource detectors in configuration mode: container detector, `service.instance.id` from the service detector, conflicting `schema_url` | 3 | untracked |
 | View aggregation overrides ignored (base2 histogram from a view, incompatible aggregation not dropped) | 2 | untracked |
 | Batch span / batch log record processors flush synchronously, so a full queue and its drop cannot be observed | 2 | untracked |
 | `OTEL_LOG_LEVEL` in configuration mode: the configured level applies to component-creation diagnostics only, so an SDK-internal span-limit diagnostic survives `log_level: error` | 1 | untracked |
 | Accepted but unenforced limits: log record attribute count/length limits, and the default attribute value-depth limit (whose asserted value, 64, is itself specified only in data model 1.2) | 2 | untracked |
+| An explicit `meter_provider.views: null` is accepted where the suite asserts rejection; the suite pins the strict reading of the model's nullability encoding (1 configuration test, footnote ²²) | 1 | no confirmed defect; to be raised upstream as a question about `null` on a non-required `array`-typed node, not reported upstream |
 | Log-record-to-span-event bridge processor has no component provider in configuration mode | 1 | untracked |
 | **Total** | **106** | |
 
 Caveats:
 
-- 19 of the failures measure the *missing newer data model*, not a broken
+- 20 of the failures measure the *missing newer data model*, not a broken
   feature: those nodes are not part of the 1.0 schema the SDK implements, so the
   configuration is rejected before the feature can run. They are counted as
   failures because the suite describes the current configuration surface; they
@@ -1006,6 +1161,10 @@ Caveats:
 - 12 failures come from a single upstream defect (#1884) and land in several
   rows of the matrix (metric pipeline, temporality, collection interval). Each
   test is counted in exactly one cell.
+- 1 failure measures a *reading* of the configuration model rather than a defect
+  (footnote ²²): a present-but-null `views` has support in both the type-union
+  encoding and the `defaultBehavior` MUST, so that row is listed as an open
+  question about the data model and not as a gap attributed to either SDK.
 - 🟨 cells are counted as failing in the run totals. They occur in the official
   columns only, and `--exclude-group async` turns them green because every test
   failing in them is an `async`-group test; what they measure is the official
@@ -1017,7 +1176,10 @@ Caveats:
   configuration-file run. It is not the cause of the `OTEL_LOG_LEVEL` failure
   (footnote ²⁰): at `log_level: error` that notice is suppressed. It appears
   inside one captured failure message only as the *only* diagnostic in it, i.e.
-  as evidence that no other warning was emitted.
+  as evidence that no other warning was emitted. It is also the baseline the
+  sampler-warning tests cancel with a same-configuration control (footnote ²⁴),
+  and it is only a log statement: it filters no configuration node, which probes
+  confirmed for the 1.2 `probability/development` node it accompanies.
 - "Untracked" items are genuine spec-scope gaps identified by this suite; they
   are not reported upstream yet.
 - Timing-sensitive tests (collection intervals against async delays,

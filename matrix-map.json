@@ -48,6 +48,7 @@
     "ConfigSamplingTest::testParentBasedSamplerRootRatioZeroStillSamplesRemoteChild",
     "ConfigSamplingTest::testTraceIdRatioBasedSampler",
     "ConfigSamplingTest::testTraceIdRatioBasedSamplerSamplesOnlyAFractionOfSpans",
+    "ConfigSamplingTest::testTraceIdRatioBasedSamplerWarnsWhenUsedAsChildSampler",
     "ConfigSamplingTest::testTraceIdRatioBasedSamplerZero",
     "EnvSamplingTest::testAlwaysOffSampler",
     "EnvSamplingTest::testAlwaysOnSampler",
@@ -61,7 +62,7 @@
     "EnvSamplingTest::testTraceIdRatioSamplerOne",
     "EnvSamplingTest::testTraceIdRatioSamplerZero"
   ],
-  "Composite & rule-based samplers (`rule_based`, `probability`, `parent_threshold`, `always_record`)": [
+  "Composite samplers in configuration mode: `rule_based` routing, `probability` and `parent_threshold` trace-state behaviour": [
     "ConfigProbabilitySamplerTest::testComposableProbabilitySampler",
     "ConfigProbabilitySamplerTest::testComposableProbabilitySamplerConsistentAcrossThresholds",
     "ConfigProbabilitySamplerTest::testComposableProbabilitySamplerDefaultsToRatioOne",
@@ -69,14 +70,15 @@
     "ConfigProbabilitySamplerTest::testComposableProbabilitySamplerWritesThresholdTraceState",
     "ConfigProbabilitySamplerTest::testParentThresholdSamplerFollowsSampledRemoteParent",
     "ConfigProbabilitySamplerTest::testParentThresholdSamplerInheritsRemoteParentThreshold",
+    "ConfigProbabilitySamplerTest::testProbabilitySamplerDecidesFromExplicitRandomnessAndKeepsItOnDrop",
     "ConfigProbabilitySamplerTest::testProbabilitySamplerIgnoresInvalidExplicitRandomness",
     "ConfigProbabilitySamplerTest::testProbabilitySamplerPreservesPropagatedExplicitRandomness",
     "ConfigProbabilitySamplerTest::testProbabilitySamplerThresholdMatchesSamplingDecisions",
     "ConfigProbabilitySamplerTest::testProbabilitySamplerTraceStatePropagatesToChildSpans",
     "ConfigProbabilitySamplerTest::testProbabilitySamplerWritesThresholdTraceState",
-    "ConfigSamplingTest::testAlwaysRecordSamplerRecordsWithoutReporting",
     "ConfigSamplingTest::testCompositeAlwaysOffDropsAllSpans",
     "ConfigSamplingTest::testCompositeAlwaysOnSamplesAllSpans",
+    "ConfigSamplingTest::testProbabilitySamplerWarnsWhenTraceRandomFlagIsNotSet",
     "ConfigSamplingTest::testRuleBasedSamplerExcludedAttributePatterns",
     "ConfigSamplingTest::testRuleBasedSamplerMatchesAttributePatterns",
     "ConfigSamplingTest::testRuleBasedSamplerMatchesLocalParentOrigin",
@@ -84,6 +86,9 @@
     "ConfigSamplingTest::testRuleBasedSamplerRoutesByRemainingSpanKinds",
     "ConfigSamplingTest::testRuleBasedSamplerRoutesBySpanKindAndAttributes",
     "ConfigSamplingTest::testRuleBasedSamplerWithoutRulesDropsAllSpans"
+  ],
+  "`always_record` sampler (node that exists only in data model 1.2)": [
+    "ConfigSamplingTest::testAlwaysRecordSamplerRecordsWithoutReporting"
   ],
   "`jaeger_remote` sampler (remote dial, strategies, initial sampler)": [
     "ConfigSamplingTest::testJaegerRemoteInitialSamplerAppliesWhileBackendUnreachable",
@@ -478,6 +483,19 @@
     "ConfigBasicTest::testMissingConfigFileFailsInitialization",
     "ConfigBasicTest::testSignalsCanBeConfiguredIndependently",
     "ConfigBasicTest::testUnsupportedFileFormatResultsInNoOpSdk"
+  ],
+  "Component lists in configuration mode: provider `processors`/`readers` required and non-null; a null is not a valid value for an `array`-typed property": [
+    "ConfigComponentListsTest::testTracerProviderWithoutProcessorsKeyFailsInitialization",
+    "ConfigComponentListsTest::testTracerProviderWithNullProcessorsFailsInitialization",
+    "ConfigComponentListsTest::testTracerProviderWithEmptyProcessorsFailsInitialization",
+    "ConfigComponentListsTest::testMeterProviderWithoutReadersKeyFailsInitialization",
+    "ConfigComponentListsTest::testMeterProviderWithNullReadersFailsInitialization",
+    "ConfigComponentListsTest::testMeterProviderWithEmptyReadersFailsInitialization",
+    "ConfigComponentListsTest::testLoggerProviderWithoutProcessorsKeyFailsInitialization",
+    "ConfigComponentListsTest::testLoggerProviderWithNullProcessorsFailsInitialization",
+    "ConfigComponentListsTest::testLoggerProviderWithEmptyProcessorsFailsInitialization",
+    "ConfigComponentListsTest::testMeterProviderWithNullViewsIsRejected",
+    "ConfigComponentListsTest::testMeterProviderWithEmptyViewsFailsInitialization"
   ],
   "ID generation (random)": [
     "ConfigBasicTest::testIdGeneratorRandomProducesSpecConformIds"

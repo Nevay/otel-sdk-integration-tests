@@ -1146,6 +1146,187 @@ final class ConfigSamplingTest extends TestCase {
         self::assertSpanNames(['jaeger-default-interval']);
     }
 
+    #[Group('sampler')]
+    public function testTraceIdRatioBasedSamplerWarnsWhenUsedAsChildSampler(): void {
+        /*
+         * "Compatibility warnings for TraceIdRatioBased sampler": when this
+         * sampler observes a non-empty parent span context, ie when it is used
+         * not as a root sampler, the SDK SHOULD emit "a warning such as" the
+         * quoted sentence. The sentence is an example, so neither its wording
+         * nor the number of occurrences is asserted - only that a warning is
+         * emitted, ie more warnings than a run that must not produce any.
+         *
+         * Both runs use one and the same configuration, which places the ratio
+         * sampler in the root position AND in a child position. The first run
+         * creates a root span only: the sampler then runs as the root sampler
+         * and no warning is due (negative control). The second run creates a
+         * child of a sampled remote parent, which parent_based routes to its
+         * remote_parent_sampled delegate, ie the ratio sampler - now queried
+         * with a non-empty parent span context.
+         *
+         * A plain "no warning at all" assertion is not usable here: the
+         * open-telemetry/sdk configuration layer logs an unrelated warning about
+         * the 1.2 file format on every configuration run, so the control is a
+         * same-configuration baseline rather than zero.
+         */
+        $config = <<<'YAML'
+            file_format: "1.2"
+
+            tracer_provider:
+              sampler:
+                parent_based:
+                  root:
+                    trace_id_ratio_based:
+                      ratio: 1.0
+                  remote_parent_sampled:
+                    trace_id_ratio_based:
+                      ratio: 1.0
+              processors:
+                - batch:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${env:OTEL_EXPORTER_OTLP_TRACES_ENDPOINT}
+            YAML;
+
+        $this->runOTelConfig(
+            $config,
+            static function (): void {
+                Globals::tracerProvider()->getTracer('config-test')
+                    ->spanBuilder('ratio-as-root')
+                    ->startSpan()
+                    ->end();
+            },
+        );
+
+        /* The root-position instance was used, and sampled. */
+        self::assertSpanNames(['ratio-as-root']);
+
+        $rootPosition = self::warningCount($this->lastStderr);
+
+        $this->runOTelConfig(
+            $config,
+            static function (): void {
+                /*
+                 * No OpenTelemetry tracestate: with `ot=` carrying `th` or
+                 * `rv`, a sampler may instead take the more direct variant the
+                 * spec allows when a ProbabilitySampler parent is in use.
+                 */
+                $remoteParent = SpanContext::createFromRemoteParent(
+                    '4193e569320548f7b71d4c5a750d504c',
+                    '6e0c63258deeeff4',
+                    TraceFlags::SAMPLED,
+                );
+
+                Globals::tracerProvider()->getTracer('config-test')
+                    ->spanBuilder('ratio-as-child')
+                    ->setParent(Context::getCurrent()->withContextValue(Span::wrap($remoteParent)))
+                    ->startSpan()
+                    ->end();
+            },
+        );
+
+        self::assertSpanNames(['ratio-as-root', 'ratio-as-child']);
+
+        self::assertGreaterThan(
+            $rootPosition,
+            self::warningCount($this->lastStderr),
+            'Expected a warning about the ratio sampler operating as a child sampler, above the same-configuration baseline.',
+        );
+    }
+
+    #[Group('sampler')]
+    public function testProbabilitySamplerWarnsWhenTraceRandomFlagIsNotSet(): void {
+        /*
+         * "Compatibility warnings for ProbabilitySampler": when a probability
+         * sampler makes a decision for a non-root span using TraceID randomness
+         * while the Trace random flag was not set, the SDK SHOULD issue a
+         * warning statement in its log; the quoted sentence is given "as an
+         * example" only, so it is not asserted, and neither is the number of
+         * occurrences.
+         *
+         * Both runs use the identical configuration and the same child position;
+         * only the parent span context differs. The control parent carries the
+         * Trace random flag, which confirms trace randomness; the trigger parent
+         * carries neither that flag nor an explicit `rv` randomness value, so
+         * the sampler has to presume the TraceID is random and decides from its
+         * rightmost 56 bits. A ratio of one samples the span in either case, so
+         * both runs must export - only the warning differs.
+         */
+        $config = <<<'YAML'
+            file_format: "1.2"
+
+            tracer_provider:
+              sampler:
+                probability/development:
+                  ratio: 1.0
+              processors:
+                - batch:
+                    exporter:
+                      otlp_http:
+                        endpoint: ${env:OTEL_EXPORTER_OTLP_TRACES_ENDPOINT}
+            YAML;
+
+        $this->runOTelConfig(
+            $config,
+            static function (): void {
+                $randomParent = SpanContext::createFromRemoteParent(
+                    '4193e569320548f7b71d4c5a750d504c',
+                    '6e0c63258deeeff4',
+                    TraceFlags::SAMPLED | TraceFlags::RANDOM,
+                );
+
+                Globals::tracerProvider()->getTracer('config-test')
+                    ->spanBuilder('probability-random-flag')
+                    ->setParent(Context::getCurrent()->withContextValue(Span::wrap($randomParent)))
+                    ->startSpan()
+                    ->end();
+            },
+        );
+
+        self::assertSpanNames(['probability-random-flag']);
+
+        $confirmedRandomness = self::warningCount($this->lastStderr);
+
+        $this->runOTelConfig(
+            $config,
+            static function (): void {
+                $unconfirmedParent = SpanContext::createFromRemoteParent(
+                    '4193e569320548f7b71d4c5a750d504c',
+                    '6e0c63258deeeff4',
+                    TraceFlags::SAMPLED,
+                );
+
+                Globals::tracerProvider()->getTracer('config-test')
+                    ->spanBuilder('probability-no-random-flag')
+                    ->setParent(Context::getCurrent()->withContextValue(Span::wrap($unconfirmedParent)))
+                    ->startSpan()
+                    ->end();
+            },
+        );
+
+        self::assertSpanNames(['probability-random-flag', 'probability-no-random-flag']);
+
+        self::assertGreaterThan(
+            $confirmedRandomness,
+            self::warningCount($this->lastStderr),
+            'Expected a warning about presuming TraceID randomness while the Trace random flag was not set, above the same-configuration baseline.',
+        );
+    }
+
+    /**
+     * Number of warning-level self-diagnostics in the captured stderr of the
+     * child process. tbachert/otel-sdk logs through a Monolog channel named
+     * "otel" ("otel.WARNING: ..."), while open-telemetry/sdk writes its PSR-3
+     * level through its default log writer ("OpenTelemetry: [warning] ...");
+     * only the level marker is matched, so that the tests assert that a warning
+     * is emitted rather than freezing either SDK wording. Counting - instead of
+     * merely detecting - lets a test compare a triggering run against a run of
+     * the identical configuration that must not warn.
+     */
+    private static function warningCount(string $stderr): int {
+        return (int) preg_match_all('/otel\.warning|\[warning\]/i', $stderr);
+    }
+
     /**
      * Emits the given span context as a JSON line on stdout, for assertions
      * in the parent process.
