@@ -848,7 +848,13 @@ a malformed `OTEL_RESOURCE_ATTRIBUTES` list loses the valid entry as well
 (`Resource attribute "good.key" was not found.`), and a differently-cased
 `OTEL_PROPAGATORS` list yields no `baggage` propagator (`Failed asserting that
 an array has the key 'baggage'.`). The specification requires the fallback.
-Untracked upstream.  
+Reported upstream: the unrecognized enum values as
+[#2137](https://github.com/open-telemetry/opentelemetry-php/issues/2137), the
+unparseable numeric values as
+[#2136](https://github.com/open-telemetry/opentelemetry-php/issues/2136), and the
+case-sensitive matching of enum values as
+[#2138](https://github.com/open-telemetry/opentelemetry-php/issues/2138); the
+`OTEL_RESOURCE_ATTRIBUTES` list handling is untracked.  
 ² **No log-record-to-span-event bridge in configuration mode (1 test).** The
 `event_to_span_event_bridge/development` processor node is absent from the
 v1.0.0 `logger_provider` schema and appears there only from data model 1.1, so
@@ -987,7 +993,12 @@ since [PR #2057](https://github.com/open-telemetry/opentelemetry-php/pull/2057)
 [#2054](https://github.com/open-telemetry/opentelemetry-php/issues/2054)), but
 no exemplars are exported for `always_on` or
 `trace_based`, and an invalid filter value falls back to no exemplars instead of
-the default `trace_based`. Untracked upstream.  
+the default `trace_based`. The invalid-value fallback is reported upstream as
+[#2137](https://github.com/open-telemetry/opentelemetry-php/issues/2137) — an
+unrecognized enum value must be ignored in favour of the default — and the
+case-insensitive reading of that variable as
+[#2138](https://github.com/open-telemetry/opentelemetry-php/issues/2138); the
+missing exemplar capture is untracked.  
 ¹² **Default histogram aggregation is not applied (4 tests).**
 `OTEL_EXPORTER_OTLP_METRICS_DEFAULT_HISTOGRAM_AGGREGATION` is ignored, and the
 `default_histogram_aggregation` node "parses but is not applied yet" per the
@@ -1151,11 +1162,18 @@ prints as `th:f` (`:440-454`). The *form* the SDK writes is legal — `th` accep
 (`trace-tracestate-handling.md:110`, `:457-470`) — the number it denotes is one
 unit low. Every ratio this test configures has an exactly-defined threshold, so
 this failure is a deviation from the **normative** definition rather than a
-matter of precision choice, and it is confined: the same test passes for `0.5`,
-`0.25` and `0.125`, whose products fall in bands `round()` leaves untouched. The
-same mechanism also produces the one-unit-low value in the next footnote's
-`th:e6666666666665`. tbachert reproduces `th:f` with no such deviation, and this
-behaviour is not reported upstream.  
+matter of precision choice, and it is confined: probed through
+`ConsistentSamplingUtil::calculateThreshold()`, `round()` moves every even integer
+in the band `[2^52, 2^53)` by one and leaves every odd integer and every integer
+below `2^52` alone, and a dyadic ratio produces a product in that band exactly
+when it lies in `[1/16, 1/8)` — so `1/16`, `3/32`, `5/64`, `7/64`, `9/128`,
+`17/256` and the rest of that family are each one unit low, while the ratios this
+same test configures at `1/8` and above (`0.125`, `0.25`, `0.5`) and every power
+of two below `1/16` come out exact. The same mechanism also produces the
+one-unit-low value in the next footnote's `th:e6666666666665` (`0.1` is inside
+that interval). tbachert reproduces `th:f` with no such deviation. Reported
+upstream as [#2135](https://github.com/open-telemetry/opentelemetry-php/issues/2135),
+together with footnote ²⁶.  
 ²⁶ **`open-telemetry/sdk` writes rejection thresholds at full precision instead
 of the recommended 4 digits (1 test).** The test this footnote covers measures
 conformance to a **recommendation**: "OpenTelemetry SDKs are recommended to use 4
@@ -1198,9 +1216,10 @@ that, `open-telemetry/sdk` writes a threshold nearer to the definition, and no
 test in this suite asserts thresholds that close to 1. Both are artifacts of that
 pseudo-code, and this suite documents them instead of asserting them. The
 consistent-sampling code these tests exercise was added by
-the merged [PR #2077](https://github.com/open-telemetry/opentelemetry-php/pull/2077);
-a search of that repository's issues and pull requests for this behaviour returned
-no report of it, so the precision default is treated as untracked here.  
+the merged [PR #2077](https://github.com/open-telemetry/opentelemetry-php/pull/2077).
+Reported upstream as [#2135](https://github.com/open-telemetry/opentelemetry-php/issues/2135),
+which covers this precision default together with the rounding defect of
+footnote ²⁵.  
 
 ## Upstream tracking (official SDK failures, by root cause)
 
@@ -1214,17 +1233,17 @@ failures.
 |---|---:|---|
 | Periodic `MetricReader` never repeats a collection: interval ignored, delta temporality and cumulative start timestamps unobservable, multi-collection pipeline behavior unobservable (12 `async`-group tests) | 12 | [#1884](https://github.com/open-telemetry/opentelemetry-php/issues/1884) (open) |
 | Prometheus exporter: no provider for the `pull` meter-reader type (11 configuration tests), no env exporter factory for `prometheus` (1 env test) | 12 | not reported upstream (by decision) |
-| Invalid environment values are not tolerated: case-sensitive sampler/protocol/exporter identifiers, unparseable numeric limits and an invalid `OTEL_TRACES_SAMPLER_ARG` abort initialization (8 tests); a malformed `OTEL_RESOURCE_ATTRIBUTES` entry and an invalid `OTEL_PROPAGATORS` entry are dropped without aborting initialization (2 tests) | 10 | untracked |
+| Invalid environment values are not tolerated: unrecognized or differently-cased sampler, protocol and exporter identifiers abort initialization (5 tests), as do unparseable numeric values — an invalid `OTEL_TRACES_SAMPLER_ARG` in two settings and `OTEL_ATTRIBUTE_COUNT_LIMIT` (3 tests); a malformed entry in `OTEL_RESOURCE_ATTRIBUTES` discards the valid entries in the same list, and a differently-cased `OTEL_PROPAGATORS` list drops an entry (2 tests) | 10 | unrecognized enum values: [#2137](https://github.com/open-telemetry/opentelemetry-php/issues/2137) (open); unparseable numeric values: [#2136](https://github.com/open-telemetry/opentelemetry-php/issues/2136) (open); case-insensitive interpretation of enum values: [#2138](https://github.com/open-telemetry/opentelemetry-php/issues/2138) (open); the `OTEL_RESOURCE_ATTRIBUTES` list handling untracked |
 | Configuration nodes absent from the implemented data model 1.0 are rejected by its schema — 1.2-only: `view_matching_mode/development` (6), `max_request_size`/`max_response_size` (7), `attribute_value_depth_limit` (3), `always_record` (1); where the 1.0 schema has no such node and data model 1.1 introduces it: `max_export_batch_size` under a periodic metric reader (2), `id_generator` (1), `event_to_span_event_bridge/development` (1). Only the metric placement of `max_export_batch_size` is newer: it is a 1.0 node of the batch log record and batch span processors, and those tests pass on both SDKs | 21 | newer data model targeted by [PR #2050](https://github.com/open-telemetry/opentelemetry-php/pull/2050) (draft, partially superseded by the merged [PR #2068](https://github.com/open-telemetry/opentelemetry-php/pull/2068)); the individual nodes untracked |
 | Cardinality limits parsed but not applied: no overflow series, no per-instrument-type limits | 9 | untracked |
 | `jaeger_remote` sampler not implemented (5 env, 3 configuration) | 8 | untracked |
 | `OTEL_ENTITIES` env detector not implemented (7 env, 1 configuration) | 8 | untracked |
 | `logger_configurator` `minimum_severity` and `trace_based` parsed but not applied | 6 | untracked |
-| Exemplars not captured; an invalid filter value falls back to no exemplars instead of `trace_based` | 4 | values fixed by the merged [PR #2057](https://github.com/open-telemetry/opentelemetry-php/pull/2057); capture and fallback untracked |
+| Exemplars not captured; an invalid filter value falls back to no exemplars instead of `trace_based` | 4 | values fixed by the merged [PR #2057](https://github.com/open-telemetry/opentelemetry-php/pull/2057); the invalid `OTEL_METRICS_EXEMPLAR_FILTER` value not falling back to the default is reported as [#2137](https://github.com/open-telemetry/opentelemetry-php/issues/2137) (open); capturing exemplars is untracked |
 | Default histogram aggregation not applied (env var ignored, `default_histogram_aggregation` inert, base2 defaults not produced) | 4 | untracked |
 | `ProbabilitySampler` emits no TraceID-randomness compatibility warning when the Trace random flag is unset, although the `TraceIdRatioBased`-as-child warning is emitted (1 configuration test, footnote ⁴) | 1 | untracked |
-| `probability/development` writes a rejection threshold one unit below the value the definition requires for 1-in-16: `th:efffffffffffff` = 67553994410557439, where `15 · 2^52` = 67553994410557440 is required and the specification's own table prints `th:f` (1 configuration test, footnote ²⁵). This is a deviation from the **normative** definition (`tracestate-probability-sampling.md:98-100`, `trace-tracestate-handling.md:129-140`), not a precision or formatting choice: `p · 2^56` is the exact product because `2^56` is a power of two, and `round()` moves an already-integral product wherever a double of that magnitude is spaced by one or two units. The written form is a legal encoding; the number it denotes is one unit low | 1 | consistent samplers implemented by the merged [PR #2077](https://github.com/open-telemetry/opentelemetry-php/pull/2077); the off-by-one is not reported upstream |
-| `probability/development` writes its rejection threshold with every digit it computes instead of the recommended 4 significant digits: `th:aaaaaaaaaaaaac` for 1-in-3, `th:cccccccccccccc` for 1-in-5, `th:e6666666666665` for 1-in-10, `th:fd70a3d70a3d71` for 1-in-100, `th:ffffef39085f4a` for 1-in-1000000 (1 configuration test, footnote ²⁶). This row measures conformance to a **recommendation** — `tracestate-probability-sampling.md:435` — and not a defect in the threshold value: each of those values is the nearest integer to `MaxAdjustedCount * (1 - Probability)` with `MaxAdjustedCount = 2^56` (`:98-100`, `trace-tracestate-handling.md:129-140`) for the ratio the configuration parses to, and a 13-to-14-digit value is a legal encoding: `th` accepts between 1 and 14 lowercase hexadecimal digits (`trace-tracestate-handling.md:110`) with trailing zeros optional (`:457-470`) | 1 | consistent samplers implemented by the merged [PR #2077](https://github.com/open-telemetry/opentelemetry-php/pull/2077); the precision default is not reported upstream |
+| `probability/development` writes a rejection threshold one unit below the value the definition requires for 1-in-16: `th:efffffffffffff` = 67553994410557439, where `15 · 2^52` = 67553994410557440 is required and the specification's own table prints `th:f` (1 configuration test, footnote ²⁵). This is a deviation from the **normative** definition (`tracestate-probability-sampling.md:98-100`, `trace-tracestate-handling.md:129-140`), not a precision or formatting choice: `p · 2^56` is the exact product because `2^56` is a power of two, and `round()` moves an already-integral product wherever a double of that magnitude is spaced by one or two units. The written form is a legal encoding; the number it denotes is one unit low | 1 | consistent samplers implemented by the merged [PR #2077](https://github.com/open-telemetry/opentelemetry-php/pull/2077); the off-by-one is reported as [#2135](https://github.com/open-telemetry/opentelemetry-php/issues/2135) (open) |
+| `probability/development` writes its rejection threshold with every digit it computes instead of the recommended 4 significant digits: `th:aaaaaaaaaaaaac` for 1-in-3, `th:cccccccccccccc` for 1-in-5, `th:e6666666666665` for 1-in-10, `th:fd70a3d70a3d71` for 1-in-100, `th:ffffef39085f4a` for 1-in-1000000 (1 configuration test, footnote ²⁶). This row measures conformance to a **recommendation** — `tracestate-probability-sampling.md:435` — and not a defect in the threshold value: each of those values is the nearest integer to `MaxAdjustedCount * (1 - Probability)` with `MaxAdjustedCount = 2^56` (`:98-100`, `trace-tracestate-handling.md:129-140`) for the ratio the configuration parses to, and a 13-to-14-digit value is a legal encoding: `th` accepts between 1 and 14 lowercase hexadecimal digits (`trace-tracestate-handling.md:110`) with trailing zeros optional (`:457-470`) | 1 | consistent samplers implemented by the merged [PR #2077](https://github.com/open-telemetry/opentelemetry-php/pull/2077); the precision default is reported as [#2135](https://github.com/open-telemetry/opentelemetry-php/issues/2135) (open), the same issue as the row above |
 | Resource detectors in configuration mode: container detector, `service.instance.id` from the service detector, conflicting `schema_url` | 3 | untracked |
 | View aggregation overrides ignored (base2 histogram from a view, incompatible aggregation not dropped) | 2 | untracked |
 | Batch span / batch log record processors flush synchronously, so a full queue and its drop cannot be observed | 2 | untracked |
