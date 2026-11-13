@@ -19,49 +19,11 @@ test that verifies specification-defined behavior — against the two SDKs under
 The matrix covers the 433 shared `spec` tests (160 environment-variable mode,
 273 configuration-file mode per SDK); vendor-specific tests
 (`TbachertSpecificTest`, `OfficialSpecificTest`) are documented in the README
-and are not part of this overview. On the official SDK that means 131/160
-env-mode and 194/273 config-file-mode spec tests pass. The tbachert SDK passes
-160/160 env-mode and 273/273 config-file-mode spec tests, i.e. the whole shared
-`spec` group. Where a spec-conformant test fails on an SDK it is kept and
-reported here rather than relaxed or reclassified; in this run no tbachert test
-fails. The sampling coverage now also reaches explicit randomness propagated
-across a *negative* sampling decision for the
-top-level `ProbabilitySampler`
-(`ConfigProbabilitySamplerTest::testProbabilitySamplerDecidesFromExplicitRandomnessAndKeepsItOnDrop`),
-which previously only the composable form covered: both SDKs keep
-`rv:6e6d1a75832a2f` unchanged and drop the span, a result only possible if the
-explicit value was used rather than the TraceID's own bits. That is added
-coverage that passes on both SDKs, not a fix and not a gap. The same area now
-also covers the *encoding* of the rejection threshold:
-`ConfigProbabilityThresholdPrecisionTest` configures `probability/development`
-with each of the 13 ratios of the table at
-`tracestate-probability-sampling.md:440-454` and compares the `th:` entry the
-SDK writes for a fixed randomness value that is not below any threshold in that
-matrix. The normative content there is the threshold definition
-`Rejection_Threshold = (1 - Sampling_Probability) * 2^56` (`:98-100`) and the
-rules for writing the value — hexadecimal, trailing zeros optional, `th:0` for a
-zero threshold (`:457-470`). The *precision* is not normative: "OpenTelemetry
-SDKs are recommended to use 4 digits of precision by default" (`:435`), in the
-section headed "## Algorithms". Two of those three tests assert the recommended
-form, so what they measure is conformance to that recommendation; neither SDK is
-shown to violate the threshold definition (footnote ²⁵). The third covers the
-smallest probability the range allows, `2^-56` (`:84`), and asserts what the
-threshold definition requires there rather than what the reference algorithm
-produces: `Threshold = MaxAdjustedCount * (1 - Probability)` with
-`MaxAdjustedCount = 2^56` (`trace-tracestate-handling.md:129-140`, the same
-rule at `:98-100`) is `2^56 - 1`, and both SDKs write exactly
-`th:ffffffffffffff` — the value the definition requires, in a legal encoding,
-since `th` accepts "between 1 and 14 lowercase hexadecimal digits"
-(`trace-tracestate-handling.md:110`) and is read back by extending it with
-trailing zeros to 14 digits (`:116-117`). The specification's own reference
-algorithm produces `th:ffffffffffff` at that ratio instead, because its
-`min(12, …)` precision clamp (`:398`) and the `rejection_prob >= 2.0` fallback
-(`:411-412`) leave it twelve digits and thereby zero the low 8 bits of the
-threshold, so any ratio below `2^-48` is there encoded as `2^-48` — 256 times
-the configured rate. That is an artifact of the pseudo-code, not a requirement,
-so this suite documents it rather than asserting it. Sections follow the
-specification's structure (context propagation, then the signals in spec order:
-traces, metrics, logs); rows within a section are organized by tested behavior.
+and are not part of this overview. A test that verifies specification-defined
+behavior is kept and reported when an SDK fails it, rather than relaxed or
+reclassified. Sections follow the specification's structure (context propagation,
+then the signals in spec order: traces, metrics, logs); rows within a section are
+organized by tested behavior.
 Since the configuration file must support at least every option available via
 environment variables, each env-based row has a config-file counterpart; rows
 missing one side cover either data-model nodes without an environment
@@ -1201,7 +1163,17 @@ configured ratio itself. The two SDKs agree on every exactly-representable ratio
 (`1` → `th:0`, `0.5` → `th:8`, `0.25` → `th:c`, `0.125` → `th:e`) and at the
 `2^-56` boundary, where both write `th:ffffffffffffff` — the value the threshold
 definition requires there; they differ from
-1-in-16 downward. The consistent-sampling code these tests exercise was added by
+1-in-16 downward. The third test in that cell covers the smallest ratio the range
+allows, `2^-56` (`:84`), and asserts the value the threshold definition requires
+there — `2^56 - 1`, written `th:ffffffffffffff`, which is what both SDKs write —
+rather than the value the specification's reference algorithm produces. That
+algorithm yields `th:ffffffffffff` at this ratio: its `min(12, …)` precision clamp
+(`:398`) and the `rejection_prob >= 2.0` fallback (`:411-412`) leave it twelve
+digits and thereby zero the low 8 bits of the threshold, so read back per
+`trace-tracestate-handling.md:116-117` any ratio below `2^-48` is encoded as
+`2^-48`, up to 256 times the configured rate. That is an artifact of that
+pseudo-code, and this suite documents it instead of asserting it. The
+consistent-sampling code these tests exercise was added by
 the merged [PR #2077](https://github.com/open-telemetry/opentelemetry-php/pull/2077);
 a search of that repository's issues and pull requests for this behaviour returned
 no report of it, so the precision default is treated as untracked here.  
