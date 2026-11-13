@@ -5,28 +5,61 @@ test that verifies specification-defined behavior — against the two SDKs under
 `sdks/`. Generated from full suite runs (JUnit logs); regenerate with
 `make test-all`, which writes `.junit-<sdk>.xml` for both SDKs.
 
-- **tbachert run:** 434 tests executed, **434 passing / 0 failing** (`spec` +
-  `tbachert` groups).
-- **official run:** 436 tests executed, **330 passing / 106 failing**
-  (`spec` + `official` groups). All 106 failures are shared spec tests: 29 in
-  environment-variable mode, 77 in configuration-file mode. As the JUnit log
-  splits them: **12 errors, 94 assertion failures**. All 12 errors are the
+- **tbachert run:** 437 tests executed, **437 passing / 0 failing** (`spec` +
+  `tbachert` groups): the whole shared `spec` group passes, as do the 4
+  vendor-specific tests.
+- **official run:** 439 tests executed, **331 passing / 108 failing**
+  (`spec` + `official` groups). All 108 failures are shared spec tests: 29 in
+  environment-variable mode, 79 in configuration-file mode. As the JUnit log
+  splits them: **12 errors, 96 assertion failures**. All 12 errors are the
   Prometheus exporter tests (11 configuration-file, 1 environment-variable),
   which fail before the SDK is built; every other failure is an assertion about
   exported data or emitted output.
 
-The matrix covers the 430 shared `spec` tests (160 environment-variable mode,
-270 configuration-file mode per SDK); vendor-specific tests
+The matrix covers the 433 shared `spec` tests (160 environment-variable mode,
+273 configuration-file mode per SDK); vendor-specific tests
 (`TbachertSpecificTest`, `OfficialSpecificTest`) are documented in the README
 and are not part of this overview. On the official SDK that means 131/160
-env-mode and 193/270 config-file-mode spec tests pass; on the tbachert SDK all
-430 pass. The sampling coverage now also reaches explicit randomness propagated
-across a *negative* sampling decision for the top-level `ProbabilitySampler`
+env-mode and 194/273 config-file-mode spec tests pass. The tbachert SDK passes
+160/160 env-mode and 273/273 config-file-mode spec tests, i.e. the whole shared
+`spec` group. Where a spec-conformant test fails on an SDK it is kept and
+reported here rather than relaxed or reclassified; in this run no tbachert test
+fails. The sampling coverage now also reaches explicit randomness propagated
+across a *negative* sampling decision for the
+top-level `ProbabilitySampler`
 (`ConfigProbabilitySamplerTest::testProbabilitySamplerDecidesFromExplicitRandomnessAndKeepsItOnDrop`),
 which previously only the composable form covered: both SDKs keep
 `rv:6e6d1a75832a2f` unchanged and drop the span, a result only possible if the
 explicit value was used rather than the TraceID's own bits. That is added
-coverage that passes on both SDKs, not a fix and not a gap. Sections follow the
+coverage that passes on both SDKs, not a fix and not a gap. The same area now
+also covers the *encoding* of the rejection threshold:
+`ConfigProbabilityThresholdPrecisionTest` configures `probability/development`
+with each of the 13 ratios of the table at
+`tracestate-probability-sampling.md:440-454` and compares the `th:` entry the
+SDK writes for a fixed randomness value that is not below any threshold in that
+matrix. The normative content there is the threshold definition
+`Rejection_Threshold = (1 - Sampling_Probability) * 2^56` (`:98-100`) and the
+rules for writing the value — hexadecimal, trailing zeros optional, `th:0` for a
+zero threshold (`:457-470`). The *precision* is not normative: "OpenTelemetry
+SDKs are recommended to use 4 digits of precision by default" (`:435`), in the
+section headed "## Algorithms". Two of those three tests assert the recommended
+form, so what they measure is conformance to that recommendation; neither SDK is
+shown to violate the threshold definition (footnote ²⁵). The third covers the
+smallest probability the range allows, `2^-56` (`:84`), and asserts what the
+threshold definition requires there rather than what the reference algorithm
+produces: `Threshold = MaxAdjustedCount * (1 - Probability)` with
+`MaxAdjustedCount = 2^56` (`trace-tracestate-handling.md:129-140`, the same
+rule at `:98-100`) is `2^56 - 1`, and both SDKs write exactly
+`th:ffffffffffffff` — the value the definition requires, in a legal encoding,
+since `th` accepts "between 1 and 14 lowercase hexadecimal digits"
+(`trace-tracestate-handling.md:110`) and is read back by extending it with
+trailing zeros to 14 digits (`:116-117`). The specification's own reference
+algorithm produces `th:ffffffffffff` at that ratio instead, because its
+`min(12, …)` precision clamp (`:398`) and the `rejection_prob >= 2.0` fallback
+(`:411-412`) leave it twelve digits and thereby zero the low 8 bits of the
+threshold, so any ratio below `2^-48` is there encoded as `2^-48` — 256 times
+the configured rate. That is an artifact of the pseudo-code, not a requirement,
+so this suite documents it rather than asserting it. Sections follow the
 specification's structure (context propagation, then the signals in spec order:
 traces, metrics, logs); rows within a section are organized by tested behavior.
 Since the configuration file must support at least every option available via
@@ -38,7 +71,8 @@ config-file equivalent (env-only).
 Legend: ✅ all passing · 🟨 only `async`-group tests failing (passing once the
 `async` tests are excluded) · ⚠️ partially passing · ❌ fully failing · – no tests
 for that mode. Each spec test is counted in exactly one cell; the "Upstream
-tracking" table at the bottom accounts for all 106 failures by root cause.
+tracking" table at the bottom accounts for all 108 official failures by root
+cause.
 
 Accounting is machine-checkable: `matrix-map.json` assigns every spec test to
 exactly one row, and `python3 check-matrix.py` verifies that assignment against
@@ -101,7 +135,7 @@ Footnotes are collected below the tables.
 |---|---|---|---|---|
 | End-to-end span export & cross-service context propagation (incl. mixed env/config-file services) | ✅ 1/1 | ✅ 2/2 | ✅ 1/1 | ✅ 2/2 |
 | Sampling: always_on/off, trace-id ratio, parent-based (simple samplers) | ✅ 11/11 | ✅ 12/12 | ⚠️ 9/11¹ | ✅ 12/12 |
-| Composite samplers in configuration mode: `rule_based` routing, `probability` and `parent_threshold` trace-state behaviour | – | ✅ 23/23 | – | ⚠️ 22/23³⁴ |
+| Composite samplers in configuration mode: `rule_based` routing, `probability` and `parent_threshold` trace-state behaviour | – | ✅ 26/26 | – | ⚠️ 23/26³⁴²⁵ |
 | `always_record` sampler (node that exists only in data model 1.2) | – | ✅ 1/1 | – | ❌ 0/1⁵ |
 | `jaeger_remote` sampler (remote dial, strategies, initial sampler) | ✅ 5/5 | ✅ 3/3 | ❌ 0/5⁶ | ❌ 0/3⁶ |
 | Span & attribute limits (count, value length, depth) | ✅ 11/11 | ✅ 6/6 | ⚠️ 10/11¹ | ⚠️ 3/6⁷ |
@@ -147,7 +181,7 @@ Footnotes are collected below the tables.
 </details>
 
 <details>
-<summary>Composite samplers in configuration mode: `rule_based` routing, `probability` and `parent_threshold` trace-state behaviour — 23 tests (0 env · 23 config)</summary>
+<summary>Composite samplers in configuration mode: `rule_based` routing, `probability` and `parent_threshold` trace-state behaviour — 26 tests (0 env · 26 config)</summary>
 
 - `ConfigProbabilitySamplerTest::testComposableProbabilitySampler` — tbachert ✅ · official ✅
 - `ConfigProbabilitySamplerTest::testComposableProbabilitySamplerConsistentAcrossThresholds` — tbachert ✅ · official ✅
@@ -162,6 +196,9 @@ Footnotes are collected below the tables.
 - `ConfigProbabilitySamplerTest::testProbabilitySamplerThresholdMatchesSamplingDecisions` — tbachert ✅ · official ✅
 - `ConfigProbabilitySamplerTest::testProbabilitySamplerTraceStatePropagatesToChildSpans` — tbachert ✅ · official ✅
 - `ConfigProbabilitySamplerTest::testProbabilitySamplerWritesThresholdTraceState` — tbachert ✅ · official ✅
+- `ConfigProbabilityThresholdPrecisionTest::testProbabilitySamplerThresholdAtMinimumValidProbability` — tbachert ✅ · official ✅
+- `ConfigProbabilityThresholdPrecisionTest::testProbabilitySamplerThresholdOmitsTrailingZeros` — tbachert ✅ · official ❌
+- `ConfigProbabilityThresholdPrecisionTest::testProbabilitySamplerThresholdPrecisionAppliesToSignificantDigits` — tbachert ✅ · official ❌
 - `ConfigSamplingTest::testCompositeAlwaysOffDropsAllSpans` — tbachert ✅ · official ✅
 - `ConfigSamplingTest::testCompositeAlwaysOnSamplesAllSpans` — tbachert ✅ · official ✅
 - `ConfigSamplingTest::testProbabilitySamplerWarnsWhenTraceRandomFlagIsNotSet` — tbachert ✅ · official ❌
@@ -881,8 +918,9 @@ specification requires (`otel.WARNING: Mismatch between sampling threshold and
 sampled flag detected. Ignoring sampling threshold.`), while official logs
 nothing: its whole `Trace/Sampler/Consistent/` package contains no logger call.
 The two therefore do not behave identically there, and neither side's behavior
-in that spot is a conformance gap. The one failing test in this cell is
-footnote ⁴.  
+in that spot is a conformance gap. The failures in this cell are footnotes ⁴
+and ²⁵ for `open-telemetry/sdk`; none of them is caused by what this footnote
+describes.  
 ⁴ **Sampler compatibility warnings: both are asserted presence-only, and
 official omits one of them (1 test).** `ConfigSamplingTest` covers the two
 warnings the specification requires: `trace/sdk.md:516-517`, a
@@ -1135,11 +1173,45 @@ model 1.0's `tracer_provider` and appears there from 1.1. The configuration is
 therefore rejected before the SDK is built (`unrecognized option
 "id_generator" under "open_telemetry.tracer_provider"`). Counted with the
 newer-data-model row of the tracking table.  
+²⁵ **`open-telemetry/sdk` writes rejection thresholds at full precision instead
+of the recommended 4 digits (2 tests).** The two tests this footnote covers
+measure conformance to a **recommendation**: "OpenTelemetry SDKs are recommended to use 4
+digits of precision by default" (`tracestate-probability-sampling.md:435`), a
+sentence inside the non-normative "## Algorithms" section. What the same document
+normatively requires is the threshold definition
+`Rejection_Threshold = (1 - Sampling_Probability) * 2^56` (`:98-100`) and the
+encoding of that value (`:457-470`), and `open-telemetry/sdk` satisfies both:
+`ConsistentSamplingUtil::calculateThreshold()` computes
+`2^56 − round(p · 2^56)` and `ConsistentSamplingUtil::encodeThreshold()`, called
+from `OtelTraceState` when it writes the `th:` entry, emits that as lowercase
+hexadecimal with trailing zeros stripped (`0` for a zero threshold), which is
+nearest-integer and within one unit of the defined value —
+`th:efffffffffffff` = 67553994410557439 for 1-in-16, where the definition gives
+67553994410557440. It is **not** a violation of the threshold
+definition; it is a 13-to-14-significant-digit threshold where the recommended
+form has four significant digits: `th:aaaaaaaaaaaaac` for 1-in-3 instead of
+`th:aaab`, `th:cccccccccccccc` for 1-in-5 instead of `th:cccd`,
+`th:e6666666666665` for 1-in-10 instead of `th:e666`, `th:fd70a3d70a3d71` for
+1-in-100 instead of `th:fd70a`, `th:ffffef39085f4a` for 1-in-1000000 instead of
+`th:ffffef39`. Converting each form back with "Converting threshold to a sampling
+probability" (`:478-486`) shows what the recommendation costs: `th:aaab` stands
+for 0.3333282470703125, the "Actual probability (precision 4)" column of the
+same table row, while `th:aaaaaaaaaaaaac` stands for 0.33333333333333326 — the
+configured ratio itself. The two SDKs agree on every exactly-representable ratio
+(`1` → `th:0`, `0.5` → `th:8`, `0.25` → `th:c`, `0.125` → `th:e`) and at the
+`2^-56` boundary, where both write `th:ffffffffffffff` — the value the threshold
+definition requires there; they differ from
+1-in-16 downward. The consistent-sampling code these tests exercise was added by
+the merged [PR #2077](https://github.com/open-telemetry/opentelemetry-php/pull/2077);
+a search of that repository's issues and pull requests for this behaviour returned
+no report of it, so the precision default is treated as untracked here.  
 
 ## Upstream tracking (official SDK failures, by root cause)
 
-106 failing spec tests, grouped by the defect they measure. Of these, 12 are
-errors raised before the SDK was built (all Prometheus) and 94 are assertion
+### `open-telemetry/sdk` — 108 failing spec tests
+
+Grouped by the defect they measure. Of these, 12 are
+errors raised before the SDK was built (all Prometheus) and 96 are assertion
 failures.
 
 | Failing group | Tests | Tracking |
@@ -1155,13 +1227,14 @@ failures.
 | Exemplars not captured; an invalid filter value falls back to no exemplars instead of `trace_based` | 4 | values fixed by the merged [PR #2057](https://github.com/open-telemetry/opentelemetry-php/pull/2057); capture and fallback untracked |
 | Default histogram aggregation not applied (env var ignored, `default_histogram_aggregation` inert, base2 defaults not produced) | 4 | untracked |
 | `ProbabilitySampler` emits no TraceID-randomness compatibility warning when the Trace random flag is unset, although the `TraceIdRatioBased`-as-child warning is emitted (1 configuration test, footnote ⁴) | 1 | untracked |
+| `probability/development` writes its rejection threshold with every digit it computes instead of the recommended 4 significant digits: `th:efffffffffffff` for 1-in-16, `th:aaaaaaaaaaaaac` for 1-in-3, `th:fd70a3d70a3d71` for 1-in-100, `th:ffffef39085f4a` for 1-in-1000000 (2 configuration tests, footnote ²⁵). This row measures conformance to a **recommendation** — `tracestate-probability-sampling.md:435` — and not a normative defect: the value `open-telemetry/sdk` writes is the threshold defined by `MaxAdjustedCount * (1 - Probability)` with `MaxAdjustedCount = 2^56` (`:98-100`, `trace-tracestate-handling.md:129-140`; its nearest-integer computation differs from that product by at most one), and a 13-to-14-digit value is a legal encoding: `th` accepts between 1 and 14 lowercase hexadecimal digits (`trace-tracestate-handling.md:110`) with trailing zeros optional (`:457-470`) | 2 | consistent samplers implemented by the merged [PR #2077](https://github.com/open-telemetry/opentelemetry-php/pull/2077); the precision default is not reported upstream |
 | Resource detectors in configuration mode: container detector, `service.instance.id` from the service detector, conflicting `schema_url` | 3 | untracked |
 | View aggregation overrides ignored (base2 histogram from a view, incompatible aggregation not dropped) | 2 | untracked |
 | Batch span / batch log record processors flush synchronously, so a full queue and its drop cannot be observed | 2 | untracked |
 | `OTEL_LOG_LEVEL` in configuration mode: the configured level applies to component-creation diagnostics only, so an SDK-internal span-limit diagnostic survives `log_level: error` | 1 | untracked |
 | Accepted but unenforced limits: log record attribute count/length limits, and the default attribute value-depth limit (whose asserted value, 64, is itself specified only in data model 1.2) | 2 | untracked |
 | An explicit `meter_provider.views: null` is accepted where the suite asserts rejection; the suite pins the strict reading of the model's nullability encoding (1 configuration test, footnote ²³) | 1 | no confirmed defect; to be raised upstream as a question about `null` on a non-required `array`-typed node, not reported upstream |
-| **Total** | **106** | |
+| **Total** | **108** | |
 
 Caveats:
 
@@ -1178,6 +1251,16 @@ Caveats:
   (footnote ²³): a present-but-null `views` has support in both the type-union
   encoding and the `defaultBehavior` MUST, so that row is listed as an open
   question about the data model and not as a gap attributed to either SDK.
+- 2 failures measure conformance to a **recommendation**, not to a normative
+  requirement: the official ones that concern the rejection-threshold precision
+  (footnote ²⁵). "OpenTelemetry SDKs are recommended to use 4 digits of
+  precision by default" (`tracestate-probability-sampling.md:435`) is a
+  recommendation inside the section headed "## Algorithms", while
+  `Rejection_Threshold = (1 - Sampling_Probability) * 2^56` (`:98-100`) and the
+  hexadecimal / trailing-zero / `th:0` encoding rules (`:457-470`) are
+  normative. `open-telemetry/sdk` satisfies the normative parts: that row is not
+  a threshold defined wrongly by one SDK and rightly by the other, and it is not
+  comparable to the feature gaps above.
 - 🟨 cells are counted as failing in the run totals. They occur in the official
   columns only, and `--exclude-group async` turns them green because every test
   failing in them is an `async`-group test; what they measure is the official
