@@ -53,7 +53,11 @@ final class ConfigProbabilityThresholdPrecisionTest extends TestCase {
      * The expected values are the precision-4 column of the 1-in-N table in
      * tracestate-probability-sampling.md (`:440-454`), which shows `8`, `c`,
      * `e` and `f` for 1-in-2, 1-in-4, 1-in-8 and 1-in-16; for these ratios
-     * the value is the same at precisions 3, 4 and 5. What these cases
+     * the value is the same at precisions 3, 4 and 5. They are also the only
+     * correct values whatever precision an SDK uses: each threshold here is
+     * exactly defined, because `2^56 * (1 - 2^-n)` is an integer, so no
+     * rounding or truncation rule can justify a value one unit away. What these
+     * cases
      * measure is that the encoding omits trailing zeros, per the last line of
      * the reference algorithm (`:423`) and the `T`-value conversion at
      * `:457-468` ("emit it as a hexadecimal value (without a leading '0x'),
@@ -94,7 +98,12 @@ final class ConfigProbabilityThresholdPrecisionTest extends TestCase {
             ['ratio' => '0.125', 'th' => 'e', 'span' => 'th-precision-eighth'],
             /* 1-in-16: 15*2**52 = 0xf0000000000000. */
             ['ratio' => '0.0625', 'th' => 'f', 'span' => 'th-precision-sixteenth'],
-        ]);
+        ], 'The rejection threshold for these ratios is exactly defined by '
+            . 'Rejection_Threshold = (1 - Sampling_Probability) * 2^56 '
+            . '(tracestate-probability-sampling.md:98-100, '
+            . 'trace-tracestate-handling.md:129-140) and the specification prints it as 8, c, e and f in its '
+            . 'own table (tracestate-probability-sampling.md:440-454); the encoding omits trailing zeros '
+            . '(:457-470). A threshold one unit away is the wrong threshold, whatever precision is used.');
     }
 
     /**

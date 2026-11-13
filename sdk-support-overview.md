@@ -97,7 +97,7 @@ Footnotes are collected below the tables.
 |---|---|---|---|---|
 | End-to-end span export & cross-service context propagation (incl. mixed env/config-file services) | ✅ 1/1 | ✅ 2/2 | ✅ 1/1 | ✅ 2/2 |
 | Sampling: always_on/off, trace-id ratio, parent-based (simple samplers) | ✅ 11/11 | ✅ 12/12 | ⚠️ 9/11¹ | ✅ 12/12 |
-| Composite samplers in configuration mode: `rule_based` routing, `probability` and `parent_threshold` trace-state behaviour | – | ✅ 26/26 | – | ⚠️ 23/26³⁴²⁵ |
+| Composite samplers in configuration mode: `rule_based` routing, `probability` and `parent_threshold` trace-state behaviour | – | ✅ 26/26 | – | ⚠️ 23/26³⁴²⁵²⁶ |
 | `always_record` sampler (node that exists only in data model 1.2) | – | ✅ 1/1 | – | ❌ 0/1⁵ |
 | `jaeger_remote` sampler (remote dial, strategies, initial sampler) | ✅ 5/5 | ✅ 3/3 | ❌ 0/5⁶ | ❌ 0/3⁶ |
 | Span & attribute limits (count, value length, depth) | ✅ 11/11 | ✅ 6/6 | ⚠️ 10/11¹ | ⚠️ 3/6⁷ |
@@ -880,8 +880,8 @@ specification requires (`otel.WARNING: Mismatch between sampling threshold and
 sampled flag detected. Ignoring sampling threshold.`), while official logs
 nothing: its whole `Trace/Sampler/Consistent/` package contains no logger call.
 The two therefore do not behave identically there, and neither side's behavior
-in that spot is a conformance gap. The failures in this cell are footnotes ⁴
-and ²⁵ for `open-telemetry/sdk`; none of them is caused by what this footnote
+in that spot is a conformance gap. The failures in this cell are footnotes ⁴, ²⁵
+and ²⁶ for `open-telemetry/sdk`; none of them is caused by what this footnote
 describes.  
 ⁴ **Sampler compatibility warnings: both are asserted presence-only, and
 official omits one of them (1 test).** `ConfigSamplingTest` covers the two
@@ -1135,44 +1135,68 @@ model 1.0's `tracer_provider` and appears there from 1.1. The configuration is
 therefore rejected before the SDK is built (`unrecognized option
 "id_generator" under "open_telemetry.tracer_provider"`). Counted with the
 newer-data-model row of the tracking table.  
-²⁵ **`open-telemetry/sdk` writes rejection thresholds at full precision instead
-of the recommended 4 digits (2 tests).** The two tests this footnote covers
-measure conformance to a **recommendation**: "OpenTelemetry SDKs are recommended to use 4
+²⁵ **`open-telemetry/sdk` writes a rejection threshold one unit below the value
+the definition requires (1 test).** `ConsistentSamplingUtil::calculateThreshold()`
+computes `MAX_THRESHOLD − (int) round(p · MAX_THRESHOLD)`. The multiplication is
+exact: `2^56` is a power of two, so `p · 2^56` is the exact IEEE-754 product.
+`round()` is what moves the result, because it perturbs an already-integral
+double whose spacing is one or two units. At a ratio of `0.0625` the product is
+already integral — `2^52` — so the rounded value is `2^52 + 1` and the threshold
+comes out `67553994410557439`, written `th:efffffffffffff`. The definition
+requires `15 · 2^52` = 67553994410557440
+(`tracestate-probability-sampling.md:98-100`,
+`trace-tracestate-handling.md:129-140`), which the specification's own table
+prints as `th:f` (`:440-454`). The *form* the SDK writes is legal — `th` accepts
+1 to 14 hexadecimal digits, trailing zeros optional
+(`trace-tracestate-handling.md:110`, `:457-470`) — the number it denotes is one
+unit low. Every ratio this test configures has an exactly-defined threshold, so
+this failure is a deviation from the **normative** definition rather than a
+matter of precision choice, and it is confined: the same test passes for `0.5`,
+`0.25` and `0.125`, whose products fall in bands `round()` leaves untouched. The
+same mechanism also produces the one-unit-low value in the next footnote's
+`th:e6666666666665`. tbachert reproduces `th:f` with no such deviation, and this
+behaviour is not reported upstream.  
+²⁶ **`open-telemetry/sdk` writes rejection thresholds at full precision instead
+of the recommended 4 digits (1 test).** The test this footnote covers measures
+conformance to a **recommendation**: "OpenTelemetry SDKs are recommended to use 4
 digits of precision by default" (`tracestate-probability-sampling.md:435`), a
 sentence inside the non-normative "## Algorithms" section. What the same document
 normatively requires is the threshold definition
 `Rejection_Threshold = (1 - Sampling_Probability) * 2^56` (`:98-100`) and the
-encoding of that value (`:457-470`), and `open-telemetry/sdk` satisfies both:
-`ConsistentSamplingUtil::calculateThreshold()` computes
-`2^56 − round(p · 2^56)` and `ConsistentSamplingUtil::encodeThreshold()`, called
-from `OtelTraceState` when it writes the `th:` entry, emits that as lowercase
-hexadecimal with trailing zeros stripped (`0` for a zero threshold), which is
-nearest-integer and within one unit of the defined value —
-`th:efffffffffffff` = 67553994410557439 for 1-in-16, where the definition gives
-67553994410557440. It is **not** a violation of the threshold
-definition; it is a 13-to-14-significant-digit threshold where the recommended
-form has four significant digits: `th:aaaaaaaaaaaaac` for 1-in-3 instead of
-`th:aaab`, `th:cccccccccccccc` for 1-in-5 instead of `th:cccd`,
-`th:e6666666666665` for 1-in-10 instead of `th:e666`, `th:fd70a3d70a3d71` for
-1-in-100 instead of `th:fd70a`, `th:ffffef39085f4a` for 1-in-1000000 instead of
-`th:ffffef39`. Converting each form back with "Converting threshold to a sampling
-probability" (`:478-486`) shows what the recommendation costs: `th:aaab` stands
-for 0.3333282470703125, the "Actual probability (precision 4)" column of the
-same table row, while `th:aaaaaaaaaaaaac` stands for 0.33333333333333326 — the
-configured ratio itself. The two SDKs agree on every exactly-representable ratio
-(`1` → `th:0`, `0.5` → `th:8`, `0.25` → `th:c`, `0.125` → `th:e`) and at the
-`2^-56` boundary, where both write `th:ffffffffffffff` — the value the threshold
-definition requires there; they differ from
-1-in-16 downward. The third test in that cell covers the smallest ratio the range
-allows, `2^-56` (`:84`), and asserts the value the threshold definition requires
-there — `2^56 - 1`, written `th:ffffffffffffff`, which is what both SDKs write —
-rather than the value the specification's reference algorithm produces. That
-algorithm yields `th:ffffffffffff` at this ratio: its `min(12, …)` precision clamp
-(`:398`) and the `rejection_prob >= 2.0` fallback (`:411-412`) leave it twelve
-digits and thereby zero the low 8 bits of the threshold, so read back per
+encoding of that value (`:457-470`), and `open-telemetry/sdk` reports the value
+its computation produces for both: `ConsistentSamplingUtil::encodeThreshold()`,
+called from `OtelTraceState` when it writes the `th:` entry, emits the threshold
+as lowercase hexadecimal with trailing zeros stripped (`0` for a zero threshold).
+It is **not** a violation of the threshold definition; it is a 13-to-14-
+significant-digit threshold where the recommended form has four significant
+digits: `th:aaaaaaaaaaaaac` for 1-in-3 instead of `th:aaab`,
+`th:cccccccccccccc` for 1-in-5 instead of `th:cccd`, `th:e6666666666665` for
+1-in-10 instead of `th:e666`, `th:fd70a3d70a3d71` for 1-in-100 instead of
+`th:fd70a`, `th:ffffef39085f4a` for 1-in-1000000 instead of `th:ffffef39`. Each
+of those is the nearest integer to the defined product for the ratio the
+configuration parses to. Converting each form back with "Converting threshold to
+a sampling probability" (`:478-486`) shows what the recommendation costs:
+`th:aaab` stands for 0.3333282470703125, the "Actual probability (precision 4)"
+column of the same table row, while `th:aaaaaaaaaaaaac` stands for
+0.33333333333333326 — the configured ratio itself. The two SDKs agree on every
+ratio whose threshold is a single digit except 1-in-16, which is footnote ²⁵;
+from 1-in-10 downward the difference is this one. The third test in that cell
+covers the smallest ratio the range allows, `2^-56` (`:84`), and asserts the
+value the threshold definition requires there — `2^56 - 1`, written
+`th:ffffffffffffff`, which is what both SDKs write — rather than the value the
+specification's reference algorithm produces. That algorithm yields
+`th:ffffffffffff` at this ratio: its `min(12, …)` precision clamp (`:398`) and
+the `rejection_prob >= 2.0` fallback (`:411-412`) leave it twelve digits and
+thereby zero the low 8 bits of the threshold, so read back per
 `trace-tracestate-handling.md:116-117` any ratio below `2^-48` is encoded as
-`2^-48`, up to 256 times the configured rate. That is an artifact of that
-pseudo-code, and this suite documents it instead of asserting it. The
+`2^-48`, up to 256 times the configured rate. The same pseudo-code makes no
+symmetrical adjustment near unit probability "as we do not believe there is a
+practical use for sampling very precisely near 100%" (`:428`), so at the
+recommended four digits a ratio of about `0.9999999` or nearer to 1 cannot be
+told apart from sampling everything and is encoded `th:0`; tbachert does exactly
+that, `open-telemetry/sdk` writes a threshold nearer to the definition, and no
+test in this suite asserts thresholds that close to 1. Both are artifacts of that
+pseudo-code, and this suite documents them instead of asserting them. The
 consistent-sampling code these tests exercise was added by
 the merged [PR #2077](https://github.com/open-telemetry/opentelemetry-php/pull/2077);
 a search of that repository's issues and pull requests for this behaviour returned
@@ -1199,7 +1223,8 @@ failures.
 | Exemplars not captured; an invalid filter value falls back to no exemplars instead of `trace_based` | 4 | values fixed by the merged [PR #2057](https://github.com/open-telemetry/opentelemetry-php/pull/2057); capture and fallback untracked |
 | Default histogram aggregation not applied (env var ignored, `default_histogram_aggregation` inert, base2 defaults not produced) | 4 | untracked |
 | `ProbabilitySampler` emits no TraceID-randomness compatibility warning when the Trace random flag is unset, although the `TraceIdRatioBased`-as-child warning is emitted (1 configuration test, footnote ⁴) | 1 | untracked |
-| `probability/development` writes its rejection threshold with every digit it computes instead of the recommended 4 significant digits: `th:efffffffffffff` for 1-in-16, `th:aaaaaaaaaaaaac` for 1-in-3, `th:fd70a3d70a3d71` for 1-in-100, `th:ffffef39085f4a` for 1-in-1000000 (2 configuration tests, footnote ²⁵). This row measures conformance to a **recommendation** — `tracestate-probability-sampling.md:435` — and not a normative defect: the value `open-telemetry/sdk` writes is the threshold defined by `MaxAdjustedCount * (1 - Probability)` with `MaxAdjustedCount = 2^56` (`:98-100`, `trace-tracestate-handling.md:129-140`; its nearest-integer computation differs from that product by at most one), and a 13-to-14-digit value is a legal encoding: `th` accepts between 1 and 14 lowercase hexadecimal digits (`trace-tracestate-handling.md:110`) with trailing zeros optional (`:457-470`) | 2 | consistent samplers implemented by the merged [PR #2077](https://github.com/open-telemetry/opentelemetry-php/pull/2077); the precision default is not reported upstream |
+| `probability/development` writes a rejection threshold one unit below the value the definition requires for 1-in-16: `th:efffffffffffff` = 67553994410557439, where `15 · 2^52` = 67553994410557440 is required and the specification's own table prints `th:f` (1 configuration test, footnote ²⁵). This is a deviation from the **normative** definition (`tracestate-probability-sampling.md:98-100`, `trace-tracestate-handling.md:129-140`), not a precision or formatting choice: `p · 2^56` is the exact product because `2^56` is a power of two, and `round()` moves an already-integral product wherever a double of that magnitude is spaced by one or two units. The written form is a legal encoding; the number it denotes is one unit low | 1 | consistent samplers implemented by the merged [PR #2077](https://github.com/open-telemetry/opentelemetry-php/pull/2077); the off-by-one is not reported upstream |
+| `probability/development` writes its rejection threshold with every digit it computes instead of the recommended 4 significant digits: `th:aaaaaaaaaaaaac` for 1-in-3, `th:cccccccccccccc` for 1-in-5, `th:e6666666666665` for 1-in-10, `th:fd70a3d70a3d71` for 1-in-100, `th:ffffef39085f4a` for 1-in-1000000 (1 configuration test, footnote ²⁶). This row measures conformance to a **recommendation** — `tracestate-probability-sampling.md:435` — and not a defect in the threshold value: each of those values is the nearest integer to `MaxAdjustedCount * (1 - Probability)` with `MaxAdjustedCount = 2^56` (`:98-100`, `trace-tracestate-handling.md:129-140`) for the ratio the configuration parses to, and a 13-to-14-digit value is a legal encoding: `th` accepts between 1 and 14 lowercase hexadecimal digits (`trace-tracestate-handling.md:110`) with trailing zeros optional (`:457-470`) | 1 | consistent samplers implemented by the merged [PR #2077](https://github.com/open-telemetry/opentelemetry-php/pull/2077); the precision default is not reported upstream |
 | Resource detectors in configuration mode: container detector, `service.instance.id` from the service detector, conflicting `schema_url` | 3 | untracked |
 | View aggregation overrides ignored (base2 histogram from a view, incompatible aggregation not dropped) | 2 | untracked |
 | Batch span / batch log record processors flush synchronously, so a full queue and its drop cannot be observed | 2 | untracked |
@@ -1223,16 +1248,17 @@ Caveats:
   (footnote ²³): a present-but-null `views` has support in both the type-union
   encoding and the `defaultBehavior` MUST, so that row is listed as an open
   question about the data model and not as a gap attributed to either SDK.
-- 2 failures measure conformance to a **recommendation**, not to a normative
-  requirement: the official ones that concern the rejection-threshold precision
-  (footnote ²⁵). "OpenTelemetry SDKs are recommended to use 4 digits of
-  precision by default" (`tracestate-probability-sampling.md:435`) is a
-  recommendation inside the section headed "## Algorithms", while
+- 1 failure measures conformance to a **recommendation**, not to a normative
+  requirement: the official test that compares the written rejection threshold
+  with the recommended four significant digits (footnote ²⁶). "OpenTelemetry SDKs
+  are recommended to use 4 digits of precision by default"
+  (`tracestate-probability-sampling.md:435`) is a recommendation inside the
+  section headed "## Algorithms", while
   `Rejection_Threshold = (1 - Sampling_Probability) * 2^56` (`:98-100`) and the
   hexadecimal / trailing-zero / `th:0` encoding rules (`:457-470`) are
-  normative. `open-telemetry/sdk` satisfies the normative parts: that row is not
-  a threshold defined wrongly by one SDK and rightly by the other, and it is not
-  comparable to the feature gaps above.
+  normative. The other threshold failure is the opposite case: one unit below a
+  threshold the definition fixes exactly (footnote ²⁵). Neither is comparable to
+  the feature gaps above.
 - 🟨 cells are counted as failing in the run totals. They occur in the official
   columns only, and `--exclude-group async` turns them green because every test
   failing in them is an `async`-group test; what they measure is the official
