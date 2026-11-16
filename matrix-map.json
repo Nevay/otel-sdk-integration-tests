@@ -358,6 +358,8 @@
     "OtlpExporterTest::testLogsOtlpTimeoutEnvVarDropsExportWhenCollectorIsSlow",
     "OtlpExporterTest::testMetricExportTimeoutEnvVarDropsExportWhenCollectorIsSlow",
     "OtlpExporterTest::testMetricsOtlpTimeoutEnvVarDropsExportWhenCollectorIsSlow",
+    "OtlpExporterTest::testOtlpHttpAcceptsResponseWithinSizeLimitAfterDecompression",
+    "OtlpExporterTest::testOtlpHttpDiscardsResponseExceedingSizeLimitAfterDecompression",
     "OtlpExporterTest::testOtlpHttpHonorsThrottlingResponse",
     "OtlpExporterTest::testOtlpHttpProtobufProtocolExportsAllSignals",
     "OtlpExporterTest::testOtlpHttpRetriesRetryableStatusCodes",

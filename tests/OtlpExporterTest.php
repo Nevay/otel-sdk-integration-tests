@@ -638,6 +638,99 @@ final class OtlpExporterTest extends TestCase {
     }
     /*
      * =========================================================================
+     * Response size limit
+     * =========================================================================
+     */
+    #[Group('traces')]
+    public function testOtlpHttpDiscardsResponseExceedingSizeLimitAfterDecompression(): void {
+        /*
+         * OTLP/HTTP: "The client MUST limit the size of the response body when
+         * parsing it, including after decompression. [...] If the limit is
+         * exceeded, the client MUST treat the response as a non-retryable error
+         * and SHOULD record the fact that the response was discarded." The MUST
+         * to enforce a limit and to fail without retrying is what is asserted
+         * here; 4194304 is the value both SDKs use by default, which the
+         * specification only RECOMMENDS as default ("Implementations SHOULD
+         * allow this limit to be configured"), not a mandatory constant. These
+         * sentences exist only from OTLP v1.11.0; earlier versions state no
+         * numeric bound.
+         */
+        $this->runOTel(
+            static function (): void {
+                Globals::tracerProvider()->getTracer('test')
+                    ->spanBuilder('oversized-response')
+                    ->startSpan()
+                    ->end();
+            },
+            'OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=' . str_replace(
+                '/v1/traces',
+                '/v1/oversized-response',
+                $this->env['OTEL_EXPORTER_OTLP_TRACES_ENDPOINT'],
+            ),
+        );
+
+        /*
+         * The collector sent far fewer bytes than the limit, so the rejection
+         * can only be about the size of the body after decompression.
+         */
+        self::assertGreaterThanOrEqual(4 * 1024 * 1024, self::OVERSIZED_RESPONSE_SIZE);
+        self::assertLessThan(4 * 1024 * 1024, $this->oversizedResponseWireBytes);
+        self::assertSame(1, $this->oversizedResponseRequests);
+
+        /*
+         * The export failed, and the discarded response was recorded: both
+         * implementations report the limit they applied, worded differently
+         * ("Response body exceeds the limit of 4194304 bytes" vs "Buffer length
+         * limit of 4194304 bytes exceeded"), so only the shared part is
+         * asserted.
+         */
+        self::assertStringContainsString(
+            'limit of 4194304 bytes',
+            strtolower($this->lastStderr),
+        );
+    }
+    #[Group('traces')]
+    public function testOtlpHttpAcceptsResponseWithinSizeLimitAfterDecompression(): void {
+        /*
+         * Control for the test above: the same gzip-encoded success response,
+         * with the same partial-success padding, only below the limit, is
+         * accepted - so the rejection there comes from the decoded size and not
+         * from the response having been gzip-encoded.
+         */
+        $this->runOTel(
+            static function (): void {
+                Globals::tracerProvider()->getTracer('test')
+                    ->spanBuilder('within-limit-response')
+                    ->startSpan()
+                    ->end();
+            },
+            'OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=' . str_replace(
+                '/v1/traces',
+                '/v1/within-limit-response',
+                $this->env['OTEL_EXPORTER_OTLP_TRACES_ENDPOINT'],
+            ),
+        );
+
+        self::assertSame(1, $this->withinLimitResponseRequests);
+        self::assertContains(
+            'within-limit-response',
+            $this->spanNames($this->traces[0]),
+        );
+
+        /*
+         * No size-limit diagnostic, and no failed export.
+         */
+        self::assertStringNotContainsString(
+            'limit of 4194304 bytes',
+            strtolower($this->lastStderr),
+        );
+        self::assertStringNotContainsString(
+            'export failure',
+            strtolower($this->lastStderr),
+        );
+    }
+    /*
+     * =========================================================================
      * Timeout
      * =========================================================================
      */

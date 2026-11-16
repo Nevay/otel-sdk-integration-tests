@@ -5,10 +5,10 @@ test that verifies specification-defined behavior — against the two SDKs under
 `sdks/`. Generated from full suite runs (JUnit logs); regenerate with
 `make test-all`, which writes `.junit-<sdk>.xml` for both SDKs.
 
-- **tbachert run:** 438 tests executed, **438 passing / 0 failing** (`spec` +
+- **tbachert run:** 440 tests executed, **440 passing / 0 failing** (`spec` +
   `tbachert` groups): the whole shared `spec` group passes, as do the 4
   vendor-specific tests.
-- **official run:** 440 tests executed, **332 passing / 108 failing**
+- **official run:** 442 tests executed, **334 passing / 108 failing**
   (`spec` + `official` groups). All 108 failures are shared spec tests: 29 in
   environment-variable mode, 79 in configuration-file mode. As the JUnit log
   splits them: **12 errors, 96 assertion failures**. All 12 errors are the
@@ -16,7 +16,7 @@ test that verifies specification-defined behavior — against the two SDKs under
   which fail before the SDK is built; every other failure is an assertion about
   exported data or emitted output.
 
-The matrix covers the 434 shared `spec` tests (160 environment-variable mode,
+The matrix covers the 436 shared `spec` tests (162 environment-variable mode,
 274 configuration-file mode per SDK); vendor-specific tests
 (`TbachertSpecificTest`, `OfficialSpecificTest`) are documented in the README
 and are not part of this overview. A test that verifies specification-defined
@@ -97,11 +97,11 @@ Footnotes are collected below the tables.
 |---|---|---|---|---|
 | End-to-end span export & cross-service context propagation (incl. mixed env/config-file services) | ✅ 1/1 | ✅ 2/2 | ✅ 1/1 | ✅ 2/2 |
 | Sampling: always_on/off, trace-id ratio, parent-based (simple samplers) | ✅ 11/11 | ✅ 12/12 | ⚠️ 9/11¹ | ✅ 12/12 |
-| Composite samplers in configuration mode: `rule_based` routing, `probability` and `parent_threshold` trace-state behaviour | – | ✅ 27/27 | – | ⚠️ 24/27³⁴²⁵²⁶ |
-| `always_record` sampler (node that exists only in data model 1.2) | – | ✅ 1/1 | – | ❌ 0/1⁵ |
-| `jaeger_remote` sampler (remote dial, strategies, initial sampler) | ✅ 5/5 | ✅ 3/3 | ❌ 0/5⁶ | ❌ 0/3⁶ |
-| Span & attribute limits (count, value length, depth) | ✅ 11/11 | ✅ 6/6 | ⚠️ 10/11¹ | ⚠️ 3/6⁷ |
-| Batch & simple span processors | ✅ 5/5 | ✅ 5/5 | ⚠️ 4/5⁸ | ✅ 5/5 |
+| Composite samplers in configuration mode: `rule_based` routing, `probability` and `parent_threshold` trace-state behaviour | – | ✅ 27/27 | – | ⚠️ 24/27³ ⁴ ⁵ ⁶ |
+| `always_record` sampler (node that exists only in data model 1.2) | – | ✅ 1/1 | – | ❌ 0/1⁷ |
+| `jaeger_remote` sampler (remote dial, strategies, initial sampler) | ✅ 5/5 | ✅ 3/3 | ❌ 0/5⁸ | ❌ 0/3⁸ |
+| Span & attribute limits (count, value length, depth) | ✅ 11/11 | ✅ 6/6 | ⚠️ 10/11¹ | ⚠️ 3/6⁹ |
+| Batch & simple span processors | ✅ 5/5 | ✅ 5/5 | ⚠️ 4/5¹⁰ | ✅ 5/5 |
 | Span details: status, events, kinds, links, attribute value types | ✅ 5/5 | ✅ 1/1 | ✅ 5/5 | ✅ 1/1 |
 
 <details>
@@ -251,18 +251,18 @@ Footnotes are collected below the tables.
 
 | Behavior | tbachert env | tbachert config | official env | official config |
 |---|---|---|---|---|
-| Metric pipeline: instruments, series separation, gauge/counter semantics | – | ✅ 8/8 | – | 🟨 2/8⁹¹⁰ |
-| Exemplar filter (always_on/off, trace_based, invalid fallback) | ✅ 4/4 | ✅ 4/4 | ⚠️ 3/4¹¹ | ⚠️ 1/4¹¹ |
-| Temporality preference (cumulative/delta/lowmemory) | ✅ 2/2 | ✅ 5/5 | 🟨 1/2⁹¹⁰ | 🟨 1/5⁹¹⁰ |
-| Default histogram aggregation (exponential buckets, spec boundaries) | ✅ 1/1 | ✅ 4/4 | ❌ 0/1¹² | ⚠️ 1/4¹² |
-| Collection interval & periodic reader (batch size) | ✅ 1/1 | ✅ 3/3 | 🟨 0/1⁹¹⁰ | ⚠️ 1/3¹³ |
+| Metric pipeline: instruments, series separation, gauge/counter semantics | – | ✅ 8/8 | – | 🟨 2/8¹¹ ¹² |
+| Exemplar filter (always_on/off, trace_based, invalid fallback) | ✅ 4/4 | ✅ 4/4 | ⚠️ 3/4¹³ | ⚠️ 1/4¹³ |
+| Temporality preference (cumulative/delta/lowmemory) | ✅ 2/2 | ✅ 5/5 | 🟨 1/2¹¹ ¹² | 🟨 1/5¹¹ ¹² |
+| Default histogram aggregation (exponential buckets, spec boundaries) | ✅ 1/1 | ✅ 4/4 | ❌ 0/1¹⁴ | ⚠️ 1/4¹⁴ |
+| Collection interval & periodic reader (batch size) | ✅ 1/1 | ✅ 3/3 | 🟨 0/1¹¹ ¹² | ⚠️ 1/3¹⁵ |
 | Views: instrument & meter selection (incl. wildcards) | – | ✅ 14/14 | – | ✅ 14/14 |
 | Views: attribute key filtering (include/exclude, precedence) | – | ✅ 4/4 | – | ✅ 4/4 |
-| Views: aggregation overrides (histogram buckets, drop, sum/last-value) | – | ✅ 7/7 | – | ⚠️ 5/7¹⁴ |
+| Views: aggregation overrides (histogram buckets, drop, sum/last-value) | – | ✅ 7/7 | – | ⚠️ 5/7¹⁶ |
 | Views: metric renaming & description | – | ✅ 4/4 | – | ✅ 4/4 |
 | Views: matching behavior (no-match, multiple streams, ordering) | – | ✅ 5/5 | – | ✅ 5/5 |
-| Composable views (same-name merging, unnamed join, application order) | – | ✅ 6/6 | – | ❌ 0/6¹⁵ |
-| Cardinality limits (overflow series) | – | ✅ 10/10 | – | ⚠️ 1/10¹⁶ |
+| Composable views (same-name merging, unnamed join, application order) | – | ✅ 6/6 | – | ❌ 0/6¹⁷ |
+| Cardinality limits (overflow series) | – | ✅ 10/10 | – | ⚠️ 1/10¹⁸ |
 
 <details>
 <summary>Metric pipeline: instruments, series separation, gauge/counter semantics — 8 tests (0 env · 8 config)</summary>
@@ -423,9 +423,9 @@ Footnotes are collected below the tables.
 | Behavior | tbachert env | tbachert config | official env | official config |
 |---|---|---|---|---|
 | Log record content: severity, non-string & nested body types | ✅ 3/3 | ✅ 1/1 | ✅ 3/3 | ✅ 1/1 |
-| Log record limits (attribute count & value length) | ✅ 3/3 | ✅ 2/2 | ✅ 3/3 | ❌ 0/2⁷ |
-| Batch & simple log record processors | ✅ 5/5 | ✅ 3/3 | ⚠️ 4/5⁸ | ✅ 3/3 |
-| Log severity threshold & trace-based filtering | – | ✅ 7/7 | – | ⚠️ 1/7¹⁷ |
+| Log record limits (attribute count & value length) | ✅ 3/3 | ✅ 2/2 | ✅ 3/3 | ❌ 0/2⁹ |
+| Batch & simple log record processors | ✅ 5/5 | ✅ 3/3 | ⚠️ 4/5¹⁰ | ✅ 3/3 |
+| Log severity threshold & trace-based filtering | – | ✅ 7/7 | – | ⚠️ 1/7¹⁹ |
 
 <details>
 <summary>Log record content: severity, non-string & nested body types — 4 tests (3 env · 1 config)</summary>
@@ -480,8 +480,8 @@ Footnotes are collected below the tables.
 | Behavior | tbachert env | tbachert config | official env | official config |
 |---|---|---|---|---|
 | Resource attributes & service.name | ✅ 8/8 | ✅ 6/6 | ✅ 8/8 | ✅ 6/6 |
-| Entities (`OTEL_ENTITIES`, env detector) | ✅ 7/7 | ✅ 1/1 | ❌ 0/7¹⁸ | ❌ 0/1¹⁸ |
-| Resource detectors & attribute include/exclude (config file) | – | ✅ 11/11 | – | ⚠️ 8/11¹⁹ |
+| Entities (`OTEL_ENTITIES`, env detector) | ✅ 7/7 | ✅ 1/1 | ❌ 0/7²⁰ | ❌ 0/1²⁰ |
+| Resource detectors & attribute include/exclude (config file) | – | ✅ 11/11 | – | ⚠️ 8/11²¹ |
 | Unrecognized resource detector name (warn & skip) | – | ✅ 2/2 | – | ✅ 2/2 |
 
 <details>
@@ -547,15 +547,15 @@ Footnotes are collected below the tables.
 
 | Behavior | tbachert env | tbachert config | official env | official config |
 |---|---|---|---|---|
-| OTLP HTTP exporter options: protocol, headers, compression, endpoints, timeouts, size limits, retries | ✅ 24/24 | ✅ 23/23 | ⚠️ 22/24¹ | ⚠️ 17/23²⁰ |
+| OTLP HTTP exporter options: protocol, headers, compression, endpoints, timeouts, size limits, retries | ✅ 26/26 | ✅ 23/23 | ⚠️ 24/26¹ | ⚠️ 17/23²² |
 | OTLP gRPC exporter (all signals) | ✅ 12/12 | ✅ 4/4 | ✅ 12/12 | ✅ 4/4 |
 | OTLP file exporter (newline-delimited JSON on disk) | – | ✅ 3/3 | – | ✅ 3/3 |
 | TLS: CA trust & client certificates (all signals, both protocols) | ✅ 11/11 | ✅ 6/6 | ✅ 11/11 | ✅ 6/6 |
 | Console exporter (stdout) | ✅ 3/3 | ✅ 3/3 | ✅ 3/3 | ✅ 3/3 |
-| Prometheus exporter (pull, translation & escaping) | ✅ 1/1 | ✅ 11/11 | ❌ 0/1²¹ | ❌ 0/11²¹ |
+| Prometheus exporter (pull, translation & escaping) | ✅ 1/1 | ✅ 11/11 | ❌ 0/1²³ | ❌ 0/11²³ |
 
 <details>
-<summary>OTLP HTTP exporter options: protocol, headers, compression, endpoints, timeouts, size limits, retries — 47 tests (24 env · 23 config)</summary>
+<summary>OTLP HTTP exporter options: protocol, headers, compression, endpoints, timeouts, size limits, retries — 49 tests (26 env · 23 config)</summary>
 
 - `ConfigBasicTest::testOtlpHttpDefaultsToProtobufEncodingWithoutCompression` — tbachert ✅ · official ✅
 - `ConfigBasicTest::testOtlpHttpEncodingJsonIsApplied` — tbachert ✅ · official ✅
@@ -590,6 +590,8 @@ Footnotes are collected below the tables.
 - `OtlpExporterTest::testLogsOtlpTimeoutEnvVarDropsExportWhenCollectorIsSlow` — tbachert ✅ · official ✅
 - `OtlpExporterTest::testMetricExportTimeoutEnvVarDropsExportWhenCollectorIsSlow` — tbachert ✅ · official ✅
 - `OtlpExporterTest::testMetricsOtlpTimeoutEnvVarDropsExportWhenCollectorIsSlow` — tbachert ✅ · official ✅
+- `OtlpExporterTest::testOtlpHttpAcceptsResponseWithinSizeLimitAfterDecompression` — tbachert ✅ · official ✅
+- `OtlpExporterTest::testOtlpHttpDiscardsResponseExceedingSizeLimitAfterDecompression` — tbachert ✅ · official ✅
 - `OtlpExporterTest::testOtlpHttpHonorsThrottlingResponse` — tbachert ✅ · official ✅
 - `OtlpExporterTest::testOtlpHttpProtobufProtocolExportsAllSignals` — tbachert ✅ · official ✅
 - `OtlpExporterTest::testOtlpHttpRetriesRetryableStatusCodes` — tbachert ✅ · official ✅
@@ -698,11 +700,11 @@ Footnotes are collected below the tables.
 | SDK enablement & per-signal exporter selection (`OTEL_SDK_DISABLED`, `*_EXPORTER`) | ✅ 10/10 | ✅ 1/1 | ⚠️ 9/10¹ | ✅ 1/1 |
 | Provider configurators: scope filtering (wildcards, case sensitivity, isolation) | – | ✅ 18/18 | – | ✅ 18/18 |
 | Env value parsing & leniency: empty values, invalid sampler/propagator, malformed attributes (env-only semantics) | ✅ 5/5 | – | ⚠️ 2/5¹ | – |
-| `OTEL_LOG_LEVEL` (self-diagnostic output) | ✅ 1/1 | ✅ 2/2 | ✅ 1/1 | ⚠️ 1/2²² |
+| `OTEL_LOG_LEVEL` (self-diagnostic output) | ✅ 1/1 | ✅ 2/2 | ✅ 1/1 | ⚠️ 1/2²⁴ |
 | Config file basics: no-op SDK, format versioning, missing file, independent signals | – | ✅ 4/4 | – | ✅ 4/4 |
-| Component lists in configuration mode: provider `processors`/`readers` required and non-null; a null is not a valid value for an `array`-typed property | – | ✅ 11/11 | – | ⚠️ 10/11²³ |
-| ID generation (random) | – | ✅ 1/1 | – | ❌ 0/1²⁴ |
-| Variable substitution: `${}`, defaults, escaping, type coercion | – | ✅ 9/9 | – | ⚠️ 8/9²⁰ |
+| Component lists in configuration mode: provider `processors`/`readers` required and non-null; a null is not a valid value for an `array`-typed property | – | ✅ 11/11 | – | ⚠️ 10/11²⁵ |
+| ID generation (random) | – | ✅ 1/1 | – | ❌ 0/1²⁶ |
+| Variable substitution: `${}`, defaults, escaping, type coercion | – | ✅ 9/9 | – | ⚠️ 8/9²² |
 | Environment variable precedence & ignore rules in config-file mode | – | ✅ 5/5 | – | ✅ 5/5 |
 | SDK self-observability disabled by default | – | ✅ 1/1 | – | ✅ 1/1 |
 
@@ -887,8 +889,8 @@ specification requires (`otel.WARNING: Mismatch between sampling threshold and
 sampled flag detected. Ignoring sampling threshold.`), while official logs
 nothing: its whole `Trace/Sampler/Consistent/` package contains no logger call.
 The two therefore do not behave identically there, and neither side's behavior
-in that spot is a conformance gap. The failures in this cell are footnotes ⁴, ²⁵
-and ²⁶ for `open-telemetry/sdk`; none of them is caused by what this footnote
+in that spot is a conformance gap. The failures in this cell are footnotes ⁴, ⁵
+and ⁶ for `open-telemetry/sdk`; none of them is caused by what this footnote
 describes.  
 ⁴ **Sampler compatibility warnings: both are asserted presence-only, and
 official omits one of them (1 test).** `ConfigSamplingTest` covers the two
@@ -934,7 +936,110 @@ why the node under test had an effect: probes on official show
 the `ot=th:…` tracestate entry that `always_on` in the same position did not
 write, and the same node with `ratio: 0.0` dropped a child of a sampled remote
 parent that a default parent-based sampler would have kept.  
-⁵ **`always_record` (1 test).** The sampler node exists only in data model 1.2
+⁵ **`open-telemetry/sdk` writes a rejection threshold one unit below the value
+the definition requires (1 test).** `ConsistentSamplingUtil::calculateThreshold()`
+computes `MAX_THRESHOLD − (int) round(p · MAX_THRESHOLD)`. The multiplication is
+exact: `2^56` is a power of two, so `p · 2^56` is the exact IEEE-754 product.
+`round()` is what moves the result, because it perturbs an already-integral
+double whose spacing is one or two units. At a ratio of `0.0625` the product is
+already integral — `2^52` — so what decides the value is the platform's
+`round()`: in the Alpine image this suite runs in it returns `2^52 + 1`, and the
+threshold comes out `67553994410557439`, written `th:efffffffffffff`, while the
+same expression on the glibc host used for the upstream lookup leaves `2^52`
+unchanged and writes `th:f`. Upstream's own changelog quotes that second form for
+1-in-10 (`th:e6666666666666`) where this suite measures `th:e6666666666665`. A
+specific last digit here is therefore what this platform's `round()` produces for
+an integral double, not something that holds on every platform. The definition
+requires `15 · 2^52` = 67553994410557440
+(`tracestate-probability-sampling.md:98-100`,
+`trace-tracestate-handling.md:129-140`), which the specification's own table
+prints as `th:f` (`:440-454`). The *form* the SDK writes is legal — `th` accepts
+1 to 14 hexadecimal digits, trailing zeros optional
+(`trace-tracestate-handling.md:110`, `:457-470`) — the number it denotes is one
+unit low. Every ratio this test configures has an exactly-defined threshold, so
+this failure is a deviation from the **normative** definition rather than a
+matter of precision choice, and it is confined: probed through
+`ConsistentSamplingUtil::calculateThreshold()` in the suite's container, `round()`
+moves every even integer in the band `[2^52, 2^53)` by one and leaves every odd
+integer and every integer below `2^52` alone, while the same probe on a glibc host
+leaves every integral product unchanged, and a dyadic ratio produces a product in
+that band exactly
+when it lies in `[1/16, 1/8)` — so `1/16`, `3/32`, `5/64`, `7/64`, `9/128`,
+`17/256` and the rest of that family are each one unit low, while the ratios this
+same test configures at `1/8` and above (`0.125`, `0.25`, `0.5`) and every power
+of two below `1/16` come out exact. The same mechanism also produces the
+one-unit-low value in the next footnote's `th:e6666666666665` (`0.1` is inside
+that interval). tbachert reproduces `th:f` with no such deviation, and its
+probability sampler also writes the exact threshold at the maximum-threshold grid
+boundary asserted by `testProbabilitySamplerThresholdAtMaximumThresholdGridBoundary`
+— both SDKs pass that test in this run, and no upstream issue exists for it.
+Reported upstream as
+[#2135](https://github.com/open-telemetry/opentelemetry-php/issues/2135) (closed,
+`state_reason: completed`, 2026-11-14) by the merged
+[PR #2140](https://github.com/open-telemetry/opentelemetry-php/pull/2140), which
+replaces this `round()` expression with the specification's precision-limited
+conversion. It is listed under `## Unreleased` in the monorepo changelog and is in
+no released version, so the version this suite runs still writes the low threshold
+here. Reported together with footnote ⁶.  
+⁶ **`open-telemetry/sdk` writes rejection thresholds at full precision instead
+of the recommended 4 digits (1 test).** The test this footnote covers measures
+conformance to a **recommendation**: "OpenTelemetry SDKs are recommended to use 4
+digits of precision by default" (`tracestate-probability-sampling.md:435`), a
+sentence inside the non-normative "## Algorithms" section. What the same document
+normatively requires is the threshold definition
+`Rejection_Threshold = (1 - Sampling_Probability) * 2^56` (`:98-100`) and the
+encoding of that value (`:457-470`), and `open-telemetry/sdk` reports the value
+its computation produces for both: `ConsistentSamplingUtil::encodeThreshold()`,
+called from `OtelTraceState` when it writes the `th:` entry, emits the threshold
+as lowercase hexadecimal with trailing zeros stripped (`0` for a zero threshold).
+It is **not** a violation of the threshold definition; it is a 13-to-14-
+significant-digit threshold where the recommended form has four significant
+digits: `th:aaaaaaaaaaaaac` for 1-in-3 instead of `th:aaab`,
+`th:cccccccccccccc` for 1-in-5 instead of `th:cccd`, `th:e6666666666665` for
+1-in-10 instead of `th:e666`, `th:fd70a3d70a3d71` for 1-in-100 instead of
+`th:fd70a`, `th:ffffef39085f4a` for 1-in-1000000 instead of `th:ffffef39`. Each
+of those is the integer nearest to the defined product for the double the ratio
+parses to, apart from the platform `round()` deviation footnote ⁵ describes.
+Converting each form back with "Converting threshold to
+a sampling probability" (`:478-486`) shows what the recommendation costs:
+`th:aaab` stands for 0.3333282470703125, the "Actual probability (precision 4)"
+column of the same table row, while `th:aaaaaaaaaaaaac` stands for
+0.33333333333333326 — the configured ratio itself. The two SDKs agree on every
+ratio whose threshold is a single digit except 1-in-16, which is footnote ⁵;
+from 1-in-10 downward the difference is this one. The same test class also
+contains `testProbabilitySamplerThresholdAtMinimumValidProbability`, which covers
+the smallest ratio the range allows, `2^-56` (`:84`), and asserts the
+value the threshold definition requires there — `2^56 - 1`, written
+`th:ffffffffffffff`, which is what both SDKs write in this run — rather than the
+value the specification's reference algorithm produces. That class's fourth test,
+`testProbabilitySamplerThresholdAtMaximumThresholdGridBoundary`, asserts
+`2^56 - 2` (`th:fffffffffffffe`) for the two ratios just past the point where
+that maximum value is no longer the threshold the definition requires; both SDKs
+write it, so it adds no failure to this cell and no footnote, and no upstream
+issue exists for that boundary. That algorithm yields
+`th:ffffffffffff` at this ratio: its `min(12, …)` precision clamp (`:398`) and
+the `rejection_prob >= 2.0` fallback (`:411-412`) leave it twelve digits and
+thereby zero the low 8 bits of the threshold, so read back per
+`trace-tracestate-handling.md:116-117` any ratio below `2^-48` is encoded as
+`2^-48`, up to 256 times the configured rate. The same pseudo-code makes no
+symmetrical adjustment near unit probability "as we do not believe there is a
+practical use for sampling very precisely near 100%" (`:428`), so at the
+recommended four digits a ratio of about `0.9999999` or nearer to 1 cannot be
+told apart from sampling everything and is encoded `th:0`; tbachert does exactly
+that, `open-telemetry/sdk` writes a threshold nearer to the definition, and no
+test in this suite asserts thresholds that close to 1. Both are artifacts of that
+pseudo-code, and this suite documents them instead of asserting them. The
+consistent-sampling code these tests exercise was added by
+the merged [PR #2077](https://github.com/open-telemetry/opentelemetry-php/pull/2077).
+Reported upstream as
+[#2135](https://github.com/open-telemetry/opentelemetry-php/issues/2135) (closed,
+`state_reason: completed`, 2026-11-14): it is resolved by the merged
+[PR #2140](https://github.com/open-telemetry/opentelemetry-php/pull/2140), which
+makes `calculateThreshold()` use the specification's precision-4 conversion and
+deprecates the old `computeTValue()`, and it covers this precision default
+together with the rounding defect of footnote ⁵. No release contains it yet, so
+both threshold cells still fail in the run documented here.  
+⁷ **`always_record` (1 test).** The sampler node exists only in data model 1.2
 (`AlwaysRecordSampler` appears in the v1.2.0 and main configuration schemas, not
 in v1.0.0 or v1.1.0), so the configuration is rejected before the SDK is built:
 `component "opentelemetry\sdk\trace\samplerinterface" uses unknown provider
@@ -942,7 +1047,7 @@ in v1.0.0 or v1.1.0), so the configuration is rejected before the SDK is built:
 "composite/development", "parent_based", "probability/development",
 "trace_id_ratio_based"`. Same missing newer data model as the data-model row of
 the tracking table.  
-⁶ **`jaeger_remote` is not implemented (8 tests: 5 env, 3 configuration).**
+⁸ **`jaeger_remote` is not implemented (8 tests: 5 env, 3 configuration).**
 `OTEL_TRACES_SAMPLER=jaeger_remote` aborts initialization with
 `unknown sampler: jaeger_remote` (4 env tests), and the
 `jaeger_remote/development` sampler node — which *is* part of data model 1.0 —
@@ -956,7 +1061,7 @@ and they fail as `The gRPC client did not dial the endpoint within 15 seconds
 `#[Group('async'), Group('jaeger')]`, so these cells are **not** 🟨:
 `--exclude-group async` removes every test in them, which empties the cell
 instead of turning it green. Untracked upstream.  
-⁷ **Attribute and log-record limits in configuration mode (5 tests).** Three of
+⁹ **Attribute and log-record limits in configuration mode (5 tests).** Three of
 them are rejections of `attribute_value_depth_limit`, which exists only in data
 model 1.2 (see the data-model row of the tracking table):
 `unrecognized option "attribute_value_depth_limit" under
@@ -972,10 +1077,10 @@ is itself specified only in data model 1.2, so that test measures the missing
 newer model as much as an unenforced limit; it is counted with the unenforced
 limits here, and moving it to the data-model row is a classification decision
 that has not been made. Untracked upstream.  
-⁸ **Queue-full behavior cannot be observed (2 tests).** The batch span processor
+¹⁰ **Queue-full behavior cannot be observed (2 tests).** The batch span processor
 and the batch log record processor flush synchronously when the queue is full,
 so the queue never overflows and nothing is dropped. Untracked upstream.  
-⁹ **The periodic exporting `MetricReader` does not repeat collections (12
+¹¹ **The periodic exporting `MetricReader` does not repeat collections (12
 tests).** The export interval is not used by the reader, so only a single
 collection happens at shutdown: multi-collection pipeline behavior (series
 separation, gauge/observable instruments across collections), delta temporality,
@@ -983,12 +1088,12 @@ cumulative start timestamps and interval-controlled collection all become
 unobservable. Issue
 [#1884](https://github.com/open-telemetry/opentelemetry-php/issues/1884)
 ("Periodic exporting MetricReader not working", open).  
-¹⁰ **Cells marked 🟨:** every failing test in such a cell belongs to the `async`
+¹² **Cells marked 🟨:** every failing test in such a cell belongs to the `async`
 group, so the cell turns green when those tests are excluded
 (`--exclude-group async`). They occur in the official columns only — the tbachert
 run passes the same tests — and they are counted in the run totals like any
-other failure. Their cause is footnote ⁹.  
-¹¹ **Exemplars are not captured (4 tests).** The filter *values* are accepted
+other failure. Their cause is footnote ¹¹.  
+¹³ **Exemplars are not captured (4 tests).** The filter *values* are accepted
 since [PR #2057](https://github.com/open-telemetry/opentelemetry-php/pull/2057)
 (closed issue
 [#2054](https://github.com/open-telemetry/opentelemetry-php/issues/2054)), but
@@ -1000,13 +1105,13 @@ unrecognized enum value must be ignored in favour of the default — and the
 case-insensitive reading of that variable as
 [#2138](https://github.com/open-telemetry/opentelemetry-php/issues/2138); the
 missing exemplar capture is untracked.  
-¹² **Default histogram aggregation is not applied (4 tests).**
+¹⁴ **Default histogram aggregation is not applied (4 tests).**
 `OTEL_EXPORTER_OTLP_METRICS_DEFAULT_HISTOGRAM_AGGREGATION` is ignored, and the
 `default_histogram_aggregation` node "parses but is not applied yet" per the
 configuration package's changelog; `base2_exponential_bucket_histogram` parses, then
 falls back to the reader default, so the spec's default boundaries and scales
 are never produced. Untracked upstream.  
-¹³ **`max_export_batch_size` on a periodic reader (2 tests).** Only the metric
+¹⁵ **`max_export_batch_size` on a periodic reader (2 tests).** Only the metric
 placement of this node is newer than the implemented model: the node is part of
 data model 1.0's batch log record and batch span processors — those tests pass
 on both SDKs — while 1.0's `meter_provider` has no `max_export_batch_size`
@@ -1014,29 +1119,29 @@ under `readers` and gains it only from data model 1.1. Both metric
 configurations are therefore rejected before the reader is built (`unrecognized
 option "max_export_batch_size/development" under "periodic"`). Counted with the
 newer-data-model row of the tracking table.  
-¹⁴ **View aggregation overrides are not honored (2 tests).** A view selecting a
+¹⁶ **View aggregation overrides are not honored (2 tests).** A view selecting a
 base2 exponential histogram does not produce the expected metric stream, and an
 aggregation incompatible with the instrument kind is not ignored. Untracked
 upstream.  
-¹⁵ **Composable views (6 tests).** `view_matching_mode/development` exists only
+¹⁷ **Composable views (6 tests).** `view_matching_mode/development` exists only
 in data model 1.2, so every configuration using composable views is rejected at
 initialization.  
-¹⁶ **Cardinality limits are not applied (9 tests).** Per the configuration
+¹⁸ **Cardinality limits are not applied (9 tests).** Per the configuration
 package's changelog,
 "Cardinality limits are not applied yet": reader and view cardinality limits
 produce no overflow series and are not enforced per instrument type. Untracked
 upstream.  
-¹⁷ **`logger_configurator` severity and trace filters are inert (6 tests).**
+¹⁹ **`logger_configurator` severity and trace filters are inert (6 tests).**
 `minimum_severity` and `trace_based` are parsed but, per the configuration
 package's changelog,
 "not applied yet": logs below the threshold and records from unsampled traces
 are exported. Untracked upstream.  
-¹⁸ **`OTEL_ENTITIES` is not implemented (8 tests).** The environment entity
+²⁰ **`OTEL_ENTITIES` is not implemented (8 tests).** The environment entity
 detector does not read `OTEL_ENTITIES` — not for the plain form, duplicates,
 conflicting identities, malformed definitions, schema-url handling or percent
 decoding — and the configuration-file env detector reports no entities either.
 Untracked upstream.  
-¹⁹ **Resource detectors in configuration mode (3 tests).** The container detector
+²¹ **Resource detectors in configuration mode (3 tests).** The container detector
 reports no container id (`Resource attribute "container.id" was not found.`);
 the service detector does read `service.name` from `OTEL_SERVICE_NAME` — that
 assertion passed — and what is missing is the instance id it also specifies
@@ -1044,7 +1149,7 @@ assertion passed — and what is missing is the instance id it also specifies
 `schema_url` conflicting with detected resources is not dropped
 (`Failed asserting that two arrays are identical.`, with the conflicting
 `https://example.com/schemas/custom-1.0` still present). Untracked upstream.  
-²⁰ **OTLP request/response size limits (7 tests).** `max_request_size` and
+²² **OTLP request/response size limits (7 tests).** `max_request_size` and
 `max_response_size` on exporter configuration nodes exist only in data model
 1.2, so the six configurations (traces, logs, metrics) are rejected
 (`unrecognized option "max_request_size" under "otlp_http". available options
@@ -1052,15 +1157,50 @@ are "compression", "encoding", "endpoint", "headers", "headers_list",
 "timeout", "tls"`). The seventh test is the one that substitutes a hexadecimal
 value into such a node; it fails on that same unknown node
 (`invalid configuration for path "batch.exporter": unrecognized option
-"max_request_size" under "otlp_http"`), not on coercing the substituted value.  
-²¹ **Prometheus exporter is not available (12 tests).** In configuration mode
+"max_request_size" under "otlp_http"`), not on coercing the substituted value.
+
+The same row's two environment-mode response-size tests show the other half of
+that node, and they show it passing on both SDKs: the limit the OTLP/HTTP
+section requires — "The client MUST limit the size of the response body when
+parsing it, including after decompression … If the limit is exceeded, the client
+MUST treat the response as a non-retryable error and SHOULD record the fact that
+the response was discarded" — is enforced by both, each against the
+specification's **RECOMMENDED** default of 4 MiB. tbachert bounds the decoded
+stream (`Amp\ByteStream\BufferException: Buffer length limit of 4194304 bytes
+exceeded`); official discards the body with `OTLP/HTTP response body discarded,
+it exceeds the size limit` and fails the export with `Response body exceeds the
+limit of 4194304 bytes`, the failing frame being the gzip decode step
+(`PsrUtils::decodeWithLimit()` against the `PsrTransport` constructor default
+`DEFAULT_MAX_RESPONSE_BODY_SIZE`). In both runs the collector observed exactly
+one request, so neither retried; the response is gzip-encoded and far smaller on
+the wire than its 5 MiB decoded size, which is what makes that pair a test of
+the bound applied after decompression rather than of the compressed size. What
+those two tests measure is the default each SDK reports, not a constant the
+specification mandates: 4 MiB appears there only as a recommended default, paired
+with "Implementations SHOULD allow this limit to be configured".
+
+Configurability is where the two SDKs differ, and it is the same gap as the
+seven rejections above, not a second one: `open-telemetry/sdk` exposes no
+configuration surface for the limit at all — that constant is only its transport
+constructor default, with no configuration node and no `OTEL_EXPORTER_OTLP_*`
+variable for it — while `tbachert/otel-sdk` accepts `max_response_size` in
+configuration-file mode (`integerNode('max_response_size')->min(1)
+->defaultValue(4194304)`), which is why the request- and response-size
+configuration tests of this row are green on it and rejected on official.
+Neither SDK reads an environment variable for the limit, and the specification
+defines none for it, so nothing is missing on that side; no test in this suite
+asserts configurability, so this is a difference between the two SDKs measured
+against a `SHOULD`, not a spec violation the suite demonstrates. It is the same
+absent 1.2 node the seven failures above measure, so it adds no row of its own
+to the tracking table.  
+²³ **Prometheus exporter is not available (12 tests).** In configuration mode
 the pull-type meter reader itself has no provider: `Component
 "OpenTelemetry\SDK\Metrics\MetricReaderInterface" uses unknown provider "pull",
 available providers are "periodic"` (11 tests). In environment mode the exporter
 selection fails with "Metric exporter factory not registered for protocol:
 prometheus" (1 test). A pull exporter additionally needs an async runtime to
 serve the reader. Not reported upstream (by decision).  
-²² **`OTEL_LOG_LEVEL` diagnostics in configuration mode (1 test).** Only one of
+²⁴ **`OTEL_LOG_LEVEL` diagnostics in configuration mode (1 test).** Only one of
 the two tests in this row fails, and neither failure is caused by the
 `file_format "1.2" is newer than 1.0` notice. What the run shows is that a
 configured `log_level` re-levels only the diagnostics the configuration path
@@ -1079,7 +1219,7 @@ that 'OpenTelemetry: [warning] Dropped span attributes, links or events in
 /php/sdks/official/vendor/open-telemetry/sdk/Trace/Span.php(405)' does not
 match …`). The companion test, which asserts that nothing below error severity
 is reported at `log_level: error`, passes. Untracked upstream.  
-²³ **An explicit `meter_provider.views: null` is accepted by official; the
+²⁵ **An explicit `meter_provider.views: null` is accepted by official; the
 suite asserts rejection (1 test).** Two readings of the configuration model
 exist for a present-but-null `views` and the suite pins the strict one, so this
 cell measures a data-model interpretation rather than a confirmed implementation
@@ -1142,114 +1282,11 @@ non-required `array`-typed node must be rejected, or may fall back to its
 it is worth raising upstream as a question rather than as a bug report against
 either SDK, and it is listed in the tracking table as such. The ten other tests
 of the row pass on both SDKs.  
-²⁴ **`id_generator` (1 test).** The node is not 1.2-only: it is absent from data
+²⁶ **`id_generator` (1 test).** The node is not 1.2-only: it is absent from data
 model 1.0's `tracer_provider` and appears there from 1.1. The configuration is
 therefore rejected before the SDK is built (`unrecognized option
 "id_generator" under "open_telemetry.tracer_provider"`). Counted with the
 newer-data-model row of the tracking table.  
-²⁵ **`open-telemetry/sdk` writes a rejection threshold one unit below the value
-the definition requires (1 test).** `ConsistentSamplingUtil::calculateThreshold()`
-computes `MAX_THRESHOLD − (int) round(p · MAX_THRESHOLD)`. The multiplication is
-exact: `2^56` is a power of two, so `p · 2^56` is the exact IEEE-754 product.
-`round()` is what moves the result, because it perturbs an already-integral
-double whose spacing is one or two units. At a ratio of `0.0625` the product is
-already integral — `2^52` — so what decides the value is the platform's
-`round()`: in the Alpine image this suite runs in it returns `2^52 + 1`, and the
-threshold comes out `67553994410557439`, written `th:efffffffffffff`, while the
-same expression on the glibc host used for the upstream lookup leaves `2^52`
-unchanged and writes `th:f`. Upstream's own changelog quotes that second form for
-1-in-10 (`th:e6666666666666`) where this suite measures `th:e6666666666665`. A
-specific last digit here is therefore what this platform's `round()` produces for
-an integral double, not something that holds on every platform. The definition
-requires `15 · 2^52` = 67553994410557440
-(`tracestate-probability-sampling.md:98-100`,
-`trace-tracestate-handling.md:129-140`), which the specification's own table
-prints as `th:f` (`:440-454`). The *form* the SDK writes is legal — `th` accepts
-1 to 14 hexadecimal digits, trailing zeros optional
-(`trace-tracestate-handling.md:110`, `:457-470`) — the number it denotes is one
-unit low. Every ratio this test configures has an exactly-defined threshold, so
-this failure is a deviation from the **normative** definition rather than a
-matter of precision choice, and it is confined: probed through
-`ConsistentSamplingUtil::calculateThreshold()` in the suite's container, `round()`
-moves every even integer in the band `[2^52, 2^53)` by one and leaves every odd
-integer and every integer below `2^52` alone, while the same probe on a glibc host
-leaves every integral product unchanged, and a dyadic ratio produces a product in
-that band exactly
-when it lies in `[1/16, 1/8)` — so `1/16`, `3/32`, `5/64`, `7/64`, `9/128`,
-`17/256` and the rest of that family are each one unit low, while the ratios this
-same test configures at `1/8` and above (`0.125`, `0.25`, `0.5`) and every power
-of two below `1/16` come out exact. The same mechanism also produces the
-one-unit-low value in the next footnote's `th:e6666666666665` (`0.1` is inside
-that interval). tbachert reproduces `th:f` with no such deviation, and its
-probability sampler also writes the exact threshold at the maximum-threshold grid
-boundary asserted by `testProbabilitySamplerThresholdAtMaximumThresholdGridBoundary`
-— both SDKs pass that test in this run, and no upstream issue exists for it.
-Reported upstream as
-[#2135](https://github.com/open-telemetry/opentelemetry-php/issues/2135) (closed,
-`state_reason: completed`, 2026-11-14) by the merged
-[PR #2140](https://github.com/open-telemetry/opentelemetry-php/pull/2140), which
-replaces this `round()` expression with the specification's precision-limited
-conversion. It is listed under `## Unreleased` in the monorepo changelog and is in
-no released version, so the version this suite runs still writes the low threshold
-here. Reported together with footnote ²⁶.  
-²⁶ **`open-telemetry/sdk` writes rejection thresholds at full precision instead
-of the recommended 4 digits (1 test).** The test this footnote covers measures
-conformance to a **recommendation**: "OpenTelemetry SDKs are recommended to use 4
-digits of precision by default" (`tracestate-probability-sampling.md:435`), a
-sentence inside the non-normative "## Algorithms" section. What the same document
-normatively requires is the threshold definition
-`Rejection_Threshold = (1 - Sampling_Probability) * 2^56` (`:98-100`) and the
-encoding of that value (`:457-470`), and `open-telemetry/sdk` reports the value
-its computation produces for both: `ConsistentSamplingUtil::encodeThreshold()`,
-called from `OtelTraceState` when it writes the `th:` entry, emits the threshold
-as lowercase hexadecimal with trailing zeros stripped (`0` for a zero threshold).
-It is **not** a violation of the threshold definition; it is a 13-to-14-
-significant-digit threshold where the recommended form has four significant
-digits: `th:aaaaaaaaaaaaac` for 1-in-3 instead of `th:aaab`,
-`th:cccccccccccccc` for 1-in-5 instead of `th:cccd`, `th:e6666666666665` for
-1-in-10 instead of `th:e666`, `th:fd70a3d70a3d71` for 1-in-100 instead of
-`th:fd70a`, `th:ffffef39085f4a` for 1-in-1000000 instead of `th:ffffef39`. Each
-of those is the integer nearest to the defined product for the double the ratio
-parses to, apart from the platform `round()` deviation footnote ²⁵ describes.
-Converting each form back with "Converting threshold to
-a sampling probability" (`:478-486`) shows what the recommendation costs:
-`th:aaab` stands for 0.3333282470703125, the "Actual probability (precision 4)"
-column of the same table row, while `th:aaaaaaaaaaaaac` stands for
-0.33333333333333326 — the configured ratio itself. The two SDKs agree on every
-ratio whose threshold is a single digit except 1-in-16, which is footnote ²⁵;
-from 1-in-10 downward the difference is this one. The same test class also
-contains `testProbabilitySamplerThresholdAtMinimumValidProbability`, which covers
-the smallest ratio the range allows, `2^-56` (`:84`), and asserts the
-value the threshold definition requires there — `2^56 - 1`, written
-`th:ffffffffffffff`, which is what both SDKs write in this run — rather than the
-value the specification's reference algorithm produces. That class's fourth test,
-`testProbabilitySamplerThresholdAtMaximumThresholdGridBoundary`, asserts
-`2^56 - 2` (`th:fffffffffffffe`) for the two ratios just past the point where
-that maximum value is no longer the threshold the definition requires; both SDKs
-write it, so it adds no failure to this cell and no footnote, and no upstream
-issue exists for that boundary. That algorithm yields
-`th:ffffffffffff` at this ratio: its `min(12, …)` precision clamp (`:398`) and
-the `rejection_prob >= 2.0` fallback (`:411-412`) leave it twelve digits and
-thereby zero the low 8 bits of the threshold, so read back per
-`trace-tracestate-handling.md:116-117` any ratio below `2^-48` is encoded as
-`2^-48`, up to 256 times the configured rate. The same pseudo-code makes no
-symmetrical adjustment near unit probability "as we do not believe there is a
-practical use for sampling very precisely near 100%" (`:428`), so at the
-recommended four digits a ratio of about `0.9999999` or nearer to 1 cannot be
-told apart from sampling everything and is encoded `th:0`; tbachert does exactly
-that, `open-telemetry/sdk` writes a threshold nearer to the definition, and no
-test in this suite asserts thresholds that close to 1. Both are artifacts of that
-pseudo-code, and this suite documents them instead of asserting them. The
-consistent-sampling code these tests exercise was added by
-the merged [PR #2077](https://github.com/open-telemetry/opentelemetry-php/pull/2077).
-Reported upstream as
-[#2135](https://github.com/open-telemetry/opentelemetry-php/issues/2135) (closed,
-`state_reason: completed`, 2026-11-14): it is resolved by the merged
-[PR #2140](https://github.com/open-telemetry/opentelemetry-php/pull/2140), which
-makes `calculateThreshold()` use the specification's precision-4 conversion and
-deprecates the old `computeTValue()`, and it covers this precision default
-together with the rounding defect of footnote ²⁵. No release contains it yet, so
-both threshold cells still fail in the run documented here.  
 
 ## Upstream tracking (official SDK failures, by root cause)
 
@@ -1264,7 +1301,7 @@ failures.
 | Periodic `MetricReader` never repeats a collection: interval ignored, delta temporality and cumulative start timestamps unobservable, multi-collection pipeline behavior unobservable (12 `async`-group tests) | 12 | [#1884](https://github.com/open-telemetry/opentelemetry-php/issues/1884) (open) |
 | Prometheus exporter: no provider for the `pull` meter-reader type (11 configuration tests), no env exporter factory for `prometheus` (1 env test) | 12 | not reported upstream (by decision) |
 | Invalid environment values are not tolerated: unrecognized or differently-cased sampler, protocol and exporter identifiers abort initialization (5 tests), as do unparseable numeric values — an invalid `OTEL_TRACES_SAMPLER_ARG` in two settings and `OTEL_ATTRIBUTE_COUNT_LIMIT` (3 tests); a malformed entry in `OTEL_RESOURCE_ATTRIBUTES` discards the valid entries in the same list, and a differently-cased `OTEL_PROPAGATORS` list drops an entry (2 tests) | 10 | unrecognized enum values: [#2137](https://github.com/open-telemetry/opentelemetry-php/issues/2137) (open); unparseable numeric values: [#2136](https://github.com/open-telemetry/opentelemetry-php/issues/2136) (open); case-insensitive interpretation of enum values: [#2138](https://github.com/open-telemetry/opentelemetry-php/issues/2138) (open); the `OTEL_RESOURCE_ATTRIBUTES` list handling untracked |
-| Configuration nodes absent from the implemented data model 1.0 are rejected by its schema — 1.2-only: `view_matching_mode/development` (6), `max_request_size`/`max_response_size` (7), `attribute_value_depth_limit` (3), `always_record` (1); where the 1.0 schema has no such node and data model 1.1 introduces it: `max_export_batch_size` under a periodic metric reader (2), `id_generator` (1), `event_to_span_event_bridge/development` (1). Only the metric placement of `max_export_batch_size` is newer: it is a 1.0 node of the batch log record and batch span processors, and those tests pass on both SDKs | 21 | newer data model targeted by [PR #2050](https://github.com/open-telemetry/opentelemetry-php/pull/2050) (draft, partially superseded by the merged [PR #2068](https://github.com/open-telemetry/opentelemetry-php/pull/2068)); the individual nodes untracked |
+| Configuration nodes absent from the implemented data model 1.0 are rejected by its schema — 1.2-only: `view_matching_mode/development` (6), `max_request_size`/`max_response_size` (7), `attribute_value_depth_limit` (3), `always_record` (1); where the 1.0 schema has no such node and data model 1.1 introduces it: `max_export_batch_size` under a periodic metric reader (2), `id_generator` (1), `event_to_span_event_bridge/development` (1). Only the metric placement of `max_export_batch_size` is newer: it is a 1.0 node of the batch log record and batch span processors, and those tests pass on both SDKs | 21 | newer data model targeted by [PR #2050](https://github.com/open-telemetry/opentelemetry-php/pull/2050) (draft, partially superseded by the merged [PR #2068](https://github.com/open-telemetry/opentelemetry-php/pull/2068)); the individual nodes untracked (including `max_response_size`; see footnote ²² for what its configurability difference does and does not amount to) |
 | Cardinality limits parsed but not applied: no overflow series, no per-instrument-type limits | 9 | untracked |
 | `jaeger_remote` sampler not implemented (5 env, 3 configuration) | 8 | untracked |
 | `OTEL_ENTITIES` env detector not implemented (7 env, 1 configuration) | 8 | untracked |
@@ -1272,14 +1309,14 @@ failures.
 | Exemplars not captured; an invalid filter value falls back to no exemplars instead of `trace_based` | 4 | values fixed by the merged [PR #2057](https://github.com/open-telemetry/opentelemetry-php/pull/2057); the invalid `OTEL_METRICS_EXEMPLAR_FILTER` value not falling back to the default is reported as [#2137](https://github.com/open-telemetry/opentelemetry-php/issues/2137) (open); capturing exemplars is untracked |
 | Default histogram aggregation not applied (env var ignored, `default_histogram_aggregation` inert, base2 defaults not produced) | 4 | untracked |
 | `ProbabilitySampler` emits no TraceID-randomness compatibility warning when the Trace random flag is unset, although the `TraceIdRatioBased`-as-child warning is emitted (1 configuration test, footnote ⁴) | 1 | untracked |
-| `probability/development` writes a rejection threshold one unit below the value the definition requires for 1-in-16: `th:efffffffffffff` = 67553994410557439, where `15 · 2^52` = 67553994410557440 is required and the specification's own table prints `th:f` (1 configuration test, footnote ²⁵). This is a deviation from the **normative** definition (`tracestate-probability-sampling.md:98-100`, `trace-tracestate-handling.md:129-140`), not a precision or formatting choice: `p · 2^56` is the exact product because `2^56` is a power of two, and `round()` moves an already-integral product wherever a double of that magnitude is spaced by one or two units — which is platform-dependent behaviour, so this row is what this suite's container measures; the same expression on a glibc host leaves the product unchanged (footnote ²⁵). The written form is a legal encoding; the number it denotes is one unit low | 1 | consistent samplers implemented by the merged [PR #2077](https://github.com/open-telemetry/opentelemetry-php/pull/2077); the off-by-one is reported as [#2135](https://github.com/open-telemetry/opentelemetry-php/issues/2135) (closed, completed 2026-11-14) and fixed by the merged [PR #2140](https://github.com/open-telemetry/opentelemetry-php/pull/2140), merge commit `fa8b6d990d739c7b0979cdfab2c2bbf27f20123b`; the monorepo changelog lists it under `## Unreleased` and no release contains it, which is why this row still fails |
-| `probability/development` writes its rejection threshold with every digit it computes instead of the recommended 4 significant digits: `th:aaaaaaaaaaaaac` for 1-in-3, `th:cccccccccccccc` for 1-in-5, `th:e6666666666665` for 1-in-10, `th:fd70a3d70a3d71` for 1-in-100, `th:ffffef39085f4a` for 1-in-1000000 (1 configuration test, footnote ²⁶). This row measures conformance to a **recommendation** — `tracestate-probability-sampling.md:435` — and not a defect in the threshold value: each of those values is the nearest integer to `MaxAdjustedCount * (1 - Probability)` with `MaxAdjustedCount = 2^56` (`:98-100`, `trace-tracestate-handling.md:129-140`) for the ratio the configuration parses to, and a 13-to-14-digit value is a legal encoding: `th` accepts between 1 and 14 lowercase hexadecimal digits (`trace-tracestate-handling.md:110`) with trailing zeros optional (`:457-470`) | 1 | consistent samplers implemented by the merged [PR #2077](https://github.com/open-telemetry/opentelemetry-php/pull/2077); the precision default is reported as [#2135](https://github.com/open-telemetry/opentelemetry-php/issues/2135) (closed, completed 2026-11-14) and fixed by the merged [PR #2140](https://github.com/open-telemetry/opentelemetry-php/pull/2140), the same issue as the row above; no released version contains that fix, so both threshold rows still fail here |
+| `probability/development` writes a rejection threshold one unit below the value the definition requires for 1-in-16: `th:efffffffffffff` = 67553994410557439, where `15 · 2^52` = 67553994410557440 is required and the specification's own table prints `th:f` (1 configuration test, footnote ⁵). This is a deviation from the **normative** definition (`tracestate-probability-sampling.md:98-100`, `trace-tracestate-handling.md:129-140`), not a precision or formatting choice: `p · 2^56` is the exact product because `2^56` is a power of two, and `round()` moves an already-integral product wherever a double of that magnitude is spaced by one or two units — which is platform-dependent behaviour, so this row is what this suite's container measures; the same expression on a glibc host leaves the product unchanged (footnote ⁵). The written form is a legal encoding; the number it denotes is one unit low | 1 | consistent samplers implemented by the merged [PR #2077](https://github.com/open-telemetry/opentelemetry-php/pull/2077); the off-by-one is reported as [#2135](https://github.com/open-telemetry/opentelemetry-php/issues/2135) (closed, completed 2026-11-14) and fixed by the merged [PR #2140](https://github.com/open-telemetry/opentelemetry-php/pull/2140), merge commit `fa8b6d990d739c7b0979cdfab2c2bbf27f20123b`; the monorepo changelog lists it under `## Unreleased` and no release contains it, which is why this row still fails |
+| `probability/development` writes its rejection threshold with every digit it computes instead of the recommended 4 significant digits: `th:aaaaaaaaaaaaac` for 1-in-3, `th:cccccccccccccc` for 1-in-5, `th:e6666666666665` for 1-in-10, `th:fd70a3d70a3d71` for 1-in-100, `th:ffffef39085f4a` for 1-in-1000000 (1 configuration test, footnote ⁶). This row measures conformance to a **recommendation** — `tracestate-probability-sampling.md:435` — and not a defect in the threshold value: each of those values is the nearest integer to `MaxAdjustedCount * (1 - Probability)` with `MaxAdjustedCount = 2^56` (`:98-100`, `trace-tracestate-handling.md:129-140`) for the ratio the configuration parses to, and a 13-to-14-digit value is a legal encoding: `th` accepts between 1 and 14 lowercase hexadecimal digits (`trace-tracestate-handling.md:110`) with trailing zeros optional (`:457-470`) | 1 | consistent samplers implemented by the merged [PR #2077](https://github.com/open-telemetry/opentelemetry-php/pull/2077); the precision default is reported as [#2135](https://github.com/open-telemetry/opentelemetry-php/issues/2135) (closed, completed 2026-11-14) and fixed by the merged [PR #2140](https://github.com/open-telemetry/opentelemetry-php/pull/2140), the same issue as the row above; no released version contains that fix, so both threshold rows still fail here |
 | Resource detectors in configuration mode: container detector, `service.instance.id` from the service detector, conflicting `schema_url` | 3 | untracked |
 | View aggregation overrides ignored (base2 histogram from a view, incompatible aggregation not dropped) | 2 | untracked |
 | Batch span / batch log record processors flush synchronously, so a full queue and its drop cannot be observed | 2 | untracked |
 | `OTEL_LOG_LEVEL` in configuration mode: the configured level applies to component-creation diagnostics only, so an SDK-internal span-limit diagnostic survives `log_level: error` | 1 | untracked |
 | Accepted but unenforced limits: log record attribute count/length limits, and the default attribute value-depth limit (whose asserted value, 64, is itself specified only in data model 1.2) | 2 | untracked |
-| An explicit `meter_provider.views: null` is accepted where the suite asserts rejection; the suite pins the strict reading of the model's nullability encoding (1 configuration test, footnote ²³) | 1 | no confirmed defect; to be raised upstream as a question about `null` on a non-required `array`-typed node, not reported upstream |
+| An explicit `meter_provider.views: null` is accepted where the suite asserts rejection; the suite pins the strict reading of the model's nullability encoding (1 configuration test, footnote ²⁵) | 1 | no confirmed defect; to be raised upstream as a question about `null` on a non-required `array`-typed node, not reported upstream |
 | **Total** | **108** | |
 
 Caveats:
@@ -1294,30 +1331,30 @@ Caveats:
   rows of the matrix (metric pipeline, temporality, collection interval). Each
   test is counted in exactly one cell.
 - 1 failure measures a *reading* of the configuration model rather than a defect
-  (footnote ²³): a present-but-null `views` has support in both the type-union
+  (footnote ²⁵): a present-but-null `views` has support in both the type-union
   encoding and the `defaultBehavior` MUST, so that row is listed as an open
   question about the data model and not as a gap attributed to either SDK.
 - 1 failure measures conformance to a **recommendation**, not to a normative
   requirement: the official test that compares the written rejection threshold
-  with the recommended four significant digits (footnote ²⁶). "OpenTelemetry SDKs
+  with the recommended four significant digits (footnote ⁶). "OpenTelemetry SDKs
   are recommended to use 4 digits of precision by default"
   (`tracestate-probability-sampling.md:435`) is a recommendation inside the
   section headed "## Algorithms", while
   `Rejection_Threshold = (1 - Sampling_Probability) * 2^56` (`:98-100`) and the
   hexadecimal / trailing-zero / `th:0` encoding rules (`:457-470`) are
   normative. The other threshold failure is the opposite case: one unit below a
-  threshold the definition fixes exactly (footnote ²⁵). Neither is comparable to
+  threshold the definition fixes exactly (footnote ⁵). Neither is comparable to
   the feature gaps above.
 - 🟨 cells are counted as failing in the run totals. They occur in the official
   columns only, and `--exclude-group async` turns them green because every test
   failing in them is an `async`-group test; what they measure is the official
-  SDK's periodic reader (footnote ⁹), not a scheduling artifact. The marker is
+  SDK's periodic reader (footnote ¹¹), not a scheduling artifact. The marker is
   maintained by hand from the JUnit failure list plus the tests'
   `#[Group('async')]` attributes: `check-matrix.py` verifies per-cell pass/fail
   counts and env/config-file membership, not the marker.
 - The `file_format "1.2" is newer than 1.0` notice is emitted by every
   configuration-file run. It is not the cause of the `OTEL_LOG_LEVEL` failure
-  (footnote ²²): at `log_level: error` that notice is suppressed. It appears
+  (footnote ²⁴): at `log_level: error` that notice is suppressed. It appears
   inside one captured failure message only as the *only* diagnostic in it, i.e.
   as evidence that no other warning was emitted. It is also the baseline the
   sampler-warning tests cancel with a same-configuration control (footnote ⁴),

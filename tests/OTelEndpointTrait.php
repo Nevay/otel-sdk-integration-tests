@@ -26,6 +26,7 @@ use Opentelemetry\Proto\Collector\Logs\V1\ExportLogsServiceRequest;
 use Opentelemetry\Proto\Collector\Logs\V1\ExportLogsServiceResponse;
 use Opentelemetry\Proto\Collector\Metrics\V1\ExportMetricsServiceRequest;
 use Opentelemetry\Proto\Collector\Metrics\V1\ExportMetricsServiceResponse;
+use Opentelemetry\Proto\Collector\Trace\V1\ExportTracePartialSuccess;
 use Opentelemetry\Proto\Collector\Trace\V1\ExportTraceServiceRequest;
 use Opentelemetry\Proto\Collector\Trace\V1\ExportTraceServiceResponse;
 use Psr\Log\NullLogger;
@@ -45,6 +46,22 @@ use function uniqid;
 use const PHP_BINARY;
 
 trait OTelEndpointTrait {
+
+    /**
+     * Size the /v1/oversized-response body reaches once decoded: above the
+     * response size limit both SDKs use by default (4 MiB, the value the OTLP
+     * specification recommends as default), and below the 10 MiB the tbachert
+     * HTTP client bounds a decoded body with on its own, so the exporter is
+     * the component that rejects it.
+     */
+    public const OVERSIZED_RESPONSE_SIZE = 5 * 1024 * 1024;
+
+    /**
+     * Size the /v1/within-limit-response body reaches once decoded, used as
+     * control for OVERSIZED_RESPONSE_SIZE: same gzip-encoded response shape,
+     * comfortably below the same limit.
+     */
+    public const WITHIN_LIMIT_RESPONSE_SIZE = 1024 * 1024;
 
     private HttpServer $server;
 
@@ -94,6 +111,24 @@ trait OTelEndpointTrait {
     public int $throttleRequests = 0;
 
     /**
+     * Number of requests received by the /v1/oversized-response route.
+     */
+    public int $oversizedResponseRequests = 0;
+
+    /**
+     * Bytes actually sent by the /v1/oversized-response route, i.e. the
+     * gzip-compressed response body; it exceeds the response size limit only
+     * once the client has decoded it.
+     */
+    public int $oversizedResponseWireBytes = 0;
+
+    /**
+     * Number of requests received by the /v1/within-limit-response route, the
+     * control for /v1/oversized-response.
+     */
+    public int $withinLimitResponseRequests = 0;
+
+    /**
      * Arrival times (microtime) of the captured export requests, in order.
      */
     public array $requestTimes = [];
@@ -124,6 +159,37 @@ trait OTelEndpointTrait {
             $this->requestHeaders[] = $request->getHeaders();
 
             return self::captureRequestBody($request, $this->logs[], ExportLogsServiceRequest::class, ExportLogsServiceResponse::class);
+        }));
+
+        /*
+         * A route that answers with a valid success response whose body expands
+         * past the response size limit *after decompression*: the padding is
+         * gzip-compressed on the wire, so the bytes sent stay far below the
+         * limit, and only the decoded body can exceed it. The request is read
+         * but not captured, because the exporter never sees the answer.
+         */
+        $router->addRoute('POST', 'v1/oversized-response', new ClosureRequestHandler(function (Request $request): Response {
+            $this->oversizedResponseRequests++;
+            $this->requestHeaders[] = $request->getHeaders();
+
+            $ignored = null;
+            $wireBytes = 0;
+            $response = self::captureRequestBody($request, $ignored, ExportTraceServiceRequest::class, ExportTraceServiceResponse::class, self::OVERSIZED_RESPONSE_SIZE, $wireBytes);
+            $this->oversizedResponseWireBytes = $wireBytes;
+
+            return $response;
+        }));
+
+        /*
+         * The control for /v1/oversized-response: the same response shape, kept
+         * below the size limit, and captured like /v1/traces.
+         */
+        $router->addRoute('POST', 'v1/within-limit-response', new ClosureRequestHandler(function (Request $request): Response {
+            $this->withinLimitResponseRequests++;
+            $this->requestTimes[] = microtime(true);
+            $this->requestHeaders[] = $request->getHeaders();
+
+            return self::captureRequestBody($request, $this->traces[], ExportTraceServiceRequest::class, ExportTraceServiceResponse::class, self::WITHIN_LIMIT_RESPONSE_SIZE);
         }));
 
         /*
@@ -224,8 +290,11 @@ trait OTelEndpointTrait {
      * representation the exporter sent, hex for OTLP/JSON and base64 of
      * the raw bytes for OTLP/protobuf. Compare ids across signals with
      * normalizeId().
+     *
+     * With $decodedResponseSize, the success response is padded so that its
+     * body reaches that size once decoded, and is gzip-encoded on the wire.
      */
-    private static function captureRequestBody(Request $request, mixed &$slot, string $messageType, string $responseType): Response {
+    private static function captureRequestBody(Request $request, mixed &$slot, string $messageType, string $responseType, ?int $decodedResponseSize = null, ?int &$responseWireBytes = null): Response {
         $payload = $request->getBody()->buffer();
 
         if ($request->getHeader('content-encoding') === 'gzip' && extension_loaded('zlib')) {
@@ -249,11 +318,65 @@ trait OTelEndpointTrait {
         $slot = $message->serializeToJsonString(PrintOptions::ALWAYS_PRINT_ENUMS_AS_INTS);
 
         $response = new $responseType();
-        return match ($request->getHeader('content-type')) {
-            'application/x-protobuf' => new Response(HttpStatus::OK, ['content-type' => 'application/x-protobuf'], $response->serializeToString()),
-            'application/json' => new Response(HttpStatus::OK, ['content-type' => 'application/json'], $response->serializeToJsonString(\Google\Protobuf\PrintOptions::ALWAYS_PRINT_ENUMS_AS_INTS)),
-            default => new Response(HttpStatus::OK),
-        };
+
+        if ($decodedResponseSize === null) {
+            return match ($request->getHeader('content-type')) {
+                'application/x-protobuf' => new Response(HttpStatus::OK, ['content-type' => 'application/x-protobuf'], $response->serializeToString()),
+                'application/json' => new Response(HttpStatus::OK, ['content-type' => 'application/json'], $response->serializeToJsonString(\Google\Protobuf\PrintOptions::ALWAYS_PRINT_ENUMS_AS_INTS)),
+                default => new Response(HttpStatus::OK),
+            };
+        }
+
+        // Encode the answer like the request, so that it is hydrated.
+        $json = $request->getHeader('content-type') === 'application/json';
+        self::padTraceResponse($response, $json, $decodedResponseSize);
+        $body = $json
+            ? $response->serializeToJsonString(PrintOptions::ALWAYS_PRINT_ENUMS_AS_INTS)
+            : $response->serializeToString();
+
+        /*
+         * Content-Encoding is written by the route itself: the official
+         * transport asks for "identity", so the server's compression
+         * middleware would leave the response alone.
+         */
+        return self::gzipResponse($json ? 'application/json' : 'application/x-protobuf', $body, $responseWireBytes);
+    }
+
+    /**
+     * Pad the partial-success error message of a success response until its
+     * body reaches exactly $size bytes in the encoding the request used.
+     */
+    private static function padTraceResponse(ExportTraceServiceResponse $response, bool $json, int $size): void {
+        $partialSuccess = new ExportTracePartialSuccess();
+        $response->setPartialSuccess($partialSuccess);
+
+        $encode = static fn (): string => $json
+            ? $response->serializeToJsonString(PrintOptions::ALWAYS_PRINT_ENUMS_AS_INTS)
+            : $response->serializeToString();
+
+        // The framing around the error message field is not padding; measure
+        // it with a first pass, then pad to what is left.
+        $length = max(0, $size - strlen($encode()));
+        $partialSuccess->setErrorMessage(str_repeat('A', $length));
+        $partialSuccess->setErrorMessage(str_repeat('A', $length + $size - strlen($encode())));
+
+        if (($actual = strlen($encode())) !== $size) {
+            throw new RuntimeException(sprintf('Padded response body is %d bytes, expected %d', $actual, $size));
+        }
+    }
+
+    /**
+     * A response whose body is gzip-encoded, with the encoding written
+     * explicitly so that the client decodes it however it asked for it.
+     */
+    private static function gzipResponse(string $contentType, string $body, ?int &$wireBytes = null): Response {
+        $encoded = \gzencode($body, 9) ?? throw new RuntimeException('Failed to gzip response body');
+        $wireBytes = strlen($encoded);
+
+        return new Response(HttpStatus::OK, [
+            'content-type' => $contentType,
+            'content-encoding' => 'gzip',
+        ], $encoded);
     }
 
     /**
@@ -302,8 +425,20 @@ trait OTelEndpointTrait {
         );
 
         // pipe($process->getStderr(), getStderr());
-        $output = buffer($process->getStdout());
-        $stderr = buffer($process->getStderr());
+
+        /*
+         * Both child streams are drained concurrently. Reading stdout to EOF
+         * first deadlocks whenever the child fills the stderr pipe buffer
+         * (64 KiB on Linux): the child blocks writing, this process blocks
+         * reading the other pipe.
+         */
+        $stdoutFuture = async(static fn (): string => buffer($process->getStdout()));
+        $stderrFuture = async(static fn (): string => buffer($process->getStderr()));
+        try {
+            $output = $stdoutFuture->await();
+        } finally {
+            $stderr = $stderrFuture->await();
+        }
 
         $this->lastStderr = $stderr;
 
