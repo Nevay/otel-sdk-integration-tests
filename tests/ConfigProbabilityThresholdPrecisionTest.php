@@ -215,6 +215,38 @@ final class ConfigProbabilityThresholdPrecisionTest extends TestCase {
     }
 
     /**
+     * Ratios on either side of the boundary where the rejection threshold stops
+     * being the maximum value `2**56 - 1` asserted above. At these ratios the
+     * precision applied to a `probability/development` sampler reaches the unit
+     * bit, so consecutive integers are the only thresholds that precision can
+     * express, and the one it selects for `2**56 * (1 - ratio)`
+     * (trace-tracestate-handling.md:129-140,
+     * tracestate-probability-sampling.md:98-100) is fixed by that product.
+     *
+     * `2.0816681711721688e-17` is the double immediately above `1.5 * 2**-56`,
+     * whose product is `2**56 - 1.5` and cannot be a threshold, and
+     * `2.42861286636753e-17` is deeper into the same band; both select
+     * `2**56 - 2`. A conversion that aligns the product to the other side of the
+     * boundary writes `2**56 - 1` here.
+     */
+    #[Group('sampler')]
+    public function testProbabilitySamplerThresholdAtMaximumThresholdGridBoundary(): void {
+        $this->assertWrittenThresholds(
+            [
+                /* The first representable ratio past the half-grid point `1.5 * 2**-56`:
+                 * threshold 2**56 - 2 = 0xfffffffffffffe, one grid step below the maximum. */
+                ['ratio' => '2.0816681711721688e-17', 'th' => 'fffffffffffffe', 'span' => 'th-grid-boundary-crossing'],
+                /* 1.75 * 2**-56, mid-band before the next grid boundary: same threshold. */
+                ['ratio' => '2.42861286636753e-17', 'th' => 'fffffffffffffe', 'span' => 'th-grid-boundary-band'],
+            ],
+            'The rejection threshold for these ratios is 2^56 - 2 (trace-tracestate-handling.md:129-140, '
+                . 'tracestate-probability-sampling.md:98-100), the threshold at the boundary below the maximum '
+                . 'value 2^56 - 1; the precision applied at these ratios reaches the unit bit and cannot select '
+                . 'any other threshold.',
+        );
+    }
+
+    /**
      * Runs a probability sampler for each ratio literal and compares the
      * `th:` value it writes for the resulting exported span against the
      * specification's own values.

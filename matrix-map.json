@@ -76,6 +76,7 @@
     "ConfigProbabilitySamplerTest::testProbabilitySamplerThresholdMatchesSamplingDecisions",
     "ConfigProbabilitySamplerTest::testProbabilitySamplerTraceStatePropagatesToChildSpans",
     "ConfigProbabilitySamplerTest::testProbabilitySamplerWritesThresholdTraceState",
+    "ConfigProbabilityThresholdPrecisionTest::testProbabilitySamplerThresholdAtMaximumThresholdGridBoundary",
     "ConfigProbabilityThresholdPrecisionTest::testProbabilitySamplerThresholdAtMinimumValidProbability",
     "ConfigProbabilityThresholdPrecisionTest::testProbabilitySamplerThresholdOmitsTrailingZeros",
     "ConfigProbabilityThresholdPrecisionTest::testProbabilitySamplerThresholdPrecisionAppliesToSignificantDigits",
