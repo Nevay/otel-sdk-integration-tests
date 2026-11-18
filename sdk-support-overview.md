@@ -852,11 +852,19 @@ a malformed `OTEL_RESOURCE_ATTRIBUTES` list loses the valid entry as well
 `OTEL_PROPAGATORS` list yields no `baggage` propagator (`Failed asserting that
 an array has the key 'baggage'.`). The specification requires the fallback.
 Reported upstream: the unrecognized enum values as
-[#2137](https://github.com/open-telemetry/opentelemetry-php/issues/2137), the
-unparseable numeric values as
-[#2136](https://github.com/open-telemetry/opentelemetry-php/issues/2136), and the
-case-sensitive matching of enum values as
-[#2138](https://github.com/open-telemetry/opentelemetry-php/issues/2138); the
+[#2137](https://github.com/open-telemetry/opentelemetry-php/issues/2137), open
+with no fix in progress; the unparseable numeric values as
+[#2136](https://github.com/open-telemetry/opentelemetry-php/issues/2136), open,
+with [PR #2144](https://github.com/open-telemetry/opentelemetry-php/pull/2144)
+open against it; and the case-sensitive matching of enum values as
+[#2138](https://github.com/open-telemetry/opentelemetry-php/issues/2138), closed
+by the merged [PR #2142](https://github.com/open-telemetry/opentelemetry-php/pull/2142),
+which lowercases enum values before they reach the component registry and adds
+factory tests for the span, metric and log exporters, the propagators and the
+sampler factory. The differently-cased entries in this row are what that issue
+is about, and no released version contains the fix: the newest published
+`open-telemetry/sdk` is 1.16.1 (2026-11-06) and `open-telemetry/sdk-configuration`
+is 0.10.0 (2026-11-05), both before it. The
 `OTEL_RESOURCE_ATTRIBUTES` list handling is untracked.  
 ² **No log-record-to-span-event bridge in configuration mode (1 test).** The
 `event_to_span_event_bridge/development` processor node is absent from the
@@ -1101,10 +1109,14 @@ no exemplars are exported for `always_on` or
 `trace_based`, and an invalid filter value falls back to no exemplars instead of
 the default `trace_based`. The invalid-value fallback is reported upstream as
 [#2137](https://github.com/open-telemetry/opentelemetry-php/issues/2137) — an
-unrecognized enum value must be ignored in favour of the default — and the
-case-insensitive reading of that variable as
-[#2138](https://github.com/open-telemetry/opentelemetry-php/issues/2138); the
-missing exemplar capture is untracked.  
+unrecognized enum value must be ignored in favour of the default, and that issue
+is still open with no fix in progress. The case-insensitive reading of that
+variable was reported as
+[#2138](https://github.com/open-telemetry/opentelemetry-php/issues/2138) and is
+closed: the merged [PR #2142](https://github.com/open-telemetry/opentelemetry-php/pull/2142)
+lowercases the value `getEnum()` returns, which covers `always_On` in
+`OTEL_METRICS_EXEMPLAR_FILTER`, and no released version contains it. The missing
+exemplar capture is untracked.  
 ¹⁴ **Default histogram aggregation is not applied (4 tests).**
 `OTEL_EXPORTER_OTLP_METRICS_DEFAULT_HISTOGRAM_AGGREGATION` is ignored, and the
 `default_histogram_aggregation` node "parses but is not applied yet" per the
@@ -1218,7 +1230,12 @@ warning from `SDK/Trace/Span.php(405)` survives
 that 'OpenTelemetry: [warning] Dropped span attributes, links or events in
 /php/sdks/official/vendor/open-telemetry/sdk/Trace/Span.php(405)' does not
 match …`). The companion test, which asserts that nothing below error severity
-is reported at `log_level: error`, passes. Untracked upstream.  
+is reported at `log_level: error`, passes. Reported upstream as
+[#2132](https://github.com/open-telemetry/opentelemetry-php/issues/2132), open:
+inject a logger into the SDK components instead of routing them through the
+static internal logger, which is the same split between the two paths this test
+measures. [PR #2145](https://github.com/open-telemetry/opentelemetry-php/pull/2145)
+is open against the metrics part of that request and is not merged.  
 ²⁵ **An explicit `meter_provider.views: null` is accepted by official; the
 suite asserts rejection (1 test).** Two readings of the configuration model
 exist for a present-but-null `views` and the suite pins the strict one, so this
@@ -1237,7 +1254,7 @@ every genuinely nullable property does the same, while `"null"` is not part of
 `views`' union. `opentelemetry-configuration`'s CONTRIBUTING.md states the
 negative case for sibling nodes directly — "Setting `exporter` to `null` or any
 non-object value is invalid", "Setting `limits` to `null` is invalid"
-(<https://github.com/open-telemetry/opentelemetry-configuration/blob/main/CONTRIBUTING.md>).
+(<https://github.com/open-telemetry/opentelemetry-configuration/blob/v1.2.0/CONTRIBUTING.md#L123-L126>).
 A present `views` must therefore hold a value of its declared type, and `null`
 is rejected like the too-short list `views: []`, which both SDKs reject; that
 both reject `views: []` shows the shared rule is the declared type and its
@@ -1245,19 +1262,20 @@ both reject `views: []` shows the shared rule is the declared type and its
 environment variable produces one (`configuration/data-model.md`), which is why
 the env-substitutable properties declare the union.
 
-The permissive reading: "Parse MUST differentiate between properties that are
-missing and properties that are present but null"
-(<https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/configuration/sdk.md#L212-L213>),
+The permissive reading, from the specification's SDK configuration document at
+its newest release (v1.62.0): "Parse MUST differentiate between properties that
+are missing and properties that are present but null"
+(<https://github.com/open-telemetry/opentelemetry-specification/blob/v1.62.0/specification/configuration/sdk.md#L212-L213>),
 "If a property is present and the value is null, Create MUST use the
 `nullBehavior`, or `defaultBehavior` if `nullBehavior` is not set" (same file,
-[#L270-L271](https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/configuration/sdk.md#L270-L271)).
+[#L270-L271](https://github.com/open-telemetry/opentelemetry-specification/blob/v1.62.0/specification/configuration/sdk.md#L270-L271)).
 `views` declares `defaultBehavior: no views are registered`
-(<https://github.com/open-telemetry/opentelemetry-configuration/blob/main/schema/meter_provider.yaml>),
+(<https://github.com/open-telemetry/opentelemetry-configuration/blob/v1.2.0/schema/meter_provider.yaml#L10-L18>),
 which the compiled JSON encodes in the node description as "If omitted, no views
 are registered", and it defines no `nullBehavior` — under this reading `views: ~`
 is an omitted key. The third MUST, "If a property is required, and not present,
 Create MUST return an error."
-([#L272](https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/configuration/sdk.md#L272)),
+([#L272](https://github.com/open-telemetry/opentelemetry-specification/blob/v1.62.0/specification/configuration/sdk.md#L272)),
 covers the required provider lists only, which both SDKs enforce.
 
 What the fresh run shows: official implements the permissive reading. With a
@@ -1300,7 +1318,7 @@ failures.
 |---|---:|---|
 | Periodic `MetricReader` never repeats a collection: interval ignored, delta temporality and cumulative start timestamps unobservable, multi-collection pipeline behavior unobservable (12 `async`-group tests) | 12 | [#1884](https://github.com/open-telemetry/opentelemetry-php/issues/1884) (open) |
 | Prometheus exporter: no provider for the `pull` meter-reader type (11 configuration tests), no env exporter factory for `prometheus` (1 env test) | 12 | not reported upstream (by decision) |
-| Invalid environment values are not tolerated: unrecognized or differently-cased sampler, protocol and exporter identifiers abort initialization (5 tests), as do unparseable numeric values — an invalid `OTEL_TRACES_SAMPLER_ARG` in two settings and `OTEL_ATTRIBUTE_COUNT_LIMIT` (3 tests); a malformed entry in `OTEL_RESOURCE_ATTRIBUTES` discards the valid entries in the same list, and a differently-cased `OTEL_PROPAGATORS` list drops an entry (2 tests) | 10 | unrecognized enum values: [#2137](https://github.com/open-telemetry/opentelemetry-php/issues/2137) (open); unparseable numeric values: [#2136](https://github.com/open-telemetry/opentelemetry-php/issues/2136) (open); case-insensitive interpretation of enum values: [#2138](https://github.com/open-telemetry/opentelemetry-php/issues/2138) (open); the `OTEL_RESOURCE_ATTRIBUTES` list handling untracked |
+| Invalid environment values are not tolerated: unrecognized or differently-cased sampler, protocol and exporter identifiers abort initialization (5 tests), as do unparseable numeric values — an invalid `OTEL_TRACES_SAMPLER_ARG` in two settings and `OTEL_ATTRIBUTE_COUNT_LIMIT` (3 tests); a malformed entry in `OTEL_RESOURCE_ATTRIBUTES` discards the valid entries in the same list, and a differently-cased `OTEL_PROPAGATORS` list drops an entry (2 tests) | 10 | unrecognized enum values: [#2137](https://github.com/open-telemetry/opentelemetry-php/issues/2137) (open, no fix in progress); unparseable numeric values: [#2136](https://github.com/open-telemetry/opentelemetry-php/issues/2136) (open), with [PR #2144](https://github.com/open-telemetry/opentelemetry-php/pull/2144) open against it; case-insensitive interpretation of enum values: [#2138](https://github.com/open-telemetry/opentelemetry-php/issues/2138) closed by the merged [PR #2142](https://github.com/open-telemetry/opentelemetry-php/pull/2142), in code no released version contains; the `OTEL_RESOURCE_ATTRIBUTES` list handling untracked |
 | Configuration nodes absent from the implemented data model 1.0 are rejected by its schema — 1.2-only: `view_matching_mode/development` (6), `max_request_size`/`max_response_size` (7), `attribute_value_depth_limit` (3), `always_record` (1); where the 1.0 schema has no such node and data model 1.1 introduces it: `max_export_batch_size` under a periodic metric reader (2), `id_generator` (1), `event_to_span_event_bridge/development` (1). Only the metric placement of `max_export_batch_size` is newer: it is a 1.0 node of the batch log record and batch span processors, and those tests pass on both SDKs | 21 | newer data model targeted by [PR #2050](https://github.com/open-telemetry/opentelemetry-php/pull/2050) (draft, partially superseded by the merged [PR #2068](https://github.com/open-telemetry/opentelemetry-php/pull/2068)); the individual nodes untracked (including `max_response_size`; see footnote ²² for what its configurability difference does and does not amount to) |
 | Cardinality limits parsed but not applied: no overflow series, no per-instrument-type limits | 9 | untracked |
 | `jaeger_remote` sampler not implemented (5 env, 3 configuration) | 8 | untracked |
@@ -1314,7 +1332,7 @@ failures.
 | Resource detectors in configuration mode: container detector, `service.instance.id` from the service detector, conflicting `schema_url` | 3 | untracked |
 | View aggregation overrides ignored (base2 histogram from a view, incompatible aggregation not dropped) | 2 | untracked |
 | Batch span / batch log record processors flush synchronously, so a full queue and its drop cannot be observed | 2 | untracked |
-| `OTEL_LOG_LEVEL` in configuration mode: the configured level applies to component-creation diagnostics only, so an SDK-internal span-limit diagnostic survives `log_level: error` | 1 | untracked |
+| `OTEL_LOG_LEVEL` in configuration mode: the configured level applies to component-creation diagnostics only, so an SDK-internal span-limit diagnostic survives `log_level: error` | 1 | [#2132](https://github.com/open-telemetry/opentelemetry-php/issues/2132) (open) for the static internal logger; [PR #2145](https://github.com/open-telemetry/opentelemetry-php/pull/2145) open against the metrics part of it |
 | Accepted but unenforced limits: log record attribute count/length limits, and the default attribute value-depth limit (whose asserted value, 64, is itself specified only in data model 1.2) | 2 | untracked |
 | An explicit `meter_provider.views: null` is accepted where the suite asserts rejection; the suite pins the strict reading of the model's nullability encoding (1 configuration test, footnote ²⁵) | 1 | no confirmed defect; to be raised upstream as a question about `null` on a non-required `array`-typed node, not reported upstream |
 | **Total** | **108** | |

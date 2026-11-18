@@ -11,7 +11,7 @@ compliance. The env-based tests check specification behavior as-is; the
 file-based tests use the official
 [opentelemetry-configuration](https://github.com/open-telemetry/opentelemetry-configuration)
 data model as supported by the configured SDK (here:
-[`tbachert/otel-sdk`](https://github.com/tbachert/otel-sdk)). The only
+[`tbachert/otel-sdk`](https://github.com/Nevay/otel-sdk)). The only
 SDK-specific glue is the child-process bootstrap that loads the SDK
 (`OTEL_PHP_AUTOLOAD_ENABLED`) and the initialization error message used as a
 failure guard.
@@ -57,9 +57,13 @@ passable via `ARGS='--group env'`):
 
 ## Tested SDKs
 
-### [`tbachert/otel-sdk`](https://github.com/tbachert/otel-sdk)
+### [`tbachert/otel-sdk`](https://github.com/Nevay/otel-sdk)
 
-Exact package versions pinned in `sdks/tbachert/composer.lock`.
+Exact package versions pinned in `sdks/tbachert/composer.lock`. Packages are
+published as `tbachert/otel-sdk*` on Packagist; their sources are the
+`Nevay/otel-sdk*` repositories on GitHub (`Nevay/otel-sdk`,
+`Nevay/otel-sdk-core`, `Nevay/otel-sdk-config`, …), which is what
+`composer.lock` records.
 
 **Scope.** All stable environment variables from the specification's SDK
 configuration section, plus file-based configuration using the official
