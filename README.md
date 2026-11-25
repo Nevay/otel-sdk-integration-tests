@@ -41,6 +41,14 @@ at build time (minimum supported: 8.4):
 PHP_VERSION=8.4 make build
 ```
 
+The image compiles several extensions from source, and building `grpc` needs a
+lot of memory per compiler job. On a small VM the build can run out of memory;
+reduce the compile parallelism instead of the PHP version:
+
+```sh
+IPE_PROCESSOR_COUNT=2 make build
+```
+
 Tests can be selected with PHPUnit groups (`--group` / `--exclude-group`,
 passable via `ARGS='--group env'`):
 

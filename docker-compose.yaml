@@ -4,6 +4,7 @@ services:
       context: .
       args:
         PHP_VERSION: ${PHP_VERSION:-8.5}
+        IPE_PROCESSOR_COUNT: ${IPE_PROCESSOR_COUNT:-}
     working_dir: /php
     user: ${UID:-root}:${GID:-root}
     tty: true
