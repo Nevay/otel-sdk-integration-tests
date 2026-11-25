@@ -639,16 +639,16 @@
         },
         {
             "name": "amphp/http-server",
-            "version": "v3.4.8",
+            "version": "v3.4.9",
             "source": {
                 "type": "git",
                 "url": "https://github.com/amphp/http-server.git",
-                "reference": "31b004bf1cfd3feed3f0bdf20ddb9bfef935efb8"
+                "reference": "651f0b56ff7032da96ea3b21532c86ad20916555"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/amphp/http-server/zipball/31b004bf1cfd3feed3f0bdf20ddb9bfef935efb8",
-                "reference": "31b004bf1cfd3feed3f0bdf20ddb9bfef935efb8",
+                "url": "https://api.github.com/repos/amphp/http-server/zipball/651f0b56ff7032da96ea3b21532c86ad20916555",
+                "reference": "651f0b56ff7032da96ea3b21532c86ad20916555",
                 "shasum": ""
             },
             "require": {
@@ -724,7 +724,7 @@
             ],
             "support": {
                 "issues": "https://github.com/amphp/http-server/issues",
-                "source": "https://github.com/amphp/http-server/tree/v3.4.8"
+                "source": "https://github.com/amphp/http-server/tree/v3.4.9"
             },
             "funding": [
                 {
@@ -732,7 +732,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2026-11-01T16:18:27+00:00"
+            "time": "2026-11-17T02:47:57+00:00"
         },
         {
             "name": "amphp/http-server-router",
@@ -1954,16 +1954,16 @@
         },
         {
             "name": "open-telemetry/api",
-            "version": "1.11.0",
+            "version": "1.12.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/opentelemetry-php/api.git",
-                "reference": "bc169d9ecd11858e941657770dc708c6a15fc5f4"
+                "reference": "b0884741f3f9d5dc60477784c8671bd2acef4ceb"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/opentelemetry-php/api/zipball/bc169d9ecd11858e941657770dc708c6a15fc5f4",
-                "reference": "bc169d9ecd11858e941657770dc708c6a15fc5f4",
+                "url": "https://api.github.com/repos/opentelemetry-php/api/zipball/b0884741f3f9d5dc60477784c8671bd2acef4ceb",
+                "reference": "b0884741f3f9d5dc60477784c8671bd2acef4ceb",
                 "shasum": ""
             },
             "require": {
@@ -1990,7 +1990,7 @@
                     ]
                 },
                 "branch-alias": {
-                    "dev-main": "1.11.x-dev"
+                    "dev-main": "1.12.x-dev"
                 }
             },
             "autoload": {
@@ -2027,7 +2027,7 @@
                 "issues": "https://github.com/open-telemetry/opentelemetry-php/issues",
                 "source": "https://github.com/open-telemetry/opentelemetry-php"
             },
-            "time": "2026-11-05T11:54:49+00:00"
+            "time": "2026-11-19T08:10:15+00:00"
         },
         {
             "name": "open-telemetry/context",
@@ -2089,16 +2089,16 @@
         },
         {
             "name": "open-telemetry/extension-propagator-b3",
-            "version": "1.3.0",
+            "version": "1.4.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/opentelemetry-php/extension-propagator-b3.git",
-                "reference": "38659e9634f9729660f66b883a2d0438c279c927"
+                "reference": "1c77359f409bae7b6ad7f5a7a197efe3fcd18e68"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/opentelemetry-php/extension-propagator-b3/zipball/38659e9634f9729660f66b883a2d0438c279c927",
-                "reference": "38659e9634f9729660f66b883a2d0438c279c927",
+                "url": "https://api.github.com/repos/opentelemetry-php/extension-propagator-b3/zipball/1c77359f409bae7b6ad7f5a7a197efe3fcd18e68",
+                "reference": "1c77359f409bae7b6ad7f5a7a197efe3fcd18e68",
                 "shasum": ""
             },
             "require": {
@@ -2107,6 +2107,7 @@
                 "php": "^8.2"
             },
             "conflict": {
+                "open-telemetry/sdk": "<1.17",
                 "open-telemetry/sdk-configuration": "<0.10"
             },
             "suggest": {
@@ -2120,8 +2121,13 @@
                         "OpenTelemetry\\Extension\\Propagator\\B3\\Config\\TextMapPropagatorB3Multi"
                     ]
                 },
+                "spi-config": {
+                    "autoload-files": [
+                        "_register.php"
+                    ]
+                },
                 "branch-alias": {
-                    "dev-main": "1.3.x-dev"
+                    "dev-main": "1.4.x-dev"
                 }
             },
             "autoload": {
@@ -2158,7 +2164,7 @@
                 "issues": "https://github.com/open-telemetry/opentelemetry-php/issues",
                 "source": "https://github.com/open-telemetry/opentelemetry-php"
             },
-            "time": "2026-11-05T11:54:49+00:00"
+            "time": "2026-11-19T08:10:15+00:00"
         },
         {
             "name": "open-telemetry/gen-otlp-protobuf",
@@ -2793,16 +2799,16 @@
         },
         {
             "name": "phpunit/phpunit",
-            "version": "13.4.7",
+            "version": "13.4.8",
             "source": {
                 "type": "git",
                 "url": "https://github.com/sebastianbergmann/phpunit.git",
-                "reference": "e6458d44279e3b4fc492d4c41fe8e677efed7a2c"
+                "reference": "291e66a76eb39f2fb8f880d38edc30dbd7acd9a2"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/sebastianbergmann/phpunit/zipball/e6458d44279e3b4fc492d4c41fe8e677efed7a2c",
-                "reference": "e6458d44279e3b4fc492d4c41fe8e677efed7a2c",
+                "url": "https://api.github.com/repos/sebastianbergmann/phpunit/zipball/291e66a76eb39f2fb8f880d38edc30dbd7acd9a2",
+                "reference": "291e66a76eb39f2fb8f880d38edc30dbd7acd9a2",
                 "shasum": ""
             },
             "require": {
@@ -2873,7 +2879,7 @@
             "support": {
                 "issues": "https://github.com/sebastianbergmann/phpunit/issues",
                 "security": "https://github.com/sebastianbergmann/phpunit/security/policy",
-                "source": "https://github.com/sebastianbergmann/phpunit/tree/13.4.7"
+                "source": "https://github.com/sebastianbergmann/phpunit/tree/13.4.8"
             },
             "funding": [
                 {
@@ -2881,7 +2887,7 @@
                     "type": "other"
                 }
             ],
-            "time": "2026-11-13T11:10:10+00:00"
+            "time": "2026-11-19T12:17:15+00:00"
         },
         {
             "name": "psr/http-factory",
@@ -3043,16 +3049,16 @@
         },
         {
             "name": "revolt/event-loop",
-            "version": "v1.0.9",
+            "version": "v1.1.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/revoltphp/event-loop.git",
-                "reference": "44061cf513e53c6200372fc935ac42271566295d"
+                "reference": "93999a4ffca70aaa3890c553001e9f8313a1895c"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/revoltphp/event-loop/zipball/44061cf513e53c6200372fc935ac42271566295d",
-                "reference": "44061cf513e53c6200372fc935ac42271566295d",
+                "url": "https://api.github.com/repos/revoltphp/event-loop/zipball/93999a4ffca70aaa3890c553001e9f8313a1895c",
+                "reference": "93999a4ffca70aaa3890c553001e9f8313a1895c",
                 "shasum": ""
             },
             "require": {
@@ -3062,7 +3068,7 @@
                 "ext-json": "*",
                 "jetbrains/phpstorm-stubs": "^2019.3",
                 "phpunit/phpunit": "^9",
-                "psalm/phar": "6.16.*"
+                "psalm/phar": "6.20.*"
             },
             "type": "library",
             "extra": {
@@ -3109,9 +3115,9 @@
             ],
             "support": {
                 "issues": "https://github.com/revoltphp/event-loop/issues",
-                "source": "https://github.com/revoltphp/event-loop/tree/v1.0.9"
+                "source": "https://github.com/revoltphp/event-loop/tree/v1.1.0"
             },
-            "time": "2026-05-16T17:55:38+00:00"
+            "time": "2026-11-14T19:05:53+00:00"
         },
         {
             "name": "sebastian/cli-parser",
@@ -4826,22 +4832,22 @@
         },
         {
             "name": "guzzlehttp/guzzle",
-            "version": "7.16.1",
+            "version": "7.16.3",
             "source": {
                 "type": "git",
                 "url": "https://github.com/guzzle/guzzle.git",
-                "reference": "81755d989b3007ca7f88a069857553cd08e7dc2e"
+                "reference": "c88a78082757dd5a0c44191651535259fcb6e605"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/guzzle/guzzle/zipball/81755d989b3007ca7f88a069857553cd08e7dc2e",
-                "reference": "81755d989b3007ca7f88a069857553cd08e7dc2e",
+                "url": "https://api.github.com/repos/guzzle/guzzle/zipball/c88a78082757dd5a0c44191651535259fcb6e605",
+                "reference": "c88a78082757dd5a0c44191651535259fcb6e605",
                 "shasum": ""
             },
             "require": {
                 "ext-json": "*",
                 "guzzlehttp/promises": "^2.6",
-                "guzzlehttp/psr7": "^2.13.2",
+                "guzzlehttp/psr7": "^2.13.4",
                 "php": "^7.2.5 || ^8.0",
                 "psr/http-client": "^1.0",
                 "symfony/deprecation-contracts": "^2.5 || ^3.0",
@@ -4934,7 +4940,7 @@
             ],
             "support": {
                 "issues": "https://github.com/guzzle/guzzle/issues",
-                "source": "https://github.com/guzzle/guzzle/tree/7.16.1"
+                "source": "https://github.com/guzzle/guzzle/tree/7.16.3"
             },
             "funding": [
                 {
@@ -4950,20 +4956,20 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2026-10-25T21:35:21+00:00"
+            "time": "2026-11-17T16:23:09+00:00"
         },
         {
             "name": "guzzlehttp/promises",
-            "version": "2.6.0",
+            "version": "2.6.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/guzzle/promises.git",
-                "reference": "3d88c829bd5f13d13847b39067dbf09a60af2154"
+                "reference": "a1b6aceb39165acd5c421239e6abfa1b83dbe224"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/guzzle/promises/zipball/3d88c829bd5f13d13847b39067dbf09a60af2154",
-                "reference": "3d88c829bd5f13d13847b39067dbf09a60af2154",
+                "url": "https://api.github.com/repos/guzzle/promises/zipball/a1b6aceb39165acd5c421239e6abfa1b83dbe224",
+                "reference": "a1b6aceb39165acd5c421239e6abfa1b83dbe224",
                 "shasum": ""
             },
             "require": {
@@ -5018,7 +5024,7 @@
             ],
             "support": {
                 "issues": "https://github.com/guzzle/promises/issues",
-                "source": "https://github.com/guzzle/promises/tree/2.6.0"
+                "source": "https://github.com/guzzle/promises/tree/2.6.1"
             },
             "funding": [
                 {
@@ -5034,20 +5040,20 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2026-10-18T12:46:59+00:00"
+            "time": "2026-11-20T00:03:12+00:00"
         },
         {
             "name": "guzzlehttp/psr7",
-            "version": "2.13.3",
+            "version": "2.13.5",
             "source": {
                 "type": "git",
                 "url": "https://github.com/guzzle/psr7.git",
-                "reference": "6d3cd8285a97eaa352956a4ada92fa03ecce1c4e"
+                "reference": "5aa00c5418afbe3f435910af0e98cb03d659c49d"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/guzzle/psr7/zipball/6d3cd8285a97eaa352956a4ada92fa03ecce1c4e",
-                "reference": "6d3cd8285a97eaa352956a4ada92fa03ecce1c4e",
+                "url": "https://api.github.com/repos/guzzle/psr7/zipball/5aa00c5418afbe3f435910af0e98cb03d659c49d",
+                "reference": "5aa00c5418afbe3f435910af0e98cb03d659c49d",
                 "shasum": ""
             },
             "require": {
@@ -5137,7 +5143,7 @@
             ],
             "support": {
                 "issues": "https://github.com/guzzle/psr7/issues",
-                "source": "https://github.com/guzzle/psr7/tree/2.13.3"
+                "source": "https://github.com/guzzle/psr7/tree/2.13.5"
             },
             "funding": [
                 {
@@ -5153,7 +5159,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2026-11-12T15:57:42+00:00"
+            "time": "2026-11-19T20:34:53+00:00"
         },
         {
             "name": "nyholm/psr7-server",
@@ -5223,29 +5229,35 @@
         },
         {
             "name": "open-telemetry/exporter-otlp",
-            "version": "1.5.0",
+            "version": "1.6.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/opentelemetry-php/exporter-otlp.git",
-                "reference": "fe947a27d477a8dc01e31d4f6187e2897ffc71f3"
+                "reference": "78c5ce7646b34b3af449808769eb24430a848049"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/opentelemetry-php/exporter-otlp/zipball/fe947a27d477a8dc01e31d4f6187e2897ffc71f3",
-                "reference": "fe947a27d477a8dc01e31d4f6187e2897ffc71f3",
+                "url": "https://api.github.com/repos/opentelemetry-php/exporter-otlp/zipball/78c5ce7646b34b3af449808769eb24430a848049",
+                "reference": "78c5ce7646b34b3af449808769eb24430a848049",
                 "shasum": ""
             },
             "require": {
                 "open-telemetry/api": "^1.0",
                 "open-telemetry/gen-otlp-protobuf": "^1.11.1",
-                "open-telemetry/sdk": "^1.16",
+                "open-telemetry/sdk": "^1.17",
                 "php": "^8.2",
-                "php-http/discovery": "^1.14"
+                "php-http/discovery": "^1.14",
+                "tbachert/spi": "^1.0.5"
             },
             "type": "library",
             "extra": {
+                "spi-config": {
+                    "autoload-files": [
+                        "_register.php"
+                    ]
+                },
                 "branch-alias": {
-                    "dev-main": "1.5.x-dev"
+                    "dev-main": "1.6.x-dev"
                 }
             },
             "autoload": {
@@ -5283,20 +5295,20 @@
                 "issues": "https://github.com/open-telemetry/opentelemetry-php/issues",
                 "source": "https://github.com/open-telemetry/opentelemetry-php"
             },
-            "time": "2026-11-05T11:54:49+00:00"
+            "time": "2026-11-19T08:10:15+00:00"
         },
         {
             "name": "open-telemetry/sdk",
-            "version": "1.16.1",
+            "version": "1.17.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/opentelemetry-php/sdk.git",
-                "reference": "51ebca2563dd580d682d4f32b1611c1779424dac"
+                "reference": "5b823e465b0fabdf5019aef6aa2e430285949e7b"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/opentelemetry-php/sdk/zipball/51ebca2563dd580d682d4f32b1611c1779424dac",
-                "reference": "51ebca2563dd580d682d4f32b1611c1779424dac",
+                "url": "https://api.github.com/repos/opentelemetry-php/sdk/zipball/5b823e465b0fabdf5019aef6aa2e430285949e7b",
+                "reference": "5b823e465b0fabdf5019aef6aa2e430285949e7b",
                 "shasum": ""
             },
             "require": {
@@ -5338,17 +5350,19 @@
                         "OpenTelemetry\\API\\Instrumentation\\AutoInstrumentation\\ExtensionHookManager"
                     ]
                 },
+                "spi-config": {
+                    "autoload-files": [
+                        "_register.php"
+                    ]
+                },
                 "branch-alias": {
-                    "dev-main": "1.16.x-dev"
+                    "dev-main": "1.17.x-dev"
                 }
             },
             "autoload": {
                 "files": [
                     "Common/Util/functions.php",
-                    "Logs/Exporter/_register.php",
-                    "Metrics/MetricExporter/_register.php",
-                    "Propagation/_register.php",
-                    "Trace/SpanExporter/_register.php",
+                    "_register.php",
                     "Common/Dev/Compatibility/_load.php",
                     "_autoload.php"
                 ],
@@ -5382,7 +5396,7 @@
                 "issues": "https://github.com/open-telemetry/opentelemetry-php/issues",
                 "source": "https://github.com/open-telemetry/opentelemetry-php"
             },
-            "time": "2026-11-06T02:25:35+00:00"
+            "time": "2026-11-19T08:10:15+00:00"
         },
         {
             "name": "open-telemetry/sdk-configuration",
@@ -5565,28 +5579,34 @@
         },
         {
             "name": "open-telemetry/transport-grpc",
-            "version": "1.3.0",
+            "version": "1.4.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/opentelemetry-php/transport-grpc.git",
-                "reference": "3ebbe7f73e09b206161be3f395c92f11faa23a81"
+                "reference": "0259e72ef7277c0e321d9ea80e31976856ef503d"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/opentelemetry-php/transport-grpc/zipball/3ebbe7f73e09b206161be3f395c92f11faa23a81",
-                "reference": "3ebbe7f73e09b206161be3f395c92f11faa23a81",
+                "url": "https://api.github.com/repos/opentelemetry-php/transport-grpc/zipball/0259e72ef7277c0e321d9ea80e31976856ef503d",
+                "reference": "0259e72ef7277c0e321d9ea80e31976856ef503d",
                 "shasum": ""
             },
             "require": {
                 "ext-grpc": "*",
                 "grpc/grpc": "*",
-                "open-telemetry/sdk": "^1.0",
-                "php": "^8.2"
+                "open-telemetry/sdk": "^1.17",
+                "php": "^8.2",
+                "tbachert/spi": "^1.0.5"
             },
             "type": "library",
             "extra": {
+                "spi-config": {
+                    "autoload-files": [
+                        "_register.php"
+                    ]
+                },
                 "branch-alias": {
-                    "dev-main": "1.3.x-dev"
+                    "dev-main": "1.4.x-dev"
                 }
             },
             "autoload": {
@@ -5623,7 +5643,7 @@
                 "issues": "https://github.com/open-telemetry/opentelemetry-php/issues",
                 "source": "https://github.com/open-telemetry/opentelemetry-php"
             },
-            "time": "2026-11-05T11:54:49+00:00"
+            "time": "2026-11-19T08:10:15+00:00"
         },
         {
             "name": "php-http/discovery",
@@ -6046,16 +6066,16 @@
         },
         {
             "name": "ramsey/uuid",
-            "version": "4.9.4",
+            "version": "4.10.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/ramsey/uuid.git",
-                "reference": "75d73f48d02797c2c285a7e9f348fadc0102ffe2"
+                "reference": "f9aa3efc8015fcbc013d84d699583b268ccb593a"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/ramsey/uuid/zipball/75d73f48d02797c2c285a7e9f348fadc0102ffe2",
-                "reference": "75d73f48d02797c2c285a7e9f348fadc0102ffe2",
+                "url": "https://api.github.com/repos/ramsey/uuid/zipball/f9aa3efc8015fcbc013d84d699583b268ccb593a",
+                "reference": "f9aa3efc8015fcbc013d84d699583b268ccb593a",
                 "shasum": ""
             },
             "require": {
@@ -6067,23 +6087,22 @@
                 "rhumsaa/uuid": "self.version"
             },
             "require-dev": {
-                "captainhook/captainhook": "^5.25",
-                "captainhook/plugin-composer": "^5.3",
-                "dealerdirect/phpcodesniffer-composer-installer": "^1.0",
-                "ergebnis/composer-normalize": "^2.47",
-                "mockery/mockery": "^1.6",
-                "paragonie/random-lib": "^2",
-                "php-mock/php-mock": "^2.6",
-                "php-mock/php-mock-mockery": "^1.5",
+                "captainhook/captainhook": "^5.29.3",
+                "captainhook/plugin-composer": "^5.3.3",
+                "dealerdirect/phpcodesniffer-composer-installer": "^1.2.1",
+                "mockery/mockery": "^1.6.15",
+                "paragonie/random-lib": "^2.0.3",
+                "php-mock/php-mock": "^2.7.0",
+                "php-mock/php-mock-mockery": "^1.5.0",
                 "php-parallel-lint/php-parallel-lint": "^1.4.0",
                 "phpbench/phpbench": "^1.2.14",
-                "phpstan/extension-installer": "^1.4",
-                "phpstan/phpstan": "^2.1",
-                "phpstan/phpstan-mockery": "^2.0",
-                "phpstan/phpstan-phpunit": "^2.0",
-                "phpunit/phpunit": "^9.6",
-                "slevomat/coding-standard": "^8.18",
-                "squizlabs/php_codesniffer": "^3.13"
+                "phpstan/extension-installer": "^1.4.3",
+                "phpstan/phpstan": "^2.3.5",
+                "phpstan/phpstan-mockery": "^2.0.0",
+                "phpstan/phpstan-phpunit": "^2.1.2",
+                "phpunit/phpunit": "^9.6.39",
+                "slevomat/coding-standard": "^8.31.3",
+                "squizlabs/php_codesniffer": "^4.0.4"
             },
             "suggest": {
                 "ext-bcmath": "Enables faster math with arbitrary-precision integers using BCMath.",
@@ -6118,9 +6137,9 @@
             ],
             "support": {
                 "issues": "https://github.com/ramsey/uuid/issues",
-                "source": "https://github.com/ramsey/uuid/tree/4.9.4"
+                "source": "https://github.com/ramsey/uuid/tree/4.10.0"
             },
-            "time": "2026-09-16T11:39:30+00:00"
+            "time": "2026-11-14T23:23:20+00:00"
         },
         {
             "name": "symfony/config",
