@@ -8,7 +8,7 @@ test that verifies specification-defined behavior — against the two SDKs under
 - **tbachert run:** 440 tests executed, **440 passing / 0 failing** (`spec` +
   `tbachert` groups): the whole shared `spec` group passes, as do the 4
   vendor-specific tests.
-x1- **official run:** 442 tests executed, **340 passing / 102 failing**
+- **official run:** 442 tests executed, **340 passing / 102 failing**
   (`spec` + `official` groups). All 102 failures are shared spec tests: 25 in
   environment-variable mode, 77 in configuration-file mode. As the JUnit log
   splits them: **12 errors, 90 assertion failures**. All 12 errors are the
